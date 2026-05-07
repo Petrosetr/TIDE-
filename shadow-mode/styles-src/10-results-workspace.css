@@ -1,0 +1,2069 @@
+.rg-cell {
+  display: flex;
+  flex-direction: column;
+  /* Phase D.31 — was 0.1rem (~1.6px) — same sub-pixel fusion class as
+     the chip+sub gaps fixed in D.30.0. Aligned to var(--space-1). */
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.rg-label {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.rg-cell strong {
+  font-size: var(--fs-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.judge-demo-frame[hidden] {
+  display: none;
+}
+
+.judge-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.judge-compare-card {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--line) 68%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--surface-soft) 58%, transparent);
+}
+
+.judge-compare-card span,
+.decision-atlas__item span {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.judge-compare-card h3 {
+  margin: 0.35rem 0 0.75rem;
+  font-size: var(--fs-lg);
+}
+
+.judge-compare-card ul {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--muted);
+}
+
+.judge-compare-card li + li {
+  margin-top: 0.35rem;
+}
+
+.judge-compare-card--tide {
+  border-color: color-mix(in srgb, var(--mint) 34%, var(--line));
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--mint) 12%, transparent),
+    color-mix(in srgb, var(--surface-soft) 68%, transparent)
+  );
+}
+
+.decision-atlas {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.decision-atlas__item {
+  min-width: 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  padding-top: var(--space-3);
+}
+
+.decision-atlas__item strong {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: var(--fs-md);
+}
+
+.decision-atlas__item p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.decision-atlas__share {
+  margin-top: var(--space-1);
+}
+
+@media (max-width: 760px) {
+  .judge-compare-grid,
+  .decision-atlas {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rg-sub {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+
+.stress-ladder {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 0.15rem;
+  scrollbar-color: color-mix(in srgb, var(--accent) 72%, transparent) transparent;
+  scrollbar-width: thin;
+  position: relative;
+  scroll-snap-type: x proximity;
+}
+
+.stress-ladder__track {
+  min-width: max(100%, calc(var(--scenario-count, 6) * 6.1rem));
+}
+
+@media (max-width: 760px) {
+  .stress-ladder {
+    margin-inline: calc(var(--space-2) * -1);
+    padding-inline: var(--space-2);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .stress-ladder::after {
+    content: "";
+    position: sticky;
+    right: calc(var(--space-2) * -1);
+    bottom: 0.15rem;
+    display: block;
+    width: 2.25rem;
+    height: 0.25rem;
+    margin-left: auto;
+    border-radius: var(--radius-pill);
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 78%, transparent));
+    pointer-events: none;
+  }
+
+  .stress-ladder__track {
+    min-width: max(100%, calc(var(--scenario-count, 6) * 4.75rem));
+  }
+}
+
+@media (max-width: 560px) {
+  .stress-ladder {
+    margin-inline: 0;
+    padding-inline: 0;
+    overflow-x: visible;
+  }
+
+  .stress-ladder::after {
+    display: none;
+  }
+
+  .stress-ladder__track {
+    min-width: 0;
+  }
+
+  .stress-ladder-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    padding-inline: 0;
+  }
+
+  .stress-ladder-cell {
+    min-width: 0;
+    border: 1px solid color-mix(in srgb, var(--ladder-tone) 28%, var(--line));
+    border-top-width: 2px;
+    border-radius: var(--radius-sm);
+    padding: 0.5rem;
+  }
+}
+
+.stress-spark {
+  display: flex;
+  align-items: flex-end;
+  /* Phase D.31 — was 3px (sub-token, fused spark bars at squint). */
+  gap: var(--space-1);
+  height: 48px;
+  padding: 0.6rem 0.5rem;
+}
+
+.stress-ladder .spark-detail-popup {
+  margin: 0.55rem 0.25rem 0;
+}
+
+.stress-spark-bar {
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--radius-pill) var(--radius-pill) 0 0;
+  background: var(--accent);
+  opacity: 0.85;
+  transition: opacity 200ms, background 200ms;
+  position: relative;
+}
+
+.stress-spark-bar:hover {
+  opacity: 1;
+}
+
+/* Phase D.30.3 — was raw --cyan/--mint/--amber/--violet/--rose which
+   over-shouted on the surface-soft track. The sibling .scenario-card
+   stripes (~650 lines below) already use the color-mix(... 72%,
+   transparent) recipe; these spark bars now match per §9.8. */
+.stress-spark-bar[data-spark-state="Observe"]        { background: color-mix(in srgb, var(--cyan)   72%, transparent); }
+.stress-spark-bar[data-spark-state="Maintain"]       { background: color-mix(in srgb, var(--mint)   72%, transparent); }
+.stress-spark-bar[data-spark-state="BuildBuffer"]    { background: color-mix(in srgb, var(--amber)  72%, transparent); }
+.stress-spark-bar[data-spark-state="DeRisk"]         { background: color-mix(in srgb, var(--violet) 72%, transparent); }
+.stress-spark-bar[data-spark-state="StressLockdown"] { background: color-mix(in srgb, var(--rose)   72%, transparent); }
+
+.stress-spark-bar.is-selected {
+  opacity: 1;
+
+  border-radius: var(--radius-pill) var(--radius-pill) 0 0;
+}
+
+.stress-ladder-strip {
+  display: grid;
+  grid-template-columns: repeat(var(--scenario-count, 6), minmax(0, 1fr));
+  gap: var(--space-1);
+  padding: 0 0.5rem 0.1rem;
+}
+
+.stress-ladder-cell {
+  --ladder-tone: var(--line-strong);
+  min-width: 0;
+  appearance: none;
+  border: 0;
+  border-top: 2px solid color-mix(in srgb, var(--ladder-tone) 78%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  scroll-snap-align: start;
+  cursor: pointer;
+  display: grid;
+  gap: 0.16rem;
+  padding: 0.42rem 0.38rem 0.5rem;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.stress-ladder-cell:hover,
+.stress-ladder-cell:focus-visible,
+.stress-ladder-cell.is-selected {
+  background: color-mix(in srgb, var(--ladder-tone) 8%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--ladder-tone) 32%, var(--line));
+}
+
+.stress-ladder-cell:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ladder-tone) 62%, transparent);
+  outline-offset: 2px;
+}
+
+.stress-ladder-cell[data-state="Observe"]        { --ladder-tone: var(--cyan); }
+.stress-ladder-cell[data-state="Maintain"]       { --ladder-tone: var(--mint); }
+.stress-ladder-cell[data-state="BuildBuffer"]    { --ladder-tone: var(--amber); }
+.stress-ladder-cell[data-state="DeRisk"]         { --ladder-tone: var(--violet); }
+.stress-ladder-cell[data-state="StressLockdown"] { --ladder-tone: var(--rose); }
+
+.stress-ladder-cell__kicker,
+.stress-ladder-cell__meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.stress-ladder-cell__kicker {
+  text-transform: uppercase;
+}
+
+.stress-ladder-cell__main {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.stress-ladder-cell__main strong {
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.stress-ladder-cell__main span,
+.stress-ladder-cell__meta span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stress-ladder-cell__main span {
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.stress-ladder-cell__meta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.35rem;
+}
+
+.spark-detail-popup {
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  border: 1px solid var(--line-strong);
+
+  animation: fadeSlideIn 0.15s ease;
+}
+
+.spark-detail-popup[hidden] { display: none; }
+
+.spark-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.spark-detail-head strong {
+  font-size: var(--fs-base);
+}
+
+.spark-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.3rem 0.6rem;
+}
+
+.spark-detail-grid div {
+  display: flex;
+  flex-direction: column;
+  /* Phase D.31 — was 0.1rem (~1.6px). Same sub-pixel fusion class as
+     .rg-cell. Aligned to var(--space-1). */
+  gap: var(--space-1);
+}
+
+.spark-detail-grid span {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.spark-detail-grid strong {
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.spark-detail-explain {
+  margin: 0.4rem 0 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.payout-range-bar {
+  position: relative;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+  overflow: hidden;
+  margin: 0.4rem 0;
+}
+
+.payout-range-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  /* T21 fix — was var(--surface) which made the fill invisible
+     against the surface-coloured card. The bar visualises payout
+     range, so the fill should read in accent. */
+  background: var(--accent);
+  transition: width var(--motion-slow) ease;
+}
+
+
+@media (max-width: 1080px) {
+.page-header, .page-tools, .section-head, .route-card-head, .saved-card-head, .log-card-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+.content-grid-main, .fact-list-compact, .operator-grid, .operator-facts {
+    grid-template-columns: 1fr;
+  }
+
+.page-tools {
+    justify-items: start;
+  }
+
+.route-metrics {
+    grid-template-columns: 1fr;
+  }
+
+.form-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+.review-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+.review-item .review-flag {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+}
+
+@media (max-width: 1024px) {
+body[data-page="results"] .content-grid-main {
+    grid-template-columns: 1fr;
+  }
+
+.operator-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+.app-main--topbar .page-stack {
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+h1 {
+    font-size: 1.35rem;
+    max-width: none;
+  }
+
+.form-grid-2, .form-grid-3, .operator-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+.action-cluster {
+    width: 100%;
+  }
+
+.review-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+.review-item .review-flag {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+.button {
+    width: 100%;
+  }
+
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    opacity: 0.62;
+    text-shadow: 0 0 0 color-mix(in srgb, var(--cyan-soft, var(--accent)) 0%, transparent);
+  }
+  50% {
+    opacity: 1;
+    text-shadow: 0 0 12px color-mix(in srgb, var(--cyan-soft, var(--accent)) 70%, transparent);
+  }
+}
+
+.metric-card {
+  transition: transform 0.15s ease;
+}
+
+.button-primary:active {
+  transform: scale(0.97);
+}
+
+.button-secondary:active {
+  transform: scale(0.97);
+}
+
+.button[disabled] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.saved-card {
+  transition: background-color 0.2s ease;
+}
+
+.status-line[data-status="running"] {
+  animation: pulseGlow 1.5s ease-in-out infinite;
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  /* C.2.4 R7 — was hardcoded white (#fff + rgba(255,255,255,…));
+     fails on light theme. currentColor inherits the parent button's
+     text colour (white on .button-primary, --text-strong on ghost),
+     so the spinner reads in both contexts + both themes. */
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: btnSpin 0.6s linear infinite;
+  vertical-align: middle;
+}
+
+.button.is-running {
+  pointer-events: none;
+}
+
+@keyframes btnSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Phase D.28 — .ws-step-list-compact removed; consumed only inside
+   the dead `renderLiveGettingStarted` (purged in D.28.2). DS rule §9.10. */
+.ws-dash-label {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.55rem;
+}
+
+.ws-dash-sub {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+/* Phase D.2 — semantic tone classes for ws-position-metrics values
+   so the markup stops carrying inline color:var(--*-text) style attrs.
+   Mint = healthy/payout, cyan = live/LTV. */
+.ws-dash-strong--mint { color: var(--mint-text); }
+.ws-dash-strong--cyan { color: var(--cyan-text); }
+
+/* Phase D.28 — .ws-step-list, .ws-step, .ws-step-num, .ws-step strong,
+   .ws-step p removed. Consumed only inside the dead
+   `renderLiveGettingStarted` (purged in D.28.2). DS rule §9.10. */
+
+/* Workspace filter is a toolbar, not a third dashboard card. The
+   portfolio hero already carries totals; filters should sit lightly
+   between portfolio and list. */
+.workspace-head {
+  display: grid;
+  gap: var(--space-3);
+  position: relative;
+  padding: clamp(1.1rem, 1.8vw, 1.8rem);
+}
+
+.workspace-head__top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "label controls";
+  align-items: center;
+  column-gap: var(--space-3);
+  row-gap: var(--space-1);
+  min-width: 0;
+}
+
+.workspace-head__top-actions {
+  grid-area: controls;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.workspace-head__top > .section-label {
+  grid-area: label;
+  margin: 0;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.workspace-head__visual {
+  display: grid;
+  align-content: end;
+  justify-items: end;
+  gap: var(--space-2);
+  min-width: 0;
+  text-align: right;
+}
+
+.workspace-head__visual .ds-hero__chart {
+  justify-content: flex-end;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspace-head__visual .ds-hero__chart .spark-inline {
+  width: min(20rem, 100%);
+  max-width: 100%;
+  padding-inline: 0.12rem;
+}
+
+.workspace-head__visual .ds-hero__chart .spark-inline svg path {
+  animation: none;
+  stroke-dasharray: none;
+  stroke-dashoffset: 0;
+}
+
+.workspace-head__visual .status-line {
+  justify-self: end;
+  max-width: 42ch;
+  color: var(--muted);
+  text-align: right;
+  font-size: var(--fs-xs);
+}
+
+.workspace-head .trust-labels.trust-strip--workspace {
+  align-self: center;
+  flex: none;
+  justify-content: flex-start;
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.workspace-head__main {
+  display: grid;
+  grid-template-columns: minmax(20rem, 1fr) minmax(20rem, 0.78fr);
+  gap: var(--space-5);
+  align-items: end;
+  min-width: 0;
+}
+
+.workspace-head__anchor {
+  min-width: 0;
+}
+
+.workspace-head__sub-delta--down {
+  color: var(--rose-text);
+}
+
+.workspace-head__metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  min-width: 0;
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--line);
+}
+
+.workspace-head__metrics div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.workspace-head__metrics dt {
+  color: var(--muted);
+  font-family: var(--ff-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-head__metrics dd {
+  margin: 0;
+  color: var(--text-strong);
+  font-family: var(--ff-mono);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.workspace-head__metrics a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.workspace-head__metrics a:hover {
+  color: var(--accent);
+}
+
+.workspace-head__actions {
+  align-self: start;
+  justify-self: end;
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.workspace-head__actions .ws-id-chip {
+  flex-direction: row;
+  align-items: center;
+}
+
+.workspace-filter-toolbar {
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--line);
+}
+
+.workspace-filter-toolbar:empty {
+  display: none;
+}
+
+.ws-filter-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ws-filter-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-full);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ws-filter-btn:hover {
+  background: var(--surface-tint);
+  color: var(--text);
+}
+
+.ws-filter-btn.is-active {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ws-filter-count {
+  font-size: var(--fs-2xs);
+  opacity: 0.7;
+}
+
+.ws-filter-refresh {
+  margin-left: auto;
+}
+
+@media (max-width: 720px) {
+  .workspace-head__top {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "actions"
+      "posture"
+      "label";
+  }
+  .workspace-head__top-actions,
+  .workspace-head__visual {
+    justify-content: flex-start;
+    text-align: left;
+  }
+  .workspace-head__visual .status-line {
+    justify-self: start;
+    text-align: left;
+  }
+  .workspace-head__visual .ds-hero__chart,
+  .workspace-head__visual .ds-hero__chart .spark-inline {
+    width: 100%;
+  }
+  .workspace-head .trust-labels.trust-strip--workspace {
+    justify-content: flex-start;
+  }
+  .workspace-head__main {
+    grid-template-columns: 1fr;
+  }
+  .workspace-head__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workspace-head__actions {
+    justify-self: stretch;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    min-width: 0;
+  }
+  .ws-filter-refresh {
+    margin-left: 0;
+  }
+}
+
+.ws-position-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem;
+}
+
+.ws-position-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.ws-position-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.ws-position-title strong {
+  font-size: var(--fs-base);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ws-position-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ws-position-date {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+
+.ws-route-chip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.ws-route-chip .entity-inline {
+  width: auto;
+  gap: 0.44rem;
+}
+
+.ws-route-chip .visual-mark {
+  width: 24px !important;
+  height: 24px !important;
+  flex: 0 0 24px !important;
+}
+
+.ws-route-chip .entity-copy strong {
+  font-size: var(--fs-xs);
+  color: var(--muted-strong);
+}
+
+/* C.12 / D.35 — `.ws-badge-*` and bespoke `.ws-source-chip*` chrome
+   deleted. Icon-bearing source/status chips compose `.icon-badge`;
+   `.state-badge` remains for neutral counters only. */
+
+/* Workspace entries are one list. Draft, simulation, and live rows
+   keep the same card chrome; type and posture are expressed by the
+   chip row and CTA set, not by changing density or background. */
+
+.readout-decision-rationale {
+  display: grid;
+  gap: 0.18rem;
+  max-width: 58rem;
+  padding-top: 0.48rem;
+  border-top: 1px dashed color-mix(in srgb, var(--line) 68%, transparent);
+}
+
+.readout-decision-rationale > span {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.readout-decision-rationale > strong {
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  letter-spacing: -0.01em;
+}
+
+.readout-decision-rationale > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.42;
+}
+
+.ws-position-metrics {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.6rem 1rem;
+  align-items: start;
+}
+
+.ws-position-metrics > div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ws-position-metrics .entity-inline {
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+.ws-position-metrics .visual-mark {
+  width: 18px !important;
+  height: 18px !important;
+  flex: 0 0 18px !important;
+}
+
+.ws-position-metrics .token-chip {
+  font-size: var(--fs-sm);
+}
+
+.ws-position-metrics strong {
+  font-size: var(--fs-sm);
+  letter-spacing: -0.02em;
+}
+
+.ws-dash-protocol {
+  display: block;
+  min-width: 0;
+}
+
+.ws-dash-protocol .entity-inline {
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  gap: 0.38rem;
+}
+
+.ws-dash-protocol .visual-mark {
+  width: 20px !important;
+  height: 20px !important;
+  flex: 0 0 20px !important;
+}
+
+.ws-dash-protocol .entity-copy {
+  min-width: 0;
+}
+
+.ws-dash-protocol .entity-copy strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+}
+
+.ws-token-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.ws-token-sub .token-mark {
+  width: 28px !important;
+  height: 28px !important;
+  flex: 0 0 28px !important;
+}
+
+.ws-token-sub .token-mark img {
+  width: 100%;
+  height: 100%;
+}
+
+.ws-token-sub span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-dash-asset-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.05rem;
+  color: var(--muted-strong);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.ws-dash-asset-line .ws-token-sub {
+  color: inherit;
+  font-size: inherit;
+}
+
+.ws-dash-asset-line .ws-token-sub .token-mark {
+  width: 34px !important;
+  height: 34px !important;
+  flex-basis: 34px !important;
+}
+
+.ws-dash-asset-line .ws-dash-asset-amount {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ws-dash-empty {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.ws-position-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  /* Phase D.27 — was padding-top: 0.2rem; the button row visibly
+     touched the metric row above with only ~3 px of separation,
+     reading as overflow rather than as a deliberate action zone
+     ("кнопки прилипли к плашкам" — user). Lifted to 0.85rem so
+     the border-top hairline + breathing room frame the actions
+     as the card footer. Margin-top mirrors so the card-internal
+     stack reads with consistent rhythm. */
+  margin-top: 0.6rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+
+@media (max-width: 760px) {
+.ws-filter-row {
+    flex-wrap: wrap;
+  }
+
+.ws-position-metrics {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+}
+
+/* Stress-scenario card grid — six historical scenarios always emit,
+   so the grid is locked at 3 columns × 2 rows to avoid the orphan
+   row remainder that auto-fit produces at typical viewport widths
+   (was 5 + 1 sad-orphan on /results). Phase D.30.2 — the renderer
+   contract is exactly six scenarios from HISTORICAL_REFERENCE_SCENARIOS,
+   so a 3×2 grid is intentional and balanced. Two breakpoints below
+   degrade to 2-col then 1-col on narrow viewports. */
+/* Phase D.32 (F-5) — was repeat(3, ...) which produced a 3×2 grid for
+   the canonical 6-scenario stress ladder. The .stress-spark bar above
+   uses `display: flex` with `flex: 1` per bar — meaning the bar always
+   renders 6 segments in a single row. The 3×2 card grid did not align
+   with the 6×1 bar, so cards visually "broke" away from their stress
+   segment. User flagged: "каждый квадратик должен быть под своим
+   отрезком шкалы а не в 2 ряда". The renderer emits
+   `style="--scenario-count: ${N}"` on the .scenario-grid root, so the
+   grid can resolve its column count dynamically. At wide viewport we
+   match the bar 1:1; at narrow we collapse to 3 / 2 / 1 column tiers
+   (the bar's flex-1 segments shrink correspondingly thin, accepted
+   as the responsive degradation). */
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--scenario-count, 6), minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.55rem;
+}
+@media (max-width: 1280px) {
+  .scenario-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 860px) {
+  .scenario-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 540px) {
+  .scenario-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.scenario-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.65rem 0.8rem 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-soft) 32%, transparent);
+  transition: border-color 0.15s ease, background 0.15s ease;
+  min-width: 0;
+}
+.scenario-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--line-strong));
+  background: color-mix(in srgb, var(--surface-soft) 50%, transparent);
+}
+/* C.2.4 R2 — was hardcoded pre-Phase-C cyan/mint/amber/violet/rose
+   rgba; now tracks the lifted tone palette via tokens. */
+.scenario-card[data-state="Observe"]        { border-left-color: color-mix(in srgb, var(--cyan) 72%, transparent); }
+.scenario-card[data-state="Maintain"]       { border-left-color: color-mix(in srgb, var(--mint) 72%, transparent); }
+.scenario-card[data-state="BuildBuffer"]    { border-left-color: color-mix(in srgb, var(--amber) 72%, transparent); }
+.scenario-card[data-state="DeRisk"]         { border-left-color: color-mix(in srgb, var(--violet) 72%, transparent); }
+.scenario-card[data-state="StressLockdown"] { border-left-color: color-mix(in srgb, var(--rose) 72%, transparent); }
+
+.scenario-card__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+.scenario-ring {
+  flex: 0 0 auto;
+}
+.scenario-card__title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.scenario-card__index {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.scenario-card__title strong {
+  font-size: var(--fs-sm);
+  color: var(--text-strong);
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scenario-card__state {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  font-weight: 600;
+}
+.scenario-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem 0.55rem;
+  padding-top: 0.45rem;
+  border-top: 1px dashed color-mix(in srgb, var(--line) 70%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+.scenario-card__metrics > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.scenario-card__metrics > div > span {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.scenario-card__metrics > div > strong {
+  font-size: var(--fs-xs);
+  color: var(--text-strong);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  .scenario-row__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.log-card {
+  position: relative;
+  overflow: hidden;
+  padding-left: 1.3rem;
+}
+
+.log-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--line-strong);
+}
+
+/* C.2.4 R3 — log-card state stripes track the lifted tone palette,
+   matching the .scenario-card rules above (R2). */
+.log-card[data-state="Observe"]::before { background: color-mix(in srgb, var(--cyan) 72%, transparent); }
+
+.log-card[data-state="Maintain"]::before { background: color-mix(in srgb, var(--mint) 72%, transparent); }
+
+.log-card[data-state="BuildBuffer"]::before { background: color-mix(in srgb, var(--amber) 72%, transparent); }
+
+.log-card[data-state="DeRisk"]::before { background: color-mix(in srgb, var(--violet) 72%, transparent); }
+
+.log-card[data-state="StressLockdown"]::before { background: color-mix(in srgb, var(--rose) 72%, transparent); }
+
+.note-card {
+  position: relative;
+  padding-left: 1.1rem;
+  border-left: 3px solid var(--line);
+}
+
+.disclosure {
+  transition: box-shadow 0.2s ease;
+}
+
+.disclosure-head {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  position: relative;
+  padding-right: 2rem;
+}
+
+.disclosure-head::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure-head::after {
+  content: "";
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: translateY(-65%) rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+.disclosure[open] > .disclosure-head::after {
+  transform: translateY(-35%) rotate(-135deg);
+}
+
+.empty-panel {
+  text-align: center;
+  padding: 1.5rem 1rem;
+}
+
+.empty-panel h3 {
+  font-size: var(--fs-md);
+  margin: 0 0 0.3rem;
+}
+
+.empty-panel p {
+  max-width: 38ch;
+  margin: 0 auto;
+  font-size: var(--fs-sm);
+}
+
+.empty-results-hero {
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.empty-results-hero h2 {
+  font-size: var(--fs-lg);
+}
+
+.empty-results-hero .surface-copy {
+  max-width: 40ch;
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.empty-results-icon {
+  opacity: 0.5;
+  margin-bottom: 0.15rem;
+}
+
+.form-grid-1 {
+  grid-template-columns: 1fr;
+}
+
+.segmented-control {
+  display: grid;
+  gap: 0;
+  background: var(--bg-strong);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  padding: 3px;
+  position: relative;
+}
+
+.toggle-stack {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 960px) {
+.position-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+*, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+}
+
+html[data-theme="dark"] {
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar { width: 6px; height: 6px; }
+
+html[data-theme="dark"] ::-webkit-scrollbar-track { background: transparent; }
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: var(--radius-pill); }
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted) 35%, transparent); }
+
+html[data-theme="dark"] .review-check:checked, html[data-theme="dark"] .review-item.is-done .review-check {
+  background:
+    center / 0.7rem 0.7rem no-repeat
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.2 8.4 6.4 11.4 12.6 4.8' fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.2'/%3E%3C/svg%3E"),
+    var(--accent);
+}
+
+/* =======================================================================
+   Workspace (index.html) — identity strip, on-chain policies, receipts.
+   These sections sit above the existing workspace hero/filter/list,
+   which already has styles earlier in this file.
+   ======================================================================= */
+
+/* Phase D.27 — .ws-identity wrapper rule removed. After D.19 the
+   workspace identity slot composes the canonical .ds-hero pattern
+   directly, with no wrapping .ws-identity div. Zero refs in markup. */
+
+/* Phase D.27 — .ws-identity__primary, .ws-identity__wallet (+ :hover,
+   --empty), and .ws-id-label class definitions removed. They were
+   the chrome of the OLD flat 3-column workspace identity layout
+   that D.19 replaced with the canonical .ds-hero pattern. Zero
+   refs in app.js. */
+
+.ws-id-chip {
+  display: inline-flex;
+  flex-direction: column;
+  /* Phase D.30.0 — was 0.1rem (~1.6px) which fused the two text rows.
+     var(--space-1) is the canonical minimum visual-fusion break. */
+  gap: var(--space-1);
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--line-strong) 80%, transparent);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text-strong);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ws-id-chip strong {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+a.ws-id-chip:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+
+.ws-id-chip--env {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 0.7rem;
+  align-self: center;
+  font-size: var(--fs-2xs);
+}
+
+/* C.2.2 W6 — was hardcoded amber + cobalt hex. Tracks tokens. */
+.ws-id-chip--testnet { color: var(--amber-text); border-color: color-mix(in srgb, var(--amber) 40%, var(--line-strong)); }
+.ws-id-chip--mainnet { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line-strong)); }
+.ws-id-chip--muted { color: var(--muted); }
+
+/* Phase D.27 — .ws-identity__counts, .ws-count-tile (+ strong), and
+   .ws-identity__cta definitions removed. Old workspace identity
+   chrome that D.19 superseded with the canonical .ds-hero pattern.
+   Only .ws-identity__cta-hint kept — still emitted for the
+   "Wallet is optional for simulation" copy under the CTA. */
+.ws-identity__cta-hint {
+  font-size: var(--fs-2xs);
+  line-height: 1.35;
+  color: var(--muted);
+  max-width: 19rem;
+}
+
+/* Lifecycle microfact line — used by the orphan-receipts live card
+   to explain state in one row without a separate panel. */
+.ws-policy-lifecycle-line {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* Orphan receipts history (receipts whose parent policy is detached
+   from this wallet). Kept compact so the card doesn't balloon. */
+.ws-orphan-history {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+.ws-orphan-more {
+  justify-self: start;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-decoration: none;
+}
+.ws-orphan-more:hover { color: var(--accent); }
+
+.ws-live-panel {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) 0 0;
+  border-top: 1px dashed var(--line);
+  border-radius: 0;
+  border-inline: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.ws-live-panel--compact {
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+}
+
+.ws-live-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ws-live-panel__head > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.ws-live-panel__head > div > span {
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ws-live-panel__head strong {
+  color: var(--text-strong);
+  font-size: var(--fs-md);
+}
+
+.ws-live-panel__copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1.55;
+}
+
+.ws-live-panel__note {
+  margin: 0;
+  color: var(--amber-text);
+  font-size: var(--fs-2xs);
+  line-height: 1.55;
+}
+
+.ws-exit-brief-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.ws-exit-brief-head > div {
+  display: grid;
+  gap: var(--space-1);
+  max-width: 880px;
+}
+
+.ws-exit-brief-head span,
+.ws-exit-checklist-head span,
+.ws-exit-next > span,
+.ws-exit-verify span {
+  font-family: var(--ff-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ws-exit-brief-head strong {
+  color: var(--text-strong);
+  font-size: var(--fs-md);
+}
+
+.ws-exit-brief-head p,
+.ws-exit-next p,
+.ws-exit-verify p,
+.ws-exit-boundary p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.ws-exit-brief-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.82fr) minmax(360px, 1.18fr);
+  gap: var(--space-3);
+  align-items: stretch;
+}
+
+.ws-exit-next,
+.ws-exit-verify {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-soft) 28%, transparent);
+}
+
+.ws-exit-next {
+  display: grid;
+  align-content: center;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-left: 3px solid color-mix(in srgb, var(--accent) 72%, var(--line));
+}
+
+.ws-exit-next[data-tone="amber"] {
+  border-left-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 5%, transparent);
+}
+
+.ws-exit-next[data-tone="success"] {
+  border-left-color: var(--mint);
+  background: color-mix(in srgb, var(--mint) 5%, transparent);
+}
+
+.ws-exit-next strong {
+  color: var(--text-strong);
+  font-size: var(--fs-lg);
+  line-height: 1.12;
+}
+
+.ws-exit-verify {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+}
+
+.ws-exit-verify > div {
+  display: grid;
+  align-content: center;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+.ws-exit-verify > div + div {
+  border-left: 1px solid var(--line);
+}
+
+.ws-exit-verify strong {
+  color: var(--text-strong);
+  font-size: var(--fs-lg);
+  line-height: 1.1;
+}
+
+.ws-exit-boundary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+  padding: var(--space-2) 0 var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.ws-exit-checklist-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.ws-exit-checklist-head > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.ws-exit-checklist-head strong {
+  color: var(--text-strong);
+  font-size: var(--fs-md);
+}
+
+.ws-live-step-list--exit {
+  margin-top: calc(var(--space-1) * -1);
+}
+
+.ws-live-step__main {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+  min-width: 0;
+}
+
+.ws-live-step__index {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--muted-strong);
+  background: color-mix(in srgb, var(--surface-soft) 42%, transparent);
+  font-family: var(--ff-mono);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ws-live-step.is-complete .ws-live-step__index {
+  color: var(--mint-text);
+  border-color: color-mix(in srgb, var(--mint) 40%, var(--line-strong));
+  background: color-mix(in srgb, var(--mint) 10%, transparent);
+}
+
+.ws-exit-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding-top: var(--space-1);
+}
+
+.ws-exit-actions__primary,
+.ws-exit-actions__secondary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.ws-exit-actions__primary {
+  margin-left: auto;
+  order: 2;
+}
+
+.ws-exit-actions__secondary {
+  order: 1;
+}
+
+.ws-live-control-group,
+.ws-live-handoff {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.ws-live-control-label {
+  width: fit-content;
+  font-size: var(--fs-2xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ws-live-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.ws-live-panel--compact .ws-live-actions {
+  padding: 0;
+  border-top: 0;
+}
+
+.ws-live-panel--compact .ws-live-handoff {
+  margin-top: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: 1px dashed color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.ws-live-control-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.ws-live-panel--compact .ws-live-control-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ws-live-step-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.ws-live-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) 0;
+  border-radius: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+
+.ws-live-step strong {
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+}
+
+.ws-live-step__main > div > span {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.ws-live-step--checklist.is-complete {
+  border-color: var(--line);
+}
+
+.ws-live-step__actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0;
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
+
+.ws-live-step__status {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+
+.ws-live-receipt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+  border-radius: 0;
+  border: 0;
+  border-top: 1px dashed var(--line);
+  background: transparent;
+}
+
+.ws-live-receipt__main { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.ws-live-receipt__main strong { color: var(--text-strong); font-size: var(--fs-sm); }
+.ws-live-receipt__sub { font-size: var(--fs-2xs); color: var(--muted); }
+
+.ws-live-receipt__link {
+  font-family: var(--ff-mono);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ws-live-receipt__link:hover { color: var(--accent); }
+
+@media (max-width: 760px) {
+  .ws-exit-brief-grid,
+  .ws-exit-verify {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ws-exit-verify > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .ws-exit-boundary,
+  .ws-live-step {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ws-live-step__actions {
+    grid-row: auto;
+    grid-column: auto;
+  }
+
+  .ws-exit-actions__primary {
+    margin-left: 0;
+    order: 1;
+  }
+
+  .ws-exit-actions__secondary {
+    order: 2;
+  }
+
+  .ws-live-control-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ws-live-panel--compact .ws-live-control-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Badge row — source/status chips compose DS .icon-badge ─────── */
+
+.ws-badge-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 0.2rem;
+}
+
+/* ── Filter refresh button ──────────────────────────────────────── */
+
+.ws-filter-refresh {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+}
+
+/* Readout oracle posture — intentionally not a card. It is a thin trust row
+   that qualifies the chart inputs without adding another pancake surface. */
+.oracle-readback-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.85rem;
+  margin: 0.95rem 0 0.35rem;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.oracle-readback-strip strong {
+  color: var(--text-strong);
+  font-weight: 700;
+}
+
+.oracle-readback-strip__note {
+  flex: 1 1 24rem;
+  min-width: 16rem;
+  color: color-mix(in srgb, var(--muted) 82%, transparent);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Polish pass — DS polish appendix (results/workspace slice, additive)
+   Date: 2026-04-29
+   Source: public UI polish pass B
+   B-18 (scenario-ring stroke-dasharray draw-on) deferred — collides
+   with inline stroke-dasharray attribute set by renderMiniHealthRing
+   at app.js:3729-3732. Will revisit with a transform-only variant.
+   ───────────────────────────────────────────────────────────────── */
+
+/* B-18b — stress-spark first-paint stagger (one-time, ≤500ms total) */
+@media (prefers-reduced-motion: no-preference) {
+  .stress-spark .stress-spark-bar {
+    transform-origin: bottom;
+    animation: stress-spark-bar-rise 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .stress-spark .stress-spark-bar:nth-child(1) { animation-delay:   0ms; }
+  .stress-spark .stress-spark-bar:nth-child(2) { animation-delay:  30ms; }
+  .stress-spark .stress-spark-bar:nth-child(3) { animation-delay:  60ms; }
+  .stress-spark .stress-spark-bar:nth-child(4) { animation-delay:  90ms; }
+  .stress-spark .stress-spark-bar:nth-child(5) { animation-delay: 120ms; }
+  .stress-spark .stress-spark-bar:nth-child(6) { animation-delay: 150ms; }
+}
+@keyframes stress-spark-bar-rise {
+  0%   { transform: scaleY(0.05); opacity: 0; }
+  100% { transform: scaleY(1);    opacity: 0.85; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stress-spark .stress-spark-bar { animation: none !important; }
+}
+/* ── End Polish pass results/workspace appendix ──────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   Product-surface polish — product-surface polish (results/workspace slice)
+   ───────────────────────────────────────────────────────────────── */
+
+/* D-04 — scenario-card hover lift + state-tinted shadow */
+.scenario-card {
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    background var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .scenario-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .scenario-card[data-state="Observe"]:hover {
+    box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--cyan) 38%, transparent);
+  }
+  .scenario-card[data-state="Maintain"]:hover {
+    box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--mint) 38%, transparent);
+  }
+  .scenario-card[data-state="BuildBuffer"]:hover {
+    box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--amber) 38%, transparent);
+  }
+  .scenario-card[data-state="DeRisk"]:hover {
+    box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--violet) 38%, transparent);
+  }
+  .scenario-card[data-state="StressLockdown"]:hover {
+    box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--rose) 38%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scenario-card:hover { transform: none; }
+}
+
+/* D-05 + E-09 — readout-action hero numeric brand-gradient hairline
+   (static underline) + one-time shimmer wipe on first paint (≤450ms).
+   Two-layer background: (1) shimmer band crosses left→right ONCE on
+   first paint; (2) accent→cyan underline stays static. The numeric
+   value never animates — the wipe is a paint-overlay over static
+   text (financial-numeral rule honored). */
+@keyframes ds-hero-shimmer-wipe {
+  from { background-position: -120% 0, left bottom; }
+  to   { background-position:  220% 0, left bottom; }
+}
+body[data-page="results"] .readout-action-line strong,
+body[data-page="live"]    .readout-action-line strong {
+  display: inline-block;
+  padding-bottom: 0.18rem;
+  background-image:
+    linear-gradient(
+      100deg,
+      transparent 0%,
+      transparent 35%,
+      color-mix(in srgb, var(--text) 28%, transparent) 50%,
+      transparent 65%,
+      transparent 100%
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 60%, transparent) 0%,
+      color-mix(in srgb, var(--cyan) 35%, transparent) 60%,
+      transparent 100%
+    );
+  background-size: 280% 100%, 100% 1px;
+  background-position: 220% 0, left bottom;
+  background-repeat: no-repeat;
+}
+
+body[data-page="results"] #readout-action[data-shimmer="first-paint"] .readout-action-line strong,
+body[data-page="live"]    #readout-action[data-shimmer="first-paint"] .readout-action-line strong {
+  animation: ds-hero-shimmer-wipe 450ms cubic-bezier(0.16, 1, 0.3, 1) 1 both;
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-page="results"] .readout-action-line strong,
+  body[data-page="live"]    .readout-action-line strong {
+    animation: none;
+    background-position: 220% 0, left bottom;
+  }
+}
+
+/* D-06 — scale-pair cross-axis hover illumination */
+.scale-pair > .price-scale,
+.scale-pair > .position-scale {
+  transition: background-color var(--motion-fast) var(--ease-out);
+  border-radius: var(--radius-xs);
+}
+@media (hover: hover) and (pointer: fine) {
+  .scale-pair:hover > .price-scale,
+  .scale-pair:hover > .position-scale {
+    background-color: color-mix(in srgb, var(--accent) 4%, transparent);
+  }
+  .scale-pair:has(> .price-scale:hover) > .price-scale,
+  .scale-pair:has(> .position-scale:hover) > .position-scale {
+    background-color: color-mix(in srgb, var(--accent) 9%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scale-pair > .price-scale,
+  .scale-pair > .position-scale { transition: none; }
+}
+/* ── End Product-surface polish results/workspace appendix ──────────────────── */
+
+@media (max-width: 560px) {
+  .stress-ladder {
+    margin-inline: 0;
+    padding-inline: 0;
+    overflow-x: visible;
+  }
+
+  .stress-ladder::after {
+    display: none;
+  }
+
+  .stress-ladder__track {
+    min-width: 0;
+  }
+
+  .stress-ladder-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    padding-inline: 0;
+  }
+
+  .stress-ladder-cell {
+    min-width: 0;
+    min-height: 4rem;
+    border: 1px solid color-mix(in srgb, var(--ladder-tone) 28%, var(--line));
+    border-top-width: 2px;
+    border-radius: var(--radius-sm);
+    padding: 0.55rem;
+  }
+}

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TIDE | Privacy</title>
+    <meta name="description" content="Privacy notice for TIDE public surfaces." />
+    <link rel="stylesheet" href="styles.css?v=20260331-25" />
+    <style>
+      .legal-page { padding: 5.5rem 0 4rem; background: #f8fbff; min-height: 100vh; }
+      .legal-shell { max-width: 860px; display: grid; gap: 1.2rem; }
+      .legal-card { padding: 1.5rem; border: 1px solid rgba(10, 18, 38, 0.08); border-radius: 16px; background: rgba(255,255,255,0.9); }
+      .legal-card h2 { margin: 0 0 0.65rem; }
+      .legal-card p, .legal-card li { color: #475467; line-height: 1.7; }
+    </style>
+  </head>
+  <body data-page="legal-privacy">
+    <header class="topbar">
+      <div class="shell topbar-shell">
+        <a class="brand" href="./" aria-label="TIDE home">
+          <img src="tide-mark.svg" alt="" />
+          <div class="brand-copy">
+            <span class="brand-name">TIDE</span>
+            <span class="brand-tag">Shadow-first BTC treasury policy cockpit</span>
+          </div>
+        </a>
+        <a class="button button-secondary" href="./">Back to site</a>
+      </div>
+    </header>
+
+    <main class="legal-page">
+      <section class="shell legal-shell">
+        <div class="legal-card">
+          <p class="section-label">Privacy</p>
+          <h1>Privacy notice</h1>
+          <p>TIDE uses a minimal data posture during public alpha. This page explains what is collected on the landing site and app surfaces.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>1. What we collect</h2>
+          <ul>
+            <li>Basic site analytics and product events needed to understand usage and failure states.</li>
+            <li>Wallet-related metadata needed to operate wallet-bound features if you connect a wallet.</li>
+          </ul>
+        </div>
+
+        <div class="legal-card">
+          <h2>2. What we do not intend to collect for analytics</h2>
+          <p>TIDE strips or avoids scenario names, full URLs with query strings, and user-entered treasury values from analytics events used for product measurement. Simulation data that remains local to your browser is not treated as a submitted lead by default.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>3. Contact data</h2>
+          <p>The public hackathon build does not ship a contact intake form. If you contact TIDE by email, the message is handled only for follow-up and deleted on request.</p>
+          <p><strong>Data-subject rights:</strong> to access, correct, export, or delete your message, email <a href="mailto:privacy@tidesui.pro">privacy@tidesui.pro</a>. We respond within 30 days.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>4. Browser storage</h2>
+          <p>TIDE stores local draft and simulation state in the browser so Shadow Mode can work without a wallet. Those local artifacts are part of product function, not a public analytics feed.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>5. On-chain proof bundles</h2>
+          <p>When you mint a testnet proof receipt, TIDE builds a content-addressed proof bundle that includes the policy object id, policy version, selected rail, policy owner address, and the USD-denominated thresholds that drove the run. The content digest is anchored on Sui testnet. Public proof pages may show a redacted summary, but when Walrus publishing is configured the canonical bundle is publicly fetchable by blob id through Walrus testnet infrastructure. If publishing falls back to a <code>tide-stub://</code> URI, no public Walrus bytes are available for that receipt; the on-chain digest remains the verification anchor.</p>
+          <p>Nothing you type into Shadow Mode, scenario names, email addresses, or contact metadata is intentionally included in the bundle. Policy owner addresses, selected rails, policy versions, and numeric thresholds are public proof data once a receipt is anchored or a Walrus bundle is published, so keep policy fields strictly numeric and do not place sensitive text in any policy-related field.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>6. Contact</h2>
+          <p>For privacy questions, data-subject access requests, or deletion requests, email <a href="mailto:privacy@tidesui.pro">privacy@tidesui.pro</a>. General questions can go to <a href="mailto:hi@tidesui.pro">hi@tidesui.pro</a>.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="./runtime-config.js"></script>
+    <script src="./telemetry.js?v=20260331-25"></script>
+  </body>
+</html>

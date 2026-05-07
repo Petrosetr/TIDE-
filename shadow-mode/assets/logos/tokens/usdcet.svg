@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="USDCet">
+  <circle cx="32" cy="32" r="30" fill="#2775CA"/>
+  <circle cx="32" cy="32" r="21.5" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="3"/>
+  <path d="M33.8 13.6V17.1C36.7 17.5 38.9 19.5 39.5 22.3H35.9C35.4 21.2 34.1 20.5 32.2 20.5C30.3 20.5 28.9 21.3 28.9 22.5C28.9 23.7 29.9 24.4 32.4 24.9L34.4 25.3C38.6 26.2 40.8 28.1 40.8 31.5C40.8 35.1 38.2 37.8 34.2 38.4V42H30.8V38.5C26.9 37.9 24.2 35.5 23.5 31.8H27.2C27.9 33.6 29.5 34.6 31.9 34.6C34.2 34.6 35.8 33.6 35.8 32.1C35.8 30.9 34.8 30.2 32.2 29.7L30.2 29.2C26.2 28.3 24 26.4 24 23.1C24 19.8 26.5 17.2 30.4 16.7V13.6H33.8Z" fill="#FFFFFF"/>
+  <path d="M18.8 24.3C17.6 26.6 17 29.2 17 32C17 34.8 17.6 37.4 18.8 39.7" fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M45.2 24.3C46.4 26.6 47 29.2 47 32C47 34.8 46.4 37.4 45.2 39.7" fill="none" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round"/>
+  <g transform="translate(45 45)">
+    <circle cx="0" cy="0" r="8.5" fill="#151A2E" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
+    <path d="M0 -5.2L-3.2 0L0 1.8L3.2 0Z" fill="#7D8DFF"/>
+    <path d="M0 5.2L-3.2 1.4V0.5L0 2.2L3.2 0.5V1.4Z" fill="#C8CEFF"/>
+  </g>
+</svg>

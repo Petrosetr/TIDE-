@@ -1,0 +1,298 @@
+/* Guardrails chart — composes the same minimal aesthetic as
+   /design-system §Charts event-chart: no surface canvas, no
+   zone fills, no area-under-curve, no in-chart legend. The
+   chart sits flat on whatever .surface contains it. Phase D.29.0
+   stripped the framed-canvas language in favour of: dashed threshold
+   lines + draggable pills,
+   stress-zone overlays where the BTC path trips liquidation,
+   and the chip-controls (overlay / period) at top. */
+
+.guardrails-chart {
+  display: grid;
+  gap: var(--space-3);
+  --guardrails-chart-max: 980px;
+  --chart-mint:   var(--mint);
+  --chart-amber:  var(--amber);
+  --chart-rose:   var(--rose);
+  --chart-accent: var(--accent);
+  --chart-cyan:   var(--cyan);
+  --guardrails-grid:             color-mix(in srgb, var(--muted) 18%, transparent);
+  --guardrails-axis-text:        color-mix(in srgb, var(--muted) 70%, transparent);
+  --guardrails-stress-fill:        color-mix(in srgb, var(--rose) 6%, transparent);
+  --guardrails-stress-line-strong: color-mix(in srgb, var(--rose) 28%, transparent);
+  --guardrails-stress-line-soft:   color-mix(in srgb, var(--rose) 18%, transparent);
+  --guardrails-stress-text:        var(--rose-text);
+  --guardrails-pill-text:          var(--on-tone-text-dark);
+}
+
+html[data-theme="light"] .guardrails-chart {
+  --guardrails-stress-fill:         color-mix(in srgb, var(--rose-text) 8%, transparent);
+  --guardrails-stress-line-strong:  color-mix(in srgb, var(--rose-text) 42%, transparent);
+  --guardrails-stress-line-soft:    color-mix(in srgb, var(--rose-text) 26%, transparent);
+  --guardrails-stress-text:         var(--rose-text);
+}
+.guardrails-chart__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  width: min(100%, var(--guardrails-chart-max));
+  margin-inline: auto;
+}
+/* Phase D.6 — guardrails chip-rows compose canonical .segmented +
+   .segmented__option (rules in 00-foundation-shell.css). The
+   chip-specific layout (stacked label+sub, tabular-nums) lives
+   here. Phase D.29.0 — removed the chart-specific bg/border
+   override that was added in D.10 to read against the framed
+   canvas; with the canvas gone, the canonical .segmented chrome
+   reads correctly on the parent surface. */
+.guardrails-chart__chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  /* Phase D.30.0 — was 1px which fused the primary label and the
+     uppercase sub-label into one squashed string ("Polymarket1Y",
+     "Recent BTCLIVE PATH", "1W7D"). var(--space-1) (4px) is the
+     smallest named gap that breaks visual fusion without widening
+     the chip beyond its min-height budget. */
+  gap: var(--space-1);
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  padding: 0.42rem 0.82rem;
+  min-height: 2.35rem;
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+}
+.guardrails-chart__chip-label {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.guardrails-chart__chip-sub {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.62;
+  font-variant-numeric: tabular-nums;
+}
+.guardrails-chart__chip.is-active .guardrails-chart__chip-sub { opacity: 0.82; }
+.guardrails-chart__chips--period .guardrails-chart__chip {
+  min-width: 3.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.guardrails-chart__svg {
+  display: block;
+  width: min(100%, var(--guardrails-chart-max));
+  height: auto;
+  margin-inline: auto;
+}
+
+.guardrails-chart--view {
+  gap: var(--space-4);
+}
+
+.guardrails-chart--view .guardrails-chart__top,
+.guardrails-chart--view .guardrails-chart__svg,
+.guardrails-chart--view .guardrails-chart__zones,
+.guardrails-chart--view .guardrails-chart__note {
+  --guardrails-chart-max: 920px;
+}
+
+.guardrails-chart__zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+  width: min(100%, var(--guardrails-chart-max));
+  margin-inline: auto;
+  margin-top: -0.2rem;
+}
+
+@media (max-width: 720px) {
+  .guardrails-chart__chips {
+    overflow-x: auto;
+  }
+}
+
+.guardrails-chart__stress text {
+  text-transform: uppercase;
+  font-family: "Sora", "Manrope", sans-serif;
+}
+
+.guardrails-chart--edit [data-guardrail-threshold] { cursor: ns-resize; pointer-events: all; touch-action: none; }
+.guardrails-chart--view [data-guardrail-threshold] { cursor: default; pointer-events: none; touch-action: auto; }
+[data-guardrail-threshold] .guardrails-chart__handle {
+  transition: filter 120ms ease;
+}
+[data-guardrail-threshold]:hover .guardrails-chart__handle { filter: brightness(1.12); }
+.guardrails-chart__handle { pointer-events: all; }
+.guardrails-chart__handle-text { pointer-events: none; }
+.guardrails-chart__static-label { pointer-events: none; font-family: var(--ff-mono); }
+.guardrails-chart__cross { pointer-events: none; }
+[data-guardrail-threshold] text { pointer-events: none; }
+
+/* LTV strip under chart */
+.guardrails-chart__strip {
+  --strip-row-h: 20px;
+  --strip-rows: 1;
+  position: relative;
+  width: min(100%, var(--guardrails-chart-max));
+  margin-inline: auto;
+  /* 6px track + 4px top gap + N rows of thumbs + 14px axis gutter */
+  height: calc(6px + 4px + var(--strip-rows) * var(--strip-row-h) + 14px);
+  padding-top: 14px;
+  user-select: none;
+  touch-action: none;
+}
+.guardrails-chart__strip-track {
+  position: relative;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--bg-strong);
+  border: 1px solid var(--line);
+}
+body[data-page="setup"] .guardrails-chart--edit .guardrails-chart__strip-track {
+  background: transparent;
+  border: 0;
+}
+.guardrails-chart__strip-zone { position: absolute; top: 0; bottom: 0; }
+.guardrails-chart__strip-zone--mint { background: color-mix(in srgb, var(--chart-mint) 65%, transparent); }
+.guardrails-chart__strip-zone--amber { background: color-mix(in srgb, var(--chart-amber) 65%, transparent); }
+.guardrails-chart__strip-zone--rose { background: color-mix(in srgb, var(--chart-rose) 65%, transparent); }
+.guardrails-chart__strip-now {
+  position: absolute;
+  top: 11px;
+  bottom: 14px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--chart-accent);
+  pointer-events: none;
+}
+.guardrails-chart__strip-thumb {
+  --strip-row: 0;
+  position: absolute;
+  top: calc(4px + var(--strip-row) * var(--strip-row-h, 20px));
+  transform: translateX(-50%);
+  /* Phase D.30.0 (full rewrite) — the prior 4px / 7.5px-9px / 18px-tall
+     pill could not separate `LOW` from `19.0%` at typical screen DPR.
+     Replaced piecemeal patches with a clean baseline-aligned pill:
+     equal 10.5px font for both spans, 6px gap, 22px tall, and a
+     clearly-spaced layout that scans as two tokens at a glance.
+     Drag refresh in app.js still queries .guardrails-chart__strip-pct
+     for textContent updates, so the dual-span structure is preserved. */
+  display: inline-flex;
+  align-items: baseline;
+  /* Phase D.31 — was hardcoded 6px (off-scale). var(--space-2) is 8px,
+     the closest canonical step + safer separation budget. */
+  gap: var(--space-2);
+  /* Phase D.32 — vertical 4px → var(--space-1). Horizontal 10px stays
+     as an explicit exception until a 0.625rem token is added (it's
+     between --space-2 (8px) and --space-3 (12px)). */
+  padding: var(--space-1) 0.625rem;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  color: var(--chart-mint);
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0;
+  cursor: ew-resize;
+  white-space: nowrap;
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 5;
+  user-select: none;
+  -webkit-user-select: none;
+  min-height: 22px;
+  min-width: 60px;
+  justify-content: center;
+  transition: filter 120ms ease;
+}
+
+.guardrails-chart__strip-thumb::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius-pill);
+}
+
+.guardrails-chart__strip-thumb:hover { filter: brightness(1.12); z-index: 1000; }
+.guardrails-chart__strip-thumb:active { cursor: grabbing; filter: brightness(0.94); z-index: 1000; }
+.guardrails-chart__strip-thumb--mint  { color: var(--chart-mint); }
+.guardrails-chart__strip-thumb--amber { color: var(--chart-amber); }
+.guardrails-chart__strip-thumb--rose  { color: var(--chart-rose); }
+.guardrails-chart__strip-label,
+.guardrails-chart__strip-pct {
+  color: var(--guardrails-pill-text);
+  /* Phase D.31 — was 10.5px (off-scale). var(--fs-xs) is 0.68rem
+     (~10.9px), the closest canonical step + on the type ladder. */
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+.guardrails-chart__strip-label {
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  opacity: 0.82;
+}
+.guardrails-chart__strip-pct {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .guardrails-chart__strip {
+    --strip-row-h: 34px;
+  }
+
+  .guardrails-chart__strip-thumb {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    min-width: 3.4rem;
+    min-height: 28px;
+    padding: 0.25rem 0.45rem;
+  }
+
+  .guardrails-chart__strip-label,
+  .guardrails-chart__strip-pct {
+    font-size: var(--fs-2xs);
+    line-height: 1;
+  }
+}
+.guardrails-chart__strip-axis {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  /* Phase D.31 — was 8.5px, below the --fs-2xs (0.6rem ≈ 9.6px) floor.
+     WCAG 1.4.4 + DS type-scale floor say no body text below --fs-2xs. */
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  pointer-events: none;
+}
+.guardrails-chart__note {
+  margin: 0;
+  width: min(100%, var(--guardrails-chart-max));
+  margin-inline: auto;
+  padding-top: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.guardrails-chart__stale {
+  /* Phase D.10 — was raw var(--warn) (bright amber) which read loud
+     for an inline status note. --amber-text is the readable amber
+     tone that matches state-badge--amber inline usage. */
+  color: var(--amber-text);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}

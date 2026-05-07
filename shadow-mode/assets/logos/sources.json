@@ -1,0 +1,170 @@
+{
+  "protocols": {
+    "7k": {
+      "kind": "official-svg",
+      "source": "https://7k.ag/safari-pinned-tab.svg"
+    },
+    "aftermath": {
+      "kind": "suivision-public-asset",
+      "source": "https://suivision.xyz/images/hot/aftermath.png"
+    },
+    "astros": {
+      "kind": "official-svg",
+      "source": "https://astros.ag/icons/favicon.svg"
+    },
+    "bluefin": {
+      "kind": "suivision-public-asset",
+      "source": "https://suivision.xyz/images/hot/bluefin.jpg"
+    },
+    "bucket": {
+      "kind": "official-svg-cropped",
+      "source": "https://www.bucketprotocol.io/bucket-text-logo.svg"
+    },
+    "cetus": {
+      "kind": "suivision-public-asset",
+      "source": "https://suivision.xyz/images/hot/cetus.png"
+    },
+    "deepbook": {
+      "kind": "official-svg",
+      "source": "https://cdn.prod.website-files.com/65fdccb65290aeb1c597b611/66006f0d351a0e5dfab1d9e1_logo.svg"
+    },
+    "flowx": {
+      "kind": "suivision-public-asset",
+      "source": "https://suivision.xyz/images/defi/flowx.png"
+    },
+    "magma": {
+      "kind": "suivision-public-asset",
+      "source": "https://icons.llama.fi/magma.jpg"
+    },
+    "momentum": {
+      "kind": "suivision-public-asset",
+      "source": "https://imagedelivery.net/cBNDGgkrsEA-b_ixIp9SkQ/momentum.svg/public"
+    },
+    "steamm": {
+      "kind": "suivision-public-asset",
+      "source": "https://suilend-assets.s3.us-east-2.amazonaws.com/steamm/STEAMM+v2.svg"
+    },
+    "turbos": {
+      "kind": "suivision-public-asset",
+      "source": "https://suivision.xyz/images/projects/turbos.svg"
+    },
+    "typus": {
+      "kind": "official-svg",
+      "source": "https://typus.finance/landing_page_v2/typus_logo.svg"
+    },
+    "alphalend": {
+      "kind": "official-svg",
+      "source": "https://alphafi.xyz/alphalend.svg"
+    },
+    "kai-finance": {
+      "kind": "official-brand-asset-local-copy",
+      "source": "https://docs.kai.finance/resources/brand-assets (asset: kai_symbol_white_bg.png)"
+    },
+    "navi": {
+      "kind": "official-svg-cropped",
+      "source": "https://naviprotocol.io/assets/icon-ec-navi.svg"
+    },
+    "suilend": {
+      "kind": "official-svg",
+      "source": "https://d29k09wtkr1a3e.cloudfront.net/suilend/Suilend.svg"
+    },
+    "alphafi": {
+      "kind": "official-raster-wrapped",
+      "source": "https://docs.alphafi.xyz/~gitbook/image?url=https%3A%2F%2F1657310952-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252Fn2kq0VQ5rx7beTeX3SuC%252Ficon%252FbYu5skd9KfO3Re959QrE%252FLogo%2520%282%29.png%3Falt%3Dmedia%26token%3Defa63b34-ce63-4b78-950c-4d5c3b97826c&width=180&height=180&sign=ce547b5a&sv=2"
+    },
+    "haedal": {
+      "kind": "official-raster-wrapped",
+      "source": "https://www.haedal.xyz/images/haedal.ico"
+    },
+    "lotus-finance": {
+      "kind": "official-svg",
+      "source": "https://app.lotusfinance.io/images/logo.svg"
+    },
+    "metastable": {
+      "kind": "official-raster-wrapped",
+      "source": "https://docs.mstable.io/~gitbook/image?url=https%3A%2F%2F3854843465-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Forganizations%252FUoFBlY0GkyIkxurmUIH1%252Fsites%252Fsite_8DYi8%252Ficon%252Fl8qTOsIXaVUyICoOhhan%252Flogo.png%3Falt%3Dmedia%26token%3Daa054444-3054-426e-9296-4712c49a7ad7&width=180&height=180&sign=b38c36aa&sv=2"
+    },
+    "native": {
+      "kind": "official-svg",
+      "source": "https://cdn.prod.website-files.com/669384bb0581e8c6129231e2/6712cfe3f045700b98ad8216_native-logo.svg"
+    },
+    "nemo": {
+      "kind": "official-raster-wrapped",
+      "source": "https://docs.nemoprotocol.com/~gitbook/image?url=https%3A%2F%2F1889609029-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Forganizations%252FKxQDMTIbeeJgP5RekQy9%252Fsites%252Fsite_1xSVL%252Ficon%252FDNFJtin8uvr3Na0YbxRk%252FNemoLogo.png%3Falt%3Dmedia%26token%3D8d3ea48d-ac8f-4a26-99c6-0bb44c5e6b12&width=180&height=180&sign=b5aabd2e&sv=2"
+    },
+    "scallop": {
+      "kind": "official-raster-wrapped",
+      "source": "https://www.scallop.io/images/logo-192.png"
+    },
+    "volo": {
+      "kind": "official-raster-wrapped",
+      "source": "https://www.volosui.com/favicon.png"
+    },
+    "ferra": {
+      "kind": "suivision-public-asset",
+      "source": "https://ferra.ag/favicon.png"
+    },
+    "kriya": {
+      "kind": "suivision-public-asset",
+      "source": "https://suivision.xyz/images/hot/kriya-dex.svg"
+    },
+    "hop-aggregator": {
+      "kind": "official-raster-wrapped",
+      "source": "https://docs.hop.ag/~gitbook/image?url=https%3A%2F%2F176313901-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Forganizations%252F5RjMnszMKo92AzKdWglI%252Fsites%252Fsite_LyW5B%252Ficon%252FafvrZ3SBMwdGGx6GIAyt%252Finverse_logo.png%3Falt%3Dmedia%26token%3D3cc2926a-dec0-4a7a-b861-8a36b983da14&width=180&height=180&sign=efd7edbf&sv=2"
+    }
+  },
+  "tokens": {
+    "btc": {
+      "kind": "brand-derived-svg",
+      "source": "https://bitcoin.org/img/icons/logotop.svg?1716491272"
+    },
+    "btcbasket": {
+      "kind": "custom-derived",
+      "source": "local composite derived from BTC brand iconography"
+    },
+    "wbtc": {
+      "kind": "suivision-public-asset",
+      "source": "https://suivision.xyz/images/coins/wbtc.png"
+    },
+    "lbtc": {
+      "kind": "official-mark-derived",
+      "source": "https://strapi-assets.lombard.finance/icon_btc_white_f0bd076373.svg"
+    },
+    "stbtc": {
+      "kind": "official-mark-derived",
+      "source": "https://lorenzo-protocol.xyz/images/logo.svg"
+    },
+    "xbtc": {
+      "kind": "custom-derived",
+      "source": "https://www.okx.com/en-us/xbtc"
+    },
+    "nbtc": {
+      "kind": "official-mark-derived",
+      "source": "https://cdn.prod.website-files.com/669384bb0581e8c6129231e2/6808f59d4757774688551965_nbtc.svg"
+    },
+    "usdc": {
+      "kind": "suivision-public-asset-local-copy",
+      "source": "https://suivision.xyz/images/coins/usdc.png"
+    },
+    "ausd": {
+      "kind": "custom-derived",
+      "source": "https://www.agora.finance/product/ausd"
+    },
+    "hasui": {
+      "kind": "suivision-public-asset",
+      "source": "https://suivision.xyz/images/coins/hasui.png"
+    },
+    "usdcet": {
+      "kind": "suivision-public-asset-local-copy",
+      "source": "https://suivision.xyz/images/coins/usdc.png"
+    },
+    "suiusd": {
+      "kind": "custom-local-fallback",
+      "source": "local SuiUSD-style mark used when no official token asset is bundled"
+    },
+    "suiusdt": {
+      "kind": "custom-local-fallback",
+      "source": "local suiUSDT-style mark used when no official token asset is bundled"
+    }
+  }
+}

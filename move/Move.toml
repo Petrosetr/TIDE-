@@ -1,0 +1,29 @@
+[package]
+name = "tide"
+# `2024.beta` is the edition string declared by the pinned Sui framework
+# (see `rev` below). This is Mysten's release-naming for the Move 2024
+# language revision; there is no separate "stable" string at this rev.
+# The compiler requires the package edition to match the framework
+# edition in the dependency graph — so `edition` must stay in sync with
+# whatever the upstream Move.toml at the pinned `rev` declares. When
+# bumping the framework rev, re-check the upstream edition string and
+# update both fields together.
+edition = "2024.beta"
+version = "0.0.1"
+
+[addresses]
+tide = "0x0"
+
+[dependencies]
+# Pinned to a specific sui testnet framework commit rather than a
+# moving branch, so framework resolution is stable across machines.
+# Full build reproducibility also requires the same Sui CLI/toolchain and
+# lockfile state. Cached locally under `~/.move/git/<hash>` on first fetch.
+#
+# The previous local path (`../node_modules/@mysten/sui-framework/...`)
+# relied on an npm package that is no longer a dependency and would
+# break every clean build.
+#
+# Upgrade path: bump `rev` to the next testnet framework release,
+# re-run `sui move test`, and commit the lockfile.
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "4e8aa9ee8b307b294cc85baf7d08af1f432e3d93" }

@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://plausible.io 'sha256-usTCGDDcjrn0M6X9jPuXcp7mLK07w8SAO3d9XKhcxm4='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://plausible.io https://fullnode.mainnet.sui.io https://sui-rpc.publicnode.com https://fullnode.testnet.sui.io https://sui-testnet-rpc.publicnode.com https://fullnode.devnet.sui.io https://sui.io https://suivision.xyz https://publisher.walrus-testnet.walrus.space https://aggregator.walrus-testnet.walrus.space https://app.tidesui.pro https://dev.tidesui.pro https://testnet.tidesui.pro; base-uri 'self'; form-action 'self'; object-src 'none';" />
+    <title>TIDE Create</title>
+    <meta
+      name="description"
+      content="Create the current TIDE treasury run."
+    />
+    <link rel="canonical" href="https://app.tidesui.pro/setup" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="TIDE" />
+    <meta property="og:url" content="https://app.tidesui.pro/setup" />
+    <meta property="og:title" content="TIDE — Keep BTC. Stay Liquid." />
+    <meta property="og:description" content="Simulate your Bitcoin treasury policy in Shadow Mode. Policy cockpit on Sui — no yield promises, no black-box behavior." />
+    <meta property="og:image" content="https://app.tidesui.pro/tide-mark.svg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="TIDE — Bitcoin Treasury Policy Cockpit on Sui." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="TIDE — Keep BTC. Stay Liquid." />
+    <meta name="twitter:description" content="Simulate your Bitcoin treasury policy in Shadow Mode. Policy cockpit on Sui — no yield promises, no black-box behavior." />
+    <meta name="twitter:image" content="https://app.tidesui.pro/tide-mark.svg" />
+    <meta name="color-scheme" content="dark light" />
+    <script>
+      try {
+        var tideTheme = localStorage.getItem("tide.shadow-mode.theme.v1");
+        if (tideTheme) try { tideTheme = JSON.parse(tideTheme); } catch(e) {}
+        document.documentElement.dataset.theme = tideTheme === "light" ? "light" : "dark";
+      } catch (error) {
+        document.documentElement.dataset.theme = "dark";
+      }
+    </script>
+    <style>
+      html { background: #06060a; color: #d0d4e0; color-scheme: dark; }
+      html[data-theme="light"] { background: #F4F7FB; color: #0d1a30; color-scheme: light; }
+      body { margin: 0; background: inherit; color: inherit; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="prefetch" href="/" as="document" />
+    <link rel="prefetch" href="/live" as="document" />
+    <link rel="prefetch" href="/results" as="document" />
+    <link rel="prefetch" href="/library" as="document" />
+    <link rel="stylesheet" href="/styles-setup.css?v=1bbbdd2" />
+  </head>
+  <body data-page="setup">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="app-shell app-shell--setup">
+      <header class="setup-topbar app-topbar" aria-label="TIDE navigation">
+        <a class="setup-topbar__brand app-topbar__brand" href="/" aria-label="TIDE workspace">
+          <img src="/tide-mark.svg" alt="" />
+          <span>TIDE</span>
+        </a>
+        <div class="setup-topbar__actions app-topbar__actions">
+          <span id="env-badge" class="network-badge" role="status" aria-live="polite" hidden></span>
+          <div class="theme-toggle" role="group" aria-label="Color theme">
+            <button type="button" data-theme-value="light" aria-label="Light theme" title="Light theme">
+              <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="4.5" fill="currentColor"/>
+                <path d="M12 2.5V5.1M12 18.9V21.5M21.5 12H18.9M5.1 12H2.5M18.7 5.3L16.8 7.2M7.2 16.8L5.3 18.7M18.7 18.7L16.8 16.8M7.2 7.2L5.3 5.3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"/>
+              </svg>
+              <span class="sr-only">Light</span>
+            </button>
+            <button type="button" data-theme-value="dark" aria-label="Dark theme" title="Dark theme">
+              <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14.9 3.2A8.8 8.8 0 1 0 20.8 18 7.6 7.6 0 1 1 14.9 3.2Z" fill="currentColor"/>
+              </svg>
+              <span class="sr-only">Dark</span>
+            </button>
+          </div>
+          <section id="header-wallet" class="header-wallet" aria-label="Wallet"></section>
+        </div>
+      </header>
+
+      <main class="app-main app-main--setup" id="main">
+        <div class="page-stack">
+          <section class="setup-boot-skeleton ui-skeleton" data-boot-skeleton role="status" aria-live="polite" aria-label="Loading Create policy">
+            <span class="ui-skeleton__pill" aria-hidden="true"></span>
+            <span class="ui-skeleton__title" aria-hidden="true"></span>
+            <span class="ui-skeleton__line" aria-hidden="true"></span>
+            <span class="ui-skeleton__bar" aria-hidden="true"></span>
+            <span class="ui-skeleton__card" aria-hidden="true"></span>
+          </section>
+          <aside class="setup-primer" data-setup-primer hidden>
+            <div class="setup-primer__body">
+              <strong class="setup-primer__title">Authoring a treasury policy</strong>
+              <span class="setup-primer__text">Pick a profile, set cashflow targets and guardrails, then press <em>Run rehearsal check</em>. TIDE picks the next modeled action against stress paths. Nothing touches your wallet until you anchor it on-chain.</span>
+            </div>
+            <button type="button" class="setup-primer__close" data-setup-primer-close aria-label="Dismiss primer">&times;</button>
+          </aside>
+          <header class="page-header page-header-compact page-header--product">
+            <div class="page-heading">
+              <p class="page-eyebrow">Create policy</p>
+              <h1 class="sr-only">Create policy</h1>
+              <section class="setup-titlebar">
+                <div class="setup-titlebar__main">
+                  <label class="inline-title-shell" aria-label="Scenario name">
+                    <svg class="inline-title-icon" viewBox="0 0 20 20" aria-hidden="true">
+                      <path d="M13.7 3.3a1.8 1.8 0 0 1 2.6 2.6l-8.1 8.1-3.2.6.6-3.2 8.1-8.1Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"/>
+                      <path d="m12.4 4.6 3 3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.6"/>
+                    </svg>
+                    <input name="scenarioNameHeader" type="text" maxlength="60" placeholder="Scenario name" data-header-name />
+                  </label>
+                  <p class="inline-title-hint" data-scenario-name-hint role="status" aria-live="polite" hidden></p>
+                  <p class="inline-title-hint inline-title-hint--dirty" data-draft-dirty-banner role="status" aria-live="off" hidden>
+                    <span>Draft changed since last run.</span>
+                    <em>Anchor refreshes the snapshot before signing.</em>
+                  </p>
+                </div>
+              </section>
+            </div>
+            <div class="page-tools">
+              <p id="status-note" class="status-line" role="status" aria-live="polite" aria-atomic="true"></p>
+            </div>
+
+          </header>
+
+          <form id="scenario-form" class="setup-layout" novalidate>
+
+            <!-- LEFT: Main config -->
+            <div class="setup-main">
+
+              <!-- Phase D.32 (UX MED #17) — stale-forecast safety banner.
+                   When the live BTC forecast is older than its freshness
+                   window, every simulation runs against potentially
+                   outdated market context. Keep this warning near the
+                   operator controls instead of in the page header so the
+                   Create surface stays compact. -->
+              <aside class="trust-banner trust-banner--neutral" data-forecast-stale-banner hidden role="status" aria-live="polite">
+                <div class="trust-banner__copy">
+                  <strong>Public forecast model stale</strong>
+                  <span>Read-only market-model context is older than its freshness window. Refresh before running; the chart does not trigger live execution or signing.</span>
+                </div>
+              </aside>
+
+              <section class="surface surface-create command-surface create-entry-surface" data-section="intent">
+                <input name="scenarioName" type="hidden" />
+                <input name="strategyPreset" type="hidden" value="starter" />
+                <input name="scenarioOrigin" type="hidden" value="" />
+                <input name="selectedRail" type="hidden" value="" />
+                <input name="railId" type="hidden" value="" />
+
+                <div class="create-top-grid">
+                  <div class="create-composer composer composer--create" data-create-scope-panel data-scope="shadow">
+                    <!-- debtUsd is derived from collateral × mid target-LTV in
+                         deriveSuggestedDebtUsd() and written back here by
+                         syncPositionSupportFields(). Leave the initial value
+                         empty so DOM never advertises a default that ignores
+                         the user's collateral. -->
+                    <input name="debtUsd" type="hidden" value="" />
+                    <input name="collateralCoinType" type="hidden" value="0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC" />
+                    <input name="collateralAssetSymbol" type="hidden" value="wBTC" />
+
+                    <div class="mode-card composer__mode" role="radiogroup" aria-label="Create mode" data-mode-card>
+                      <span class="section-micro-label">Mode</span>
+                      <div class="mode-card__options segmented segmented--exclusive">
+                        <label class="mode-card__opt segmented__option" data-scope="shadow">
+                          <input type="radio" name="createScope" value="shadow" checked hidden />
+                          <strong>Simulation</strong>
+                          <em>No signing</em>
+                        </label>
+                        <label class="mode-card__opt segmented__option is-disabled" data-scope="live" data-live-control aria-disabled="true" title="Live availability is determined by this build and the connected wallet.">
+                          <input type="radio" name="createScope" value="live" hidden disabled />
+                          <strong>Live</strong>
+                          <em>Runtime-gated</em>
+                        </label>
+                      </div>
+                      <p class="mode-card__origin" data-mode-origin></p>
+                    </div>
+
+                    <div class="create-composer__row composer__row">
+                      <div class="create-composer__token">
+                        <details class="collateral-picker" data-collateral-picker>
+                          <!-- Phase D.17 — composes canonical .select-trigger
+                               (the chevron picker primitive from /design-
+                               system) plus the collateral-asset-trigger
+                               class hook for existing JS bindings. -->
+                          <summary class="select-trigger collateral-asset-trigger" data-collateral-trigger>
+                            <span class="collateral-asset-trigger-mark" data-collateral-trigger-mark aria-hidden="true"></span>
+                            <span class="collateral-asset-symbol" data-collateral-trigger-symbol>wBTC</span>
+                            <span class="select-trigger__icon">
+                              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M4 6l4 4 4-4" />
+                              </svg>
+                            </span>
+                          </summary>
+                          <div class="collateral-asset-menu" data-collateral-menu></div>
+                        </details>
+                      </div>
+                      <div class="create-composer__input-wrap">
+                        <label>
+                          <span class="sr-only">Collateral amount</span>
+                          <input id="btc-units-input" class="create-composer__input composer__amount" name="btcUnits" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" />
+                        </label>
+                        <span class="create-composer__usd composer__usd" data-collateral-usd-echo aria-hidden="true"></span>
+                      </div>
+                    </div>
+
+                    <div class="create-composer__controls">
+                      <div class="create-composer__aux">
+                        <label class="create-composer__spot" aria-label="BTC spot price">
+                          <span>Spot</span>
+                          <input name="btcPriceUsd" type="text" inputmode="decimal" autocomplete="off" placeholder="82 500" />
+                        </label>
+                        <div class="create-composer__meta btc-price-meta">
+                          <span data-btc-price-meta></span>
+                          <!-- Phase D.17 — Reset to live now uses canonical
+                               button-ghost button-sm chrome instead of a
+                               bespoke .btc-price-meta__reset link style. -->
+                          <button type="button" class="button button-ghost button-sm btc-price-meta__reset" data-btc-price-reset hidden>Reset to live</button>
+                        </div>
+                      </div>
+                      <div class="create-composer__trail">
+                        <!-- Phase D.17 — preset row composes canonical
+                             .segmented (the toggle-group primitive from
+                             /design-system). swap-card__preset class
+                             hooks stay so existing JS targeting keeps
+                             working; visual chrome flows from .segmented
+                             + .segmented__option. -->
+                        <div class="segmented create-composer__presets" role="group" aria-label="Amount presets">
+                          <button type="button" class="segmented__option swap-card__preset" data-amount-preset="0.25">25%</button>
+                          <button type="button" class="segmented__option swap-card__preset" data-amount-preset="0.50">50%</button>
+                          <button type="button" class="segmented__option swap-card__preset" data-amount-preset="0.75">75%</button>
+                          <button type="button" class="segmented__option swap-card__preset swap-card__preset--max collateral-use-max" data-collateral-use-max data-amount-preset="max">Max</button>
+                        </div>
+                        <div class="create-composer__debt" aria-label="Derived debt">
+                          <span class="create-composer__debt-label">Derived debt</span>
+                          <strong class="create-composer__debt-value" data-derived-debt-value>--</strong>
+                          <label class="stable-asset-pill create-composer__stable" aria-label="Stable asset">
+                            <span class="stable-asset-pill__mark" data-stable-asset-mark aria-hidden="true"></span>
+                            <select name="stableAssetSymbol" data-stable-asset-select aria-label="Stable debt and reserve asset"></select>
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <path d="M4 6l4 4 4-4" />
+                            </svg>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p class="create-scope-hint swap-control__hint create-composer__hint" data-create-scope-hint hidden></p>
+                    <p class="field-amount-error create-composer__error" data-collateral-amount-error hidden></p>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Phase D.14 — the monolithic .create-policy-surface
+                   was decomposed into three peer surfaces (goal,
+                   cashflow, guardrails) so each conceptual step of
+                   policy authoring reads as its own articulated
+                   block instead of one giant undifferentiated card.
+                   The .create-policy-stack wrapper preserves the
+                   shared scoping the renderer needs (data-section
+                   targeting, gap rhythm) without imposing one
+                   surface chrome over three concerns. -->
+              <div class="create-policy-stack" data-section="policy">
+                <section class="surface create-goal-surface" data-section="goal">
+                  <div class="strategy-goal-main">
+                    <div class="section-head section-head-compact">
+                      <div>
+                        <p class="section-label">Goal</p>
+                        <h2>Risk profile</h2>
+                        <p class="strategy-goal-copy">Start from a profile, then tune the numbers below.</p>
+                      </div>
+                    </div>
+                    <div class="strategy-presets strategy-presets--profiles" role="radiogroup" aria-label="Profile">
+                      <button type="button" class="strategy-preset" data-preset="starter" aria-pressed="true">
+                        <span class="strategy-preset__topline">
+                          <span class="strategy-preset__name">
+                            <strong>Harbor</strong>
+                            <span class="strategy-preset__modified" data-preset-modified hidden>modified</span>
+                          </span>
+                          <span class="strategy-preset__cue">Start here</span>
+                        </span>
+                        <em>Conservative. Holds through a &minus;40% week.</em>
+                        <span class="strategy-preset__stats">
+                          <span><small data-preset-stat-label="starter-payout">Payout</small><b data-preset-stat="starter-payout">$1.2k</b><span data-preset-stat-suffix="starter-payout">/mo</span></span>
+                          <span><small>Runway</small><b data-preset-stat="starter-runway">4</b><span>mo</span></span>
+                          <span><small>LTV</small><b data-preset-stat="starter-ltv">18&ndash;24%</b></span>
+                        </span>
+                      </button>
+                      <button type="button" class="strategy-preset" data-preset="safety" aria-pressed="false">
+                        <span class="strategy-preset__topline">
+                          <span class="strategy-preset__name">
+                            <strong>Breakwater</strong>
+                            <span class="strategy-preset__modified" data-preset-modified hidden>modified</span>
+                          </span>
+                          <span class="strategy-preset__cue">Defense</span>
+                        </span>
+                        <em>Defense first. Holds through a &minus;60% week.</em>
+                        <span class="strategy-preset__stats">
+                          <span><small data-preset-stat-label="safety-payout">Payout</small><b data-preset-stat="safety-payout">$0.9k</b><span data-preset-stat-suffix="safety-payout">/mo</span></span>
+                          <span><small>Runway</small><b data-preset-stat="safety-runway">6</b><span>mo</span></span>
+                          <span><small>LTV</small><b data-preset-stat="safety-ltv">16&ndash;21%</b></span>
+                        </span>
+                      </button>
+                      <button type="button" class="strategy-preset is-roadmap" data-preset="drift" aria-pressed="false" aria-disabled="true" disabled title="Roadmap mode — not active in V1 proof submission.">
+                        <span class="strategy-preset__topline">
+                          <span class="strategy-preset__name">
+                            <strong>Future mode</strong>
+                            <span class="strategy-preset__modified" data-preset-modified hidden>modified</span>
+                          </span>
+                          <span class="strategy-preset__cue">Roadmap</span>
+                        </span>
+                        <em>Future accumulation preview. Models BTC-stack intent without changing the V1 policy.</em>
+                        <span class="strategy-preset__stats">
+                          <span><small data-preset-stat-label="drift-payout">Payout</small><b data-preset-stat="drift-payout">$0.6k</b><span data-preset-stat-suffix="drift-payout">/mo</span></span>
+                          <span><small>Runway</small><b data-preset-stat="drift-runway">8</b><span>mo</span></span>
+                          <span><small>LTV</small><b data-preset-stat="drift-ltv">22&ndash;28%</b></span>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                </section>
+
+                <input type="radio" name="mode" value="Income" checked hidden />
+                <input type="radio" name="priority" value="Stability" checked hidden />
+
+                <section class="surface create-guardrails-surface" data-section="guardrails">
+                  <div class="section-head section-head-compact">
+                    <div>
+                      <p class="section-label">Guardrails</p>
+                      <h2>Set LTV thresholds</h2>
+                    </div>
+                  </div>
+                    <div id="setup-scenario-workbench" class="scenario-workbench-host scenario-workbench-host--setup"></div>
+
+                    <details class="disclosure guardrails-finetune" data-section="guardrails-finetune">
+                      <summary class="disclosure-head">
+                        <div>
+                          <h2 class="setup-section-title">Fine-tune thresholds</h2>
+                          <small>Exact LTV thresholds, stress behavior, and market assumptions in one place.</small>
+                        </div>
+                      </summary>
+
+                      <div class="advanced-drawer__section" data-section="advanced-guardrails">
+                        <div class="guardrails-finetune__grid">
+                          <div class="guardrails-grid">
+                            <label class="field field-compact">
+                              <span>Liquidation ceiling</span>
+                              <small>Absolute max LTV.</small>
+                              <input name="maxLtvPct" type="number" min="0" max="100" step="0.1" />
+                            </label>
+                            <label class="field field-compact">
+                              <span>Target low</span>
+                              <small>Bottom of operating range.</small>
+                              <input name="targetLtvLowPct" type="number" min="0" max="100" step="0.1" />
+                            </label>
+                            <label class="field field-compact">
+                              <span>Target high</span>
+                              <small>Top of range. De-risk above.</small>
+                              <input name="targetLtvHighPct" type="number" min="0" max="100" step="0.1" />
+                            </label>
+                            <label class="field field-compact">
+                              <span>Managed repay threshold</span>
+                              <small>LTV at which the policy triggers debt reduction.</small>
+                              <input name="autoRepayLtvPct" type="number" min="0" max="100" step="0.1" />
+                            </label>
+                            <label class="field field-compact">
+                              <span>Freeze threshold (LTV)</span>
+                              <small>Emergency: payouts stop.</small>
+                              <input name="emergencyLtvPct" type="number" min="0" max="100" step="0.1" />
+                            </label>
+                            <label class="field field-compact">
+                              <span>Min buffer</span>
+                              <small>Buffer floor, USD.</small>
+                              <input name="minStableBufferUsd" type="number" min="0" max="10000000" step="100" />
+                            </label>
+                          </div>
+
+                          <div class="guardrails-toggle-panel">
+                            <span class="section-micro-label guardrails-substress">Stress behavior</span>
+                            <div class="toggle-stack">
+                              <label class="toggle-row">
+                                <input name="allowPayoutPauseInStress" type="checkbox" />
+                                <span>
+                                  <strong>Pause payouts in stress</strong>
+                                  <small>Stop payouts when conditions worsen.</small>
+                                </span>
+                              </label>
+                              <label class="toggle-row">
+                                <input name="allowNewBorrowInStress" type="checkbox" />
+                                <span>
+                                  <strong>Borrow in stress</strong>
+                                  <small>Keep borrowing open pre-crisis.</small>
+                                </span>
+                              </label>
+                              <label class="toggle-row">
+                                <input name="allowNewBorrowInCrisis" type="checkbox" />
+                                <span>
+                                  <strong>Borrow in crisis</strong>
+                                  <small>Borrowing even under crisis.</small>
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    </details>
+                </section>
+              </div>
+              <!-- /create-policy-stack -->
+
+            </div>
+
+            <aside class="setup-aside">
+              <section class="surface data-surface setup-aside-panel" data-section="advanced-context">
+                <div class="setup-aside-panel__section create-cashflow-surface policy-cashflow policy-cashflow--inline" data-section="cashflow">
+                  <div class="policy-cashflow__head section-head section-head-compact">
+                    <div>
+                      <p class="section-label">Cashflow targets</p>
+                      <h2>Monthly draw targets</h2>
+                    </div>
+                  </div>
+                  <div class="swap-stats swap-stats--policy" role="group" aria-label="Cashflow targets">
+                    <label class="swap-stat">
+                      <span class="swap-stat__label">Payout / month</span>
+                      <div class="swap-stat__inline swap-stat__inline--stepper">
+                        <div class="swap-stat__value-shell">
+                          <input name="monthlyPayoutTargetUsd" type="text" inputmode="decimal" autocomplete="off" placeholder="1 200" />
+                          <span class="swap-stat__unit" data-stable-asset-echo>USDC</span>
+                        </div>
+                        <div class="swap-stepper stepper-input stepper-input--compact" role="group" aria-label="Adjust payout target">
+                          <button type="button" class="swap-stepper__btn stepper-input__btn" data-stepper-target="monthlyPayoutTargetUsd" data-stepper-dir="up" aria-label="Increase payout target">
+                            <svg class="swap-stepper__icon" viewBox="0 0 12 12" aria-hidden="true">
+                              <path d="M3 7.25 6 4.25l3 3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" />
+                            </svg>
+                          </button>
+                          <button type="button" class="swap-stepper__btn stepper-input__btn" data-stepper-target="monthlyPayoutTargetUsd" data-stepper-dir="down" aria-label="Decrease payout target">
+                            <svg class="swap-stepper__icon" viewBox="0 0 12 12" aria-hidden="true">
+                              <path d="M3 4.75 6 7.75l3-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      <p class="swap-stat__meta">How much stablecoin should land in your wallet each month (your payroll / bills draw).</p>
+                    </label>
+                    <label class="swap-stat">
+                      <span class="swap-stat__label">Buffer floor</span>
+                      <div class="swap-stat__inline swap-stat__inline--stepper">
+                        <div class="swap-stat__value-shell">
+                          <input name="stableBufferUsd" type="text" inputmode="decimal" autocomplete="off" placeholder="4 800" />
+                          <span class="swap-stat__unit" data-stable-asset-echo>USDC</span>
+                        </div>
+                        <div class="swap-stepper stepper-input stepper-input--compact" role="group" aria-label="Adjust reserve floor">
+                          <button type="button" class="swap-stepper__btn stepper-input__btn" data-stepper-target="stableBufferUsd" data-stepper-dir="up" aria-label="Increase reserve floor">
+                            <svg class="swap-stepper__icon" viewBox="0 0 12 12" aria-hidden="true">
+                              <path d="M3 7.25 6 4.25l3 3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" />
+                            </svg>
+                          </button>
+                          <button type="button" class="swap-stepper__btn stepper-input__btn" data-stepper-target="stableBufferUsd" data-stepper-dir="down" aria-label="Decrease reserve floor">
+                            <svg class="swap-stepper__icon" viewBox="0 0 12 12" aria-hidden="true">
+                              <path d="M3 4.75 6 7.75l3-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      <p class="swap-stat__meta" data-buffer-compat-copy></p>
+                    </label>
+                    <label class="swap-stat">
+                      <span class="swap-stat__label">Runway target</span>
+                      <div class="swap-stat__inline swap-stat__inline--stepper">
+                        <div class="swap-stat__value-shell">
+                          <input name="desiredRunwayMonths" type="text" inputmode="numeric" autocomplete="off" placeholder="4" />
+                          <span class="swap-stat__unit">months</span>
+                        </div>
+                        <div class="swap-stepper stepper-input stepper-input--compact" role="group" aria-label="Adjust runway target">
+                          <button type="button" class="swap-stepper__btn stepper-input__btn" data-stepper-target="desiredRunwayMonths" data-stepper-dir="up" aria-label="Increase runway target">
+                            <svg class="swap-stepper__icon" viewBox="0 0 12 12" aria-hidden="true">
+                              <path d="M3 7.25 6 4.25l3 3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" />
+                            </svg>
+                          </button>
+                          <button type="button" class="swap-stepper__btn stepper-input__btn" data-stepper-target="desiredRunwayMonths" data-stepper-dir="down" aria-label="Decrease runway target">
+                            <svg class="swap-stepper__icon" viewBox="0 0 12 12" aria-hidden="true">
+                              <path d="M3 4.75 6 7.75l3-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      <p class="swap-stat__meta" data-runway-copy></p>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="setup-aside-panel__section guardrails-market-panel guardrails-market-panel--aside" data-section="advanced-market">
+                  <div class="section-head section-head-compact">
+                    <div>
+                      <p class="section-label">Market assumptions</p>
+                      <h2>BTC stress inputs</h2>
+                    </div>
+                  </div>
+                  <div class="form-grid form-grid-2">
+                    <label class="field field-compact">
+                      <span>Realized vol, %</span>
+                      <small>Recent annualized BTC volatility.</small>
+                      <input name="marketRealizedVolPct" type="number" min="0" max="400" step="0.1" />
+                    </label>
+                    <label class="field field-compact">
+                      <span>Daily move, %</span>
+                      <small>Worst single-day BTC change.</small>
+                      <input name="marketDailyMovePct" type="number" min="0" max="100" step="0.1" />
+                    </label>
+                    <label class="field field-compact">
+                      <span>Weekly drawdown, %</span>
+                      <small>Worst weekly BTC drawdown.</small>
+                      <input name="marketWeeklyDrawdownPct" type="number" min="0" max="100" step="0.1" />
+                    </label>
+                    <label class="field field-compact">
+                      <span>Trend strength, %</span>
+                      <small>How strongly BTC is trending.</small>
+                      <input name="marketTrendStrengthPct" type="number" min="0" max="100" step="0.1" />
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Rail & venue -->
+                <details class="setup-aside-panel__section disclosure create-advanced-drawer" data-advanced data-section="advanced-rail-wrap">
+                  <summary class="disclosure-head">
+                    <div>
+                      <h2 class="setup-section-title">Rail &amp; venue (advanced)</h2>
+                      <small>Routing venue, oracle, liquidity, exposure caps.</small>
+                    </div>
+                  </summary>
+                  <div class="advanced-drawer__section" data-section="advanced-rail-inner">
+                    <div class="form-grid form-grid-1">
+                      <label class="field">
+                        <span>Rail label</span>
+                        <small>Name of the lending protocol or venue you're routing through.</small>
+                        <input name="venueName" type="text" maxlength="40" />
+                      </label>
+                      <label class="toggle-row">
+                        <input name="venueHealthy" type="checkbox" checked />
+                        <span>
+                          <strong>Venue healthy</strong>
+                          <small>Uncheck to test degraded routing.</small>
+                        </span>
+                      </label>
+                      <div class="form-grid form-grid-2">
+                        <label class="field">
+                          <span>Venue exp, %</span>
+                          <small>Current share of your collateral on this venue.</small>
+                          <input name="venueExposurePct" type="number" min="0" max="100" step="0.1" />
+                        </label>
+                        <label class="field">
+                          <span>Wrapper exp, %</span>
+                          <small>Current share held in wrapped BTC vs native.</small>
+                          <input name="wrapperExposurePct" type="number" min="0" max="100" step="0.1" />
+                        </label>
+                        <label class="field">
+                          <span>Max venue, %</span>
+                          <small>Cap on how much collateral can sit on any one venue.</small>
+                          <input name="maxSingleVenueExposurePct" type="number" min="0" max="100" step="0.1" />
+                        </label>
+                        <label class="field">
+                          <span>Max wrapper, %</span>
+                          <small>Cap on wrapped BTC share. Lower = more conservative.</small>
+                          <input name="maxWrapperExposurePct" type="number" min="0" max="100" step="0.1" />
+                        </label>
+                      </div>
+                      <div class="form-grid form-grid-3">
+                        <label class="field">
+                          <span>Oracle, %</span>
+                          <small>How reliable the price feed is right now.</small>
+                          <input name="oracleConfidencePct" type="number" min="0" max="100" step="0.1" />
+                        </label>
+                        <label class="field">
+                          <span>Liquidity, %</span>
+                          <small>On-chain liquidity depth for the venue.</small>
+                          <input name="liquidityScorePct" type="number" min="0" max="100" step="0.1" />
+                        </label>
+                        <label class="field">
+                          <span>Health, %</span>
+                          <small>Composite health metric from TVL, uptime, audit.</small>
+                          <input name="venueHealthScorePct" type="number" min="0" max="100" step="0.1" />
+                        </label>
+                      </div>
+                      <div class="form-grid form-grid-2">
+                        <label class="field">
+                          <span>Oracle floor, %</span>
+                          <small>Below this, price feed treated as unreliable.</small>
+                          <input name="minOracleConfidencePct" type="number" min="0" max="100" step="0.1" />
+                        </label>
+                        <label class="field">
+                          <span>Liquidity floor, %</span>
+                          <small>Below this, venue considered illiquid.</small>
+                          <input name="minLiquidityScorePct" type="number" min="0" max="100" step="0.1" />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+              </section>
+            </aside>
+
+            <div class="setup-footer-bar setup-footer-summary create-preview-rail" data-setup-footer data-create-preview-rail data-tone="neutral">
+              <div class="setup-footer-summary__left">
+                <div class="create-preview-ring" data-create-preview-ring aria-hidden="true">
+                  <strong data-create-preview-score>--</strong>
+                  <span>fit</span>
+                </div>
+                <div class="setup-footer-summary__meta">
+                  <strong class="create-preview-title" data-create-preview-title>Manual sandbox</strong>
+                  <div class="setup-footer-summary__pills">
+                    <span class="create-preview-asset" data-create-preview-wrapper>wBTC · Wrapped</span>
+                    <span class="create-preview-pill" data-create-preview-scope title="Simulation ignores wallet balances. Run it, open Readout for this run, then switch to Live when collateral is real.">Simulation</span>
+                  </div>
+                  <p class="create-preview-copy" data-create-preview-copy></p>
+                  <p class="create-preview-next" data-create-preview-next></p>
+                </div>
+              </div>
+
+              <div class="setup-footer-summary__mid">
+                <div class="create-preview-metric">
+                  <span>LTV</span>
+                  <strong data-create-preview-ltv>--</strong>
+                </div>
+                <div class="create-preview-metric">
+                  <span>Buffer</span>
+                  <strong data-create-preview-buffer>--</strong>
+                </div>
+                <div class="create-preview-metric">
+                  <span>Payout</span>
+                  <strong data-create-preview-payout>--</strong>
+                </div>
+                <div class="create-preview-metric">
+                  <span>Debt</span>
+                  <strong data-create-preview-debt>--</strong>
+                </div>
+              </div>
+
+                <div class="setup-footer-summary__right">
+                  <div class="setup-footer-bar__actions">
+                    <button id="save-as-draft-footer" class="setup-footer-iconbtn setup-footer-iconbtn--labeled" type="button" data-state="idle" aria-label="Save as draft" title="Save the current form as a named draft without running a simulation.">
+                      <svg class="setup-footer-iconbtn__icon setup-footer-iconbtn__icon--idle" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+                      <svg class="setup-footer-iconbtn__icon setup-footer-iconbtn__icon--saved" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="m8 13 2.5 2.5L16 10"/></svg>
+                      <span class="setup-footer-iconbtn__label setup-footer-iconbtn__label--idle">Save draft</span>
+                      <span class="setup-footer-iconbtn__label setup-footer-iconbtn__label--saved">Saved</span>
+                    </button>
+                    <button id="reset-setup-footer" class="setup-footer-iconbtn" type="button" aria-label="Reset draft" title="Reset all fields to defaults.">
+                      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+                    </button>
+                  <button id="save-policy-toolbar" class="button button-secondary" type="button" hidden title="Anchor this policy object on Sui testnet. No real BTC moves.">Anchor policy object</button>
+                  <button id="run-sim-toolbar" class="button button-primary button-primary--gradient setup-footer-bar__primary" type="submit" form="scenario-form">Run rehearsal check</button>
+                </div>
+              </div>
+            </div>
+
+          </form>
+        </div>
+      </main>
+    </div>
+
+    <script src="/runtime-config.js?v=1bbbdd2"></script>
+    <script src="/telemetry.js?v=1bbbdd2"></script>
+    <script type="module" src="/app.js?v=1bbbdd2"></script>
+  </body>
+</html>

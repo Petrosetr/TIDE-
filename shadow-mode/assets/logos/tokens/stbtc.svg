@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="stBTC">
+  <circle cx="32" cy="32" r="30" fill="#0A6679"/>
+  <circle cx="32" cy="32" r="29" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="2"/>
+  <g transform="translate(23.6 14.2) scale(0.75)" fill="#FFFFFF">
+    <path d="M14.8017 10.3956L7.13672 15.8392V5.69368L14.8017 0.25L22.4405 5.67466L22.4423 21.2772L14.8017 15.8392V10.3956Z"/>
+    <path d="M0 10.751L7.13625 15.8352V36.8814L14.8013 31.451V42.3061L7.13625 47.7497L0 42.6427V10.751Z"/>
+    <path d="M14.8008 31.4511L22.4414 36.8777V26.7131L14.8008 21.2656V31.4511Z"/>
+  </g>
+</svg>

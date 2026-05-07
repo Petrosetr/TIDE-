@@ -1,0 +1,9 @@
+{
+  "name": "kai-live-runtime",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@kunalabs-io/kai": "0.25.0",
+    "@mysten/sui": "1.45.0"
+  }
+}

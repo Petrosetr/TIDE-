@@ -1,0 +1,1281 @@
+.exec-header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.exec-portfolio {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface-soft);
+  border-radius: var(--radius-xs);
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.exec-portfolio-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 140px;
+}
+
+.exec-portfolio-row span {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.exec-portfolio-row strong {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.exec-portfolio-ts {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.exec-action-card {
+  border: 1px solid var(--line);
+  /* Phase D.27 — was --radius-xs (10 px). Parent .surface uses
+     --radius-md (18 px); a 2-tier jump (md→xs) made the inner card
+     read as visually pasted from a different component. The
+     canonical nesting step is 1 tier (md→sm = 18→12 px), which keeps
+     the inner card in the same radius family as the parent surface. */
+  border-radius: var(--radius-sm);
+  padding: 1.25rem;
+  background: var(--surface);
+}
+
+.exec-action-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.exec-action-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-full);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.exec-action-amount {
+  font-size: var(--fs-lg);
+  font-weight: 800;
+  color: var(--text-strong);
+  font-family: var(--ff-display);
+}
+
+.exec-action-reason {
+  font-size: var(--fs-base);
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0.5rem 0;
+}
+
+.exec-action-route {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--fs-base);
+}
+
+.exec-action-route span {
+  color: var(--muted);
+}
+
+.exec-action-route strong {
+  color: var(--text-strong);
+}
+
+.exec-action-error {
+  color: var(--rose-text);
+  font-size: var(--fs-base);
+  padding: 0.5rem 0.75rem;
+  background: var(--rose-soft);
+  border-radius: var(--radius-pill);
+  margin: 0.5rem 0;
+}
+
+.exec-action-skip {
+  color: var(--muted);
+  font-size: var(--fs-base);
+  font-style: italic;
+  margin: 0.5rem 0;
+}
+
+.exec-action-note {
+  color: var(--muted);
+  font-size: var(--fs-base);
+  padding: 0.5rem 0;
+}
+
+.exec-action-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.exec-action-cta {
+  padding-top: 0.75rem;
+}
+
+.exec-sign-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.5rem;
+  font-size: var(--fs-base);
+  font-weight: 700;
+}
+
+.exec-confirm-panel {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--amber) 9%, var(--surface-soft));
+}
+
+.exec-confirm-panel strong {
+  color: var(--text-strong);
+}
+
+.exec-confirm-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.exec-risk-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  margin-top: 0.75rem;
+}
+
+.exec-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+}
+
+.exec-check::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.exec-check-ok {
+  color: var(--mint-text);
+  background: var(--mint-soft);
+}
+
+.exec-check-ok::before {
+  background: var(--mint);
+}
+
+.exec-check-warn {
+  color: var(--amber-text);
+  background: var(--amber-soft);
+}
+
+.exec-check-warn::before {
+  background: var(--amber);
+}
+
+/* C.7 — was raw rgba(255,255,255,…) overlays. Now tracks --surface-soft
+   and --line so the alpha-on-white intent translates to actual cool-
+   white tint in light theme. */
+html[data-theme="dark"] .exec-portfolio {
+  background: var(--surface-soft);
+}
+
+html[data-theme="dark"] .exec-action-card {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+/* C.12 V34 — `.hero-chip-market` / `.hero-chip-warn` modifiers
+   deleted. The market-band hero chip now uses canonical
+   `.state-badge .state-badge--accent` (live) and
+   `.state-badge .state-badge--amber` (stale/warn). */
+
+.market-band-surface {
+  margin-top: 0.9rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.market-band-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.market-band-head h3 {
+  margin: 0;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.01em;
+}
+
+.market-band-meta {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  text-transform: lowercase;
+}
+
+.market-band-copy {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.market-band-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.market-band-row {
+  display: grid;
+  grid-template-columns: 2.2rem 6.5rem 1fr 5rem 5.5rem;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: var(--fs-xs);
+}
+
+.market-band-q {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.market-band-price {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.market-band-track {
+  position: relative;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-strong));
+  overflow: hidden;
+}
+
+.market-band-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  /* Phase D.2 — was var(--surface) which made the fill the same
+     colour as parent card backgrounds, rendering the progress bar
+     invisible. Now uses --accent so the bar reads as filled,
+     matching the .payout-range-fill T21 fix. */
+  background: var(--accent);
+  border-radius: inherit;
+}
+
+.market-band-payout {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text);
+}
+
+.market-band-state {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  text-align: right;
+}
+
+.market-band-warnings {
+  margin: 0.15rem 0 0;
+  padding-left: 1.1rem;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+.market-band-row {
+    grid-template-columns: 2rem 1fr 5rem;
+    row-gap: 0.15rem;
+  }
+
+.market-band-price, .market-band-state {
+    grid-column: 2 / -1;
+    text-align: left;
+  }
+
+.market-band-track {
+    grid-column: 1 / -1;
+  }
+
+}
+
+/* C.9 — `--tide-*` parallel token system deleted. Was a shadow-system
+   that held its own radius / type / surface gradient values; changing
+   any canonical token couldn't propagate to /live or /readout because
+   these intermediate aliases swallowed the change. All call-sites
+   migrated to canonical tokens (`--radius-md/lg`, `--fs-md`,
+   `--surface-soft`, `--line-strong`, `--shadow-md`, etc.). */
+
+body {
+  position: relative;
+  background: var(--bg);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: var(--surface);
+  background-size: 96px 96px;
+  /* C.2.4 R11 — was bare rgba(0,0,0,0.82) which produced a pure-black
+     vignette on light theme. Tracking --bg makes the mask read with
+     the canvas in both themes (cool-near-black on dark, near-white
+     on light — same intent, theme-correct). */
+  mask-image: radial-gradient(circle at center, color-mix(in srgb, var(--bg) 82%, transparent), transparent 88%);
+  opacity: 0.58;
+  z-index: 0;
+}
+
+.app-shell, .app-main{
+  position: relative;
+}
+
+.app-shell {
+  isolation: isolate;
+  z-index: 1;
+}
+
+.sidebar-wallet {
+  margin-top: 0.05rem;
+}
+
+.theme-toggle {
+  padding: 0.18rem;
+  border: 1px solid var(--sidebar-line);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--surface-soft) 58%, transparent);
+}
+
+.theme-toggle button {
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-full);
+}
+
+.page-header {
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.page-heading h1 {
+  font-size: clamp(1.35rem, 2vw, 2.1rem);
+  letter-spacing: -0.04em;
+}
+
+/* D.42 — Readout/Live should not start with a heavyweight page card.
+   The status strip and policy surface below carry the product context;
+   this row is only navigation + actions. Keep it native, compact, and
+   visually subordinate to the actual position/readout content. */
+body[data-page="results"] .page-header--product,
+body[data-page="live"] .page-header--product {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem 0.85rem;
+  padding: 0.25rem 0 0.35rem;
+  margin: 0 0 0.45rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+body[data-page="results"] .page-header--product .page-heading,
+body[data-page="live"] .page-header--product .page-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+body[data-page="results"] .page-header--product .page-eyebrow,
+body[data-page="live"] .page-header--product .page-eyebrow {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+body[data-page="results"] .page-header--product h1,
+body[data-page="live"] .page-header--product h1 {
+  margin: 0;
+  font-size: var(--fs-lg);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+body[data-page="results"] .page-header--product .page-copy,
+body[data-page="live"] .page-header--product .page-copy {
+  display: none;
+}
+
+body[data-page="results"] .page-header--product .page-tools,
+body[data-page="live"] .page-header--product .page-tools {
+  justify-self: end;
+  align-items: flex-end;
+}
+
+body[data-page="results"] .page-header--product .trust-labels.trust-strip--in-header,
+body[data-page="live"] .page-header--product .trust-labels.trust-strip--in-header {
+  grid-column: 1 / -1;
+  margin-top: 0.05rem;
+}
+
+/* D.43 — On readout/live the stress chart is the primary evidence,
+   not a setup preview. The shared chart primitive caps view-mode at
+   920px for compact embeds; lift only the readout/live cap so the
+   graph uses the available surface width without affecting Create. */
+body[data-page="results"] .guardrails-chart--view .guardrails-chart__top,
+body[data-page="results"] .guardrails-chart--view .guardrails-chart__svg,
+body[data-page="results"] .guardrails-chart--view .guardrails-chart__zones,
+body[data-page="results"] .guardrails-chart--view .guardrails-chart__note,
+body[data-page="live"] .guardrails-chart--view .guardrails-chart__top,
+body[data-page="live"] .guardrails-chart--view .guardrails-chart__svg,
+body[data-page="live"] .guardrails-chart--view .guardrails-chart__zones,
+body[data-page="live"] .guardrails-chart--view .guardrails-chart__note {
+  --guardrails-chart-max: 1320px;
+}
+
+/* Phase D.36 — Readout/Live stress charts should not sit inside another
+   grey slab. Keep the section rhythm, remove the decorative substrate. */
+body[data-page="results"] #results-market-forecast.surface,
+body[data-page="live"] #results-market-forecast.surface {
+  padding: var(--space-3) 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body[data-page="results"] #results-market-forecast .section-head-compact,
+body[data-page="live"] #results-market-forecast .section-head-compact {
+  margin-bottom: var(--space-4);
+}
+
+body[data-page="results"] #results-scenarios.surface,
+body[data-page="live"] #results-scenarios.surface {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+@media (max-width: 860px) {
+  body[data-page="results"] .page-header--product,
+  body[data-page="live"] .page-header--product {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-page="results"] .page-header--product .page-heading,
+  body[data-page="live"] .page-header--product .page-heading,
+  body[data-page="results"] .page-header--product .page-tools,
+  body[data-page="live"] .page-header--product .page-tools {
+    justify-self: stretch;
+  }
+
+  body[data-page="results"] .page-header--product h1,
+  body[data-page="live"] .page-header--product h1 {
+    white-space: normal;
+  }
+}
+
+.page-copy {
+  max-width: 72ch;
+  font-size: var(--fs-md);
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+/* Phase D.23 — page-stack gap was clamp(1rem, 1.25vw, 1.35rem) — 2-3×
+   the DS-canonical 0.55-0.75rem inter-surface rhythm. Every consumer
+   page rendered as a "luxury slab stack" with too much air between
+   surfaces that should belong tight together (workflow steps, hero
+   then content, etc). Tightened to 0.65-0.85rem range so the page
+   reads as one cockpit, not a scrollable CMS. The .surface border
+   + radius still articulates each section as a distinct decision. */
+.page-stack, .content-grid, .content-grid-main {
+  gap: clamp(0.65rem, 0.8vw, 0.85rem);
+}
+
+.page-tools .action-cluster, .ws-position-actions, .saved-card .action-cluster {
+  gap: 0.55rem;
+}
+
+.surface h2, .surface h3, .ws-position-card strong, .saved-card strong, .route-card-title {
+  letter-spacing: -0.04em;
+}
+
+.metric-card, .fact-row, .rg-cell {
+  padding: 0.95rem;
+}
+
+.ws-position-card, .saved-card, .route-card, .log-card, .note-card, #live-monitor, #results-review, #results-scenarios, #action-log, #health-notes {
+  padding: clamp(0.95rem, 1.15vw, 1.2rem);
+}
+
+.metric-card strong, .fact-row strong, .rg-cell strong {
+  display: block;
+  font-size: clamp(1.2rem, 1.45vw, 1.7rem);
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.button {
+  min-height: 2.6rem;
+  padding: 0 1rem;
+  border-radius: var(--radius-sm);
+}
+
+/* C.9 — `.button-primary { background: var(--surface) }` deleted. The
+   global rule in foundation-shell.css already paints the canonical
+   primary button (--accent-strong bg, white text). The override here
+   was producing flat surface-coloured chrome on every primary CTA on
+   /readout, /workspace, /setup, /library — invisible against
+   surface-coloured cards. Without this override the global wins. */
+
+.button-secondary {
+  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
+}
+
+.button-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text);
+}
+
+.button-ghost:hover {
+  background: color-mix(in srgb, var(--surface-tint) 70%, transparent);
+  border-color: var(--line);
+}
+
+input, select, textarea {
+  border-radius: var(--radius-sm);
+}
+
+.visual-mark-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: transparent;
+}
+
+.visual-mark {
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.visual-mark.is-fallback {
+  background: var(--surface-soft);
+}
+
+.section-head {
+  margin-bottom: 0.8rem;
+}
+
+.fact-row-grid {
+  gap: 0.75rem;
+}
+
+.ws-filter-row {
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ws-filter-btn {
+  min-height: 2.55rem;
+  padding: 0 0.9rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.ws-filter-btn.is-active {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 54%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.ws-position-card {
+  overflow: hidden;
+}
+
+.ws-position-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+.route-grid {
+  gap: 0.8rem;
+}
+
+.route-grid {
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.leaderboard-row {
+  gap: 1rem;
+  align-items: center;
+}
+
+.empty-panel {
+  padding: 1.1rem;
+}
+
+.empty-panel strong {
+  display: block;
+  margin-bottom: 0.32rem;
+  font-size: var(--fs-md);
+}
+
+@media (max-width: 760px) {
+.page-header {
+    display: grid;
+  }
+
+.page-tools {
+    justify-items: start;
+  }
+
+.fact-row-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+/* C.2.4 R9 — :root + html[data-theme="dark"] --tide-system-* /
+   --tide-radius-* token blocks deleted. They were a parallel
+   pre-lift token system that shadowed the lifted globals only on
+   /readout, producing the cross-page drift this migration is
+   closing out. The lifted tokens (--surface, --line, --line-strong,
+   --shadow-md, --radius-md/lg/xl) cover everything that referenced
+   --tide-system-* before. */
+
+body {
+  background: var(--bg);
+}
+
+html[data-theme="dark"] body {
+  background: var(--bg);
+}
+
+.app-shell {
+  grid-template-columns: 14.6rem minmax(0, 1fr);
+}
+
+/* C.2.4 R12 — theme-toggle / theme-toggle button overrides deleted.
+   The global .theme-toggle rule in foundation-shell already paints
+   the toggle correctly with tokens; the rgba duplicates here were
+   shadowing /readout-only with pre-lift values. */
+
+.page-header h1 {
+  font-size: clamp(1.7rem, 1.7vw, 2.15rem);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.page-copy {
+  max-width: 46rem;
+  color: var(--muted);
+  font-size: var(--fs-md);
+  line-height: 1.55;
+}
+
+/* C.2.4 R9 follow-on — these .surface / .surface::before / .surface-
+   hero overrides referenced the deleted --tide-system-* gradient
+   tokens. The global .surface rule in foundation-shell.css already
+   provides the canonical surface chrome (border + radius + bg from
+   the lifted tokens). Hero variants pick up surface-strong via
+   surface-hero rules elsewhere. Block deleted; no replacement. */
+
+/* Product surfaces inherit the canonical .surface padding from
+   foundation-shell. Named components tighten themselves locally;
+   broad page-scoped surface resets were removed to avoid layout drift. */
+
+/* C.7 — chip / pill / leaderboard backgrounds + borders track tokens
+   so themes propagate correctly. Light-theme overrides deleted —
+   --surface-soft already resolves to a cool-white tint in light. */
+.ws-filter-btn, .view-pill, .badge {
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.route-card {
+  padding: var(--space-4);
+}
+
+.leaderboard-row {
+  border-bottom: 1px solid var(--line);
+}
+
+.token-chip {
+  gap: 0.45rem;
+  min-height: 2rem;
+  padding: 0.22rem 0.55rem 0.22rem 0.25rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.empty-panel {
+  min-height: 9.5rem;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+@media (max-width: 1180px) {
+.app-shell {
+    grid-template-columns: 13.5rem minmax(0, 1fr);
+  }
+
+.page-header h1 {
+    font-size: clamp(1.5rem, 1.5vw, 1.9rem);
+  }
+
+}
+
+@media (max-width: 980px) {
+.surface, .surface-hero {
+    border-radius: var(--radius-md);
+  }
+
+}
+
+.route-card {
+  padding: 0.22rem 0 0.28rem 0.72rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+
+}
+
+.route-grid .route-card + .route-card {
+  margin-top: 0.75rem;
+  padding-top: 0.82rem;
+  border-top: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+}
+
+.route-card::before {
+  top: 0.08rem;
+  bottom: 0.08rem;
+  width: 2px;
+}
+
+.route-card .entity-inline {
+  gap: 0.58rem;
+}
+
+.route-card .token-row {
+  gap: 0.42rem 0.7rem;
+  margin-top: 0.55rem;
+}
+
+.route-card .token-chip {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 0.28rem;
+}
+
+.route-card .token-chip-label {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.route-card-head {
+  align-items: start;
+  gap: 0.75rem;
+}
+
+.route-card-head-main {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.route-card-why {
+  margin: 0;
+  font-size: var(--fs-base);
+  line-height: 1.45;
+  color: var(--text-strong);
+}
+
+.route-card .route-card-title .entity-copy span {
+  font-size: var(--fs-xs);
+}
+
+.route-card .route-role {
+  min-height: 1.02rem;
+  padding: 0 0.3rem;
+  font-size: 0.56rem;
+}
+
+.route-card .route-score {
+  min-height: 0;
+  padding: 0;
+  font-size: var(--fs-xs);
+}
+
+.route-card .route-metrics {
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  font-size: var(--fs-xs);
+}
+
+/* D.44 — Route readout is one comparison, not two orphan cards inside
+   an oversized surface. Scope this to Results/Live route evidence so
+   other route-card uses keep their local grammar. */
+body[data-page="results"] #results-route .route-grid,
+body[data-page="live"] #results-route .route-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-soft) 62%, transparent);
+  overflow: hidden;
+}
+
+body[data-page="results"] #results-route .route-card,
+body[data-page="live"] #results-route .route-card {
+  min-height: 100%;
+  padding: 0.95rem 1rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+body[data-page="results"] #results-route .route-card + .route-card,
+body[data-page="live"] #results-route .route-card + .route-card {
+  margin-top: 0;
+  padding-top: 0.95rem;
+  border-top: 0;
+  border-left: 1px solid var(--line);
+}
+
+body[data-page="results"] #results-route .route-card::before,
+body[data-page="live"] #results-route .route-card::before {
+  display: none;
+}
+
+body[data-page="results"] #results-route .route-card-head,
+body[data-page="live"] #results-route .route-card-head {
+  gap: 0.85rem;
+}
+
+body[data-page="results"] #results-route .route-card-why,
+body[data-page="live"] #results-route .route-card-why {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+body[data-page="results"] #results-route .section-footnote,
+body[data-page="live"] #results-route .section-footnote {
+  margin: 0.72rem 0 0;
+  padding-top: 0.68rem;
+  border-top: 1px dashed color-mix(in srgb, var(--line) 78%, transparent);
+}
+
+@media (max-width: 840px) {
+  body[data-page="results"] #results-route .route-grid,
+  body[data-page="live"] #results-route .route-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-page="results"] #results-route .route-card + .route-card,
+  body[data-page="live"] #results-route .route-card + .route-card {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
+body[data-page="workspace"] table, body[data-page="results"] table, body[data-page="live"] table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+body[data-page="workspace"] table th, body[data-page="workspace"] table td, body[data-page="results"] table th, body[data-page="results"] table td, body[data-page="live"] table th, body[data-page="live"] table td {
+  border-left: 0;
+  border-right: 0;
+  background: transparent;
+}
+
+body[data-page="workspace"] table tr, body[data-page="live"] table tr {
+  background: transparent;
+}
+
+body[data-page="workspace"] table tbody tr, body[data-page="live"] table tbody tr {
+  border-top: var(--border-soft);
+}
+
+body[data-page="workspace"] table tbody tr:hover, body[data-page="live"] table tbody tr:hover {
+  background: var(--surface-soft);
+}
+
+body[data-page="workspace"] table th, body[data-page="live"] table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  border-bottom: var(--border-soft);
+  z-index: 1;
+}
+
+.metric strong, .value, td.value, th.value, [data-num], .figure {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+[data-tooltip] {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
+  text-underline-offset: 3px;
+  cursor: help;
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  max-width: 220px;
+  padding: 6px 10px;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.35;
+  border-radius: var(--radius-xs);
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  z-index: 100;
+}
+
+[data-tooltip]:hover::after, [data-tooltip]:focus-visible::after {
+  opacity: 1;
+}
+
+body[data-page="workspace"] table td, body[data-page="live"] table td, body[data-page="workspace"] table th, body[data-page="live"] table th {
+  height: var(--row-h);
+  padding: 0 var(--space-4);
+}
+
+.guardrails-finetune {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-2);
+}
+
+.guardrails-finetune > summary { cursor: pointer; }
+
+.guardrails-finetune .advanced-drawer__section { border-top: 0; padding-top: var(--space-2); }
+
+.guardrails-substress { display: block; margin-top: var(--space-3); }
+
+@keyframes createSkeletonShimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@keyframes scenario-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+.strategy-preset__modified {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  opacity: 0.8;
+}
+
+
+.app-shell {
+  display: block;
+  min-height: 100vh;
+}
+
+.sidebar-wallet {
+  order: 3;
+  flex: 0 1 17rem;
+  min-width: 12.5rem;
+  margin-left: auto;
+  padding: 0;
+}
+
+@media (max-width: 1120px) {
+
+.sidebar-wallet {
+    flex: 1 1 auto;
+    min-width: 12rem;
+    margin-left: 0;
+  }
+
+}
+
+@media (max-width: 720px) {
+
+.sidebar-wallet{
+    width: auto;
+  }
+
+}
+
+.sidebar-wallet {
+  order: 4;
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-left: 0;
+  padding: 0;
+}
+
+.wallet-icon {
+  width: 1.95rem;
+  height: 1.95rem;
+  padding: 0.18rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.wallet-address {
+  max-width: 12ch;
+  font: 600 0.96rem/1.1 var(--ff-display, var(--ff));
+  letter-spacing: 0;
+}
+
+.wallet-disconnect {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid transparent;
+  color: var(--muted-strong);
+}
+
+.wallet-disconnect:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--line-strong) 76%, transparent);
+  background: color-mix(in srgb, var(--surface-soft) 70%, transparent);
+}
+
+@media (max-width: 720px) {
+
+.wallet-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+.wallet-address {
+    max-width: 8.5ch;
+    font-size: var(--fs-base);
+  }
+
+}
+
+.route-card .token-chip {
+  gap: 0.2rem;
+}
+
+.button { border-radius: var(--radius-sm); }
+
+.swap-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  background: color-mix(in srgb, var(--surface-soft) 40%, var(--surface));
+}
+
+.swap-stat {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.swap-stat__label {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.swap-stat__inline {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+  background: var(--surface);
+}
+
+.swap-stat__inline input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: "Sora", ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}
+
+.swap-stat__unit {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--muted-strong);
+}
+
+.swap-stat__meta {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+@media (max-width: 720px) {
+.swap-stats { grid-template-columns: 1fr; }
+
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Polish pass — DS polish appendix (live slice, additive)
+   Date: 2026-04-29
+   Source: public UI polish pass C
+   ───────────────────────────────────────────────────────────────── */
+
+/* P-12 — tooltip 0.97 → 1 settle on top of existing opacity fade.
+   The existing centring transform (translateX(-50%)) is preserved
+   inside the no-preference block; reduced-motion users keep the
+   original instant tooltip. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-tooltip]::after {
+    transform: translateX(-50%) scale(0.97);
+    transition:
+      opacity 120ms ease,
+      transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  [data-tooltip]:hover::after,
+  [data-tooltip]:focus-visible::after {
+    transform: translateX(-50%) scale(1);
+  }
+}
+/* ── End Polish pass live appendix ───────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   Product-surface polish — product-surface polish (live slice)
+   ───────────────────────────────────────────────────────────────── */
+
+/* D-07 — tx-row most-recent (first-child) accent left-edge stripe */
+body[data-page="live"] .tx-feed > .tx-row:first-child,
+body[data-page="results"] .tx-feed > .tx-row:first-child {
+  position: relative;
+  padding-left: 0.6rem;
+}
+body[data-page="live"] .tx-feed > .tx-row:first-child::before,
+body[data-page="results"] .tx-feed > .tx-row:first-child::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45rem;
+  bottom: 0.45rem;
+  width: 2px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--accent) 60%, transparent);
+  pointer-events: none;
+}
+
+/* D-08 — mainnet live-state constant glow (non-pulse, additive over B-04) */
+.network-badge--mainnet[data-state="live"] .network-badge__dot {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--mint) 28%, transparent),
+    0 0 8px color-mix(in srgb, var(--mint) 35%, transparent);
+}
+
+/* D-09 — pre-sign-dialog opts into surface-glass (composes D.34 A15) */
+.pre-sign-dialog {
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+@supports (backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px)) {
+  .pre-sign-dialog {
+    background: color-mix(in srgb, var(--surface) 65%, transparent);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    backdrop-filter: blur(10px) saturate(140%);
+  }
+}
+.pre-sign-dialog::backdrop {
+  background: color-mix(in srgb, var(--bg) 65%, transparent);
+}
+/* ── End Product-surface polish live appendix ───────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   Fit-and-finish pass — live slice (deadweight removal)
+   ───────────────────────────────────────────────────────────────── */
+
+/* E-10 — /live tx-row separator removal on rows 2-N. D-07 stripe +
+   D-11 hover tint already carry the row boundary; the dashed top
+   border was double-stamping. Scoped to /live only — /results denser
+   feed keeps the separators. Border reservation preserved (color
+   transparent, not border-top:0) so row-grid math doesn't shift. */
+body[data-page="live"] .tx-feed > .tx-row:nth-child(n+2) {
+  border-top-color: transparent;
+}
+/* ── End Fit-and-finish pass live appendix ───────────────────────────────── */

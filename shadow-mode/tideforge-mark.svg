@@ -1,0 +1,26 @@
+<svg width="252" height="168" viewBox="0 0 252 168" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="20" cy="21" r="20" fill="#2CDFDB"/>
+<circle cx="125" cy="21" r="20" fill="#2CDFDB"/>
+<rect width="105" height="40" transform="translate(20 1)" fill="#2CDFDB"/>
+<circle cx="231" cy="21" r="21" fill="#1C60CF"/>
+<circle cx="186" cy="21" r="21" fill="#1C60CF"/>
+<rect width="46" height="42" transform="translate(185)" fill="#1C60CF"/>
+<g clip-path="url(#clip0_0_1)">
+<rect width="42" height="40" transform="translate(156 65)" fill="#2CDFDB"/>
+</g>
+<circle cx="197" cy="85" r="20" fill="#2CDFDB"/>
+<ellipse cx="157" cy="85" rx="21" ry="20" fill="#2CDFDB"/>
+<circle cx="91" cy="85" r="21" fill="#1C60CF"/>
+<circle cx="61" cy="85" r="21" fill="#1C60CF"/>
+<rect width="31" height="42" transform="translate(60 64)" fill="#1C60CF"/>
+<circle cx="162" cy="148" r="20" fill="#2CDFDB"/>
+<circle cx="112" cy="148" r="20" fill="#2CDFDB"/>
+<g clip-path="url(#clip1_0_1)">
+<rect width="50" height="40" transform="translate(112 128)" fill="#2CDFDB"/>
+<circle cx="112" cy="148" r="20" fill="#2CDFDB"/>
+</g>
+<defs>
+<clipPath id="clip0_0_1"><rect width="42" height="40" fill="white" transform="translate(156 65)"/></clipPath>
+<clipPath id="clip1_0_1"><rect width="50" height="40" fill="white" transform="translate(112 128)"/></clipPath>
+</defs>
+</svg>

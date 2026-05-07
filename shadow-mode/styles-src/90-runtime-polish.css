@@ -1,0 +1,207 @@
+/* =======================================================================
+   Runtime polish
+   Keeps only shared runtime affordances that should survive across pages.
+   Chart and setup-specific surfaces live in their own source files.
+   ======================================================================= */
+
+/* Phase D.29.1 — canonical app-wide focus-visible ring. Replaces the
+   prior `outline: none !important; box-shadow: var(--ring) !important`
+   block, which won the specificity war against the per-page outline
+   restorations in 98-setup-rebuild.css and silently masked them.
+   :where() keeps specificity at 0 so per-element overrides still win
+   without needing !important. */
+:where(
+  a.button,
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  .strategy-preset
+):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.scenario-workbench-host:empty,
+#readout-hero:empty,
+#results-market-forecast:empty,
+#results-scenarios:empty,
+#action-log:empty {
+  position: relative;
+  min-height: 11rem;
+}
+
+/* Phase D.13 — readout sections that the renderer fills conditionally
+   should not render an empty bordered card when their data is absent.
+   #live-position-center renders only in live mode; #readout-action,
+   #readout-autopilot, #results-route, #health-notes, #results-review
+   render only when their data exists. The :empty hide keeps the page
+   stack tight without reaching for `hidden` attributes from the
+   renderer. */
+#live-position-center:empty,
+#readout-status:empty,
+#readout-action:empty,
+#readout-autopilot:empty,
+#results-route:empty,
+#health-notes:empty,
+#results-review:empty {
+  display: none;
+}
+
+body[data-page="live"] #results-market-forecast:empty,
+body[data-page="live"] #results-scenarios:empty,
+body[data-page="live"] #action-log:empty {
+  display: none;
+  min-height: 0;
+}
+
+/* Cold-route stability: /results and /live hydrate from local storage,
+   chain readback, or query params after the first paint. Keep the
+   expected readout slots reserved until renderCurrentPage() marks the
+   app ready, then the normal :empty hide rules above take over. */
+body[data-page="results"]:not([data-app-ready="true"]) #readout-status:empty,
+body[data-page="live"]:not([data-app-ready="true"]) #readout-status:empty {
+  display: flex;
+  min-height: 2.75rem;
+}
+
+body[data-page="results"]:not([data-app-ready="true"]) #readout-action:empty,
+body[data-page="live"]:not([data-app-ready="true"]) #readout-action:empty {
+  display: block;
+  min-height: 24.5rem;
+}
+
+body[data-page="results"]:not([data-app-ready="true"]) #readout-hero:empty {
+  min-height: 16rem;
+}
+
+body[data-page="live"]:not([data-app-ready="true"]) #readout-hero:empty {
+  min-height: 16rem;
+}
+
+body[data-page="results"]:not([data-app-ready="true"]) #results-scenarios:empty,
+body[data-page="live"]:not([data-app-ready="true"]) #results-scenarios:empty {
+  display: block;
+  min-height: 23rem;
+}
+
+body[data-page="results"]:not([data-app-ready="true"]) #results-market-forecast:empty,
+body[data-page="live"]:not([data-app-ready="true"]) #results-market-forecast:empty {
+  display: block;
+  min-height: 16rem;
+}
+
+body[data-page="live"]:not([data-app-ready="true"]) #live-position-center:empty {
+  display: block;
+  min-height: 30rem;
+}
+
+body[data-page="results"]:not([data-app-ready="true"]) #results-route:empty,
+body[data-page="live"]:not([data-app-ready="true"]) #results-route:empty {
+  display: block;
+  min-height: 12rem;
+}
+
+body[data-page="results"]:not([data-app-ready="true"]) #health-notes:empty,
+body[data-page="results"]:not([data-app-ready="true"]) #results-review:empty,
+body[data-page="live"]:not([data-app-ready="true"]) #health-notes:empty,
+body[data-page="live"]:not([data-app-ready="true"]) #results-review:empty {
+  display: block;
+  min-height: 15rem;
+}
+
+body[data-page="workspace"]:not([data-app-ready="true"]) #workspace-identity {
+  min-height: 22rem;
+}
+
+body[data-page="workspace"]:not([data-app-ready="true"]) #workspace-list {
+  min-height: 34rem;
+}
+
+body:not([data-app-ready="true"]) .app-main::after {
+  content: "";
+  display: block;
+  min-height: 8rem;
+}
+
+@media (max-width: 760px) {
+  body[data-page="results"]:not([data-app-ready="true"]) #readout-action:empty,
+  body[data-page="live"]:not([data-app-ready="true"]) #readout-action:empty {
+    min-height: 42rem;
+  }
+
+  body[data-page="results"]:not([data-app-ready="true"]) #readout-hero:empty,
+  body[data-page="live"]:not([data-app-ready="true"]) #readout-hero:empty {
+    min-height: 31.5rem;
+  }
+
+  body[data-page="results"]:not([data-app-ready="true"]) #results-scenarios:empty,
+  body[data-page="live"]:not([data-app-ready="true"]) #results-scenarios:empty {
+    min-height: 53rem;
+  }
+
+  body[data-page="workspace"]:not([data-app-ready="true"]) #workspace-identity {
+    min-height: 30rem;
+  }
+
+  body[data-page="workspace"]:not([data-app-ready="true"]) #workspace-list {
+    min-height: 42rem;
+  }
+}
+
+body[data-page="live"] #results-market-forecast:empty::before,
+body[data-page="live"] #results-scenarios:empty::before,
+body[data-page="live"] #action-log:empty::before {
+  content: none;
+}
+
+.scenario-workbench-host:empty::before,
+#readout-hero:empty::before,
+#results-market-forecast:empty::before,
+#results-scenarios:empty::before,
+#action-log:empty::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Phase D.23 — was --radius-md (18 px); the filled .surface around
+     it uses --radius-lg (22 px), so a brief radius flash showed when
+     skeleton placeholder loaded ahead of the content. Aligned to
+     --radius-lg so the skeleton corners match the filled state. */
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--line) 28%, transparent) 12%, transparent 24%) 0 0 / 220% 100%,
+    linear-gradient(var(--surface-soft), var(--surface-soft)) 1rem 1rem / 32% 0.8rem no-repeat,
+    linear-gradient(var(--surface-soft), var(--surface-soft)) 1rem 2.6rem / 68% 0.7rem no-repeat,
+    linear-gradient(var(--surface-soft), var(--surface-soft)) 1rem 4.1rem / calc(100% - 2rem) 7rem no-repeat;
+  animation: createSkeletonShimmer 1.8s linear infinite;
+}
+
+/* App-level custody + no-wallet footer — visible at rest on every app page.
+   Injected by ensureAppFooter(). */
+.app-footer {
+  margin-top: 2.4rem;
+  padding: 1rem 1.2rem;
+  border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.app-footer__line {
+  margin: 0;
+}
+
+.app-footer__line strong {
+  color: color-mix(in srgb, var(--text) 85%, transparent);
+  font-weight: 600;
+  margin-right: 0.3rem;
+}
+
+.app-footer__line a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15rem;
+}

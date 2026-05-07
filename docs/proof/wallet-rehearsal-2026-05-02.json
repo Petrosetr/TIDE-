@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "tide-rehearsal/v1",
+  "network": "testnet",
+  "packageId": "0x999c34ce039388017838a5da6670195affa55c4dfbd466612494058963d502f0",
+  "operatorAddress": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "startedAt": "2026-05-02T12:11:58.867Z",
+  "updatedAt": "2026-05-02T12:20:14.297Z",
+  "requiredSteps": [
+    "anchor-policy",
+    "mint-receipt",
+    "cancel-n5",
+    "wrong-network",
+    "rpc-timeout"
+  ],
+  "steps": [
+    {
+      "name": "anchor-policy",
+      "status": "pass",
+      "at": "2026-05-02T13:00:40.753Z",
+      "evidence": {
+        "policyId": "0xc4020b323db9eebed6120b0a96c1a48b874e4422c02a8b5d7c5912eeec80ddbf",
+        "txDigest": "j3UiiMqm1B9Yj8NEsUWYED4HqEYhS6FRgd4pX3WiSQS"
+      }
+    },
+    {
+      "name": "mint-receipt",
+      "status": "pass",
+      "at": "2026-05-02T13:07:24.171Z",
+      "evidence": {
+        "receiptId": "0x28755e4d037614c53acc4ce8280986e6399fea5bba955ddba519d03597b585fe",
+        "txDigest": "317fGxcsUrdX2Nza2CWbufjAN7qJaMSKBmw1Jk6heRtb",
+        "contentDigest": "0x3be604f8bb8894d2bde672482bb06c632056c5ce3693a81033506454eb759622",
+        "receiptUrl": "https://testnet.suivision.xyz/object/0x28755e4d037614c53acc4ce8280986e6399fea5bba955ddba519d03597b585fe"
+      }
+    },
+    {
+      "name": "cancel-n5",
+      "status": "pass",
+      "at": "2026-05-02T13:08:53.948Z",
+      "evidence": {
+        "action": "mint-receipt",
+        "userCancelled": true,
+        "txSubmitted": false,
+        "uiSurface": "Cancelled - nothing was signed."
+      }
+    },
+    {
+      "name": "wrong-network",
+      "status": "pass",
+      "at": "2026-05-02T13:09:49.883Z",
+      "evidence": {
+        "wallet": "Slush",
+        "walletUiNetwork": "mainnet",
+        "requestedNetwork": "testnet",
+        "behavior": "wallet honors dApp-requested testnet network despite mainnet UI",
+        "refused": false,
+        "txSubmitted": false,
+        "reason": "Slush does not expose a wrong-network state for this flow; transaction request remains testnet-scoped."
+      }
+    },
+    {
+      "name": "rpc-timeout",
+      "status": "pass",
+      "at": "2026-05-02T13:18:34.471Z",
+      "evidence": {
+        "devtoolsNetwork": "offline",
+        "action": "open-exit-monitor / background readback",
+        "fallbackHit": true,
+        "txSubmitted": false,
+        "uiSurface": "DevTools Network Offline produced failed network requests with net::ERR_INTERNET_DISCONNECTED; no signing action was used."
+      }
+    }
+  ],
+  "finishedAt": "2026-05-02T13:19:29.747Z",
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0,
+    "skippedRequired": [],
+    "missing": [],
+    "ok": true
+  },
+  "gitShortSha": "6f681fd",
+  "finishedAtMs": 1777727969747
+}

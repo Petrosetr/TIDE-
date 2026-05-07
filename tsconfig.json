@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "declaration": true,
+    "sourceMap": true,
+    "outDir": "dist/ts",
+    "rootDir": ".",
+    "types": ["node"],
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["tide_core.ts"],
+  "exclude": ["node_modules", "dist"]
+}

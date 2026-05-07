@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TIDE | Risk Disclosure</title>
+    <meta name="description" content="Risk disclosure for TIDE simulation, testnet proof, and future live execution surfaces." />
+    <link rel="stylesheet" href="styles.css?v=20260331-25" />
+    <style>
+      .legal-page { padding: 5.5rem 0 4rem; background: #f8fbff; min-height: 100vh; }
+      .legal-shell { max-width: 860px; display: grid; gap: 1.2rem; }
+      .legal-card { padding: 1.5rem; border: 1px solid rgba(10, 18, 38, 0.08); border-radius: 16px; background: rgba(255,255,255,0.9); }
+      .legal-card h2 { margin: 0 0 0.65rem; }
+      .legal-card p, .legal-card li { color: #475467; line-height: 1.7; }
+    </style>
+  </head>
+  <body data-page="legal-risk">
+    <header class="topbar">
+      <div class="shell topbar-shell">
+        <a class="brand" href="./" aria-label="TIDE home">
+          <img src="tide-mark.svg" alt="" />
+          <div class="brand-copy">
+            <span class="brand-name">TIDE</span>
+            <span class="brand-tag">Shadow-first BTC treasury policy cockpit</span>
+          </div>
+        </a>
+        <a class="button button-secondary" href="./">Back to site</a>
+      </div>
+    </header>
+
+    <main class="legal-page">
+      <section class="shell legal-shell">
+        <div class="legal-card">
+          <p class="section-label">Risk disclosure</p>
+          <h1>Modeled results are not guaranteed</h1>
+          <p>TIDE helps model and review Bitcoin treasury policies. That does not remove protocol, market, execution, operational, or legal risk.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>1. Market and liquidation risk</h2>
+          <p>Collateral prices can move rapidly. Borrowed positions can become unhealthy, trigger emergency responses, or be liquidated. A modeled buffer or runway does not eliminate downside risk.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>2. Protocol and integration risk</h2>
+          <p>TIDE depends on external protocols, wrappers, venues, wallets, and market data. Any of those systems can degrade, pause, fail, or behave differently from assumptions used during simulation.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>3. Data and model risk</h2>
+          <p>Simulations may simplify debt accrual, liquidation effects, execution costs, oracle quality, or stress behavior. Read-only live data and testnet proof improve visibility, but do not guarantee that a future live outcome will match the model.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>4. Execution risk</h2>
+          <p>When enabled, wallet signatures, route selection, and protocol actions can still fail, revert, or complete under different market conditions than the modeled scenario. Manual review and operator judgment remain necessary.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>5. Exit risk</h2>
+          <p>TIDE is still building full unwind support. Today, exit can require manual repay, withdraw, and close steps in the underlying protocol and wallet. Users should not assume one-click exit is always available.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="./runtime-config.js"></script>
+    <script src="./telemetry.js?v=20260331-25"></script>
+  </body>
+</html>

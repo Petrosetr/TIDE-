@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-hidden="true">
+  <rect x="2" y="2" width="60" height="60" rx="18" fill="#ffffff"/>
+  <rect x="2" y="2" width="60" height="60" rx="18" fill="none" stroke="rgba(15,23,42,0.08)"/>
+  <defs>
+    <clipPath id="clip">
+      <rect x="8" y="8" width="48" height="48" rx="14"/>
+    </clipPath>
+  </defs>
+  <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACEAAAAfCAYAAABplKSyAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAP2SURBVHgBtVfdcRoxEF7pMH7IQ+iASwWhg5AKjCswnsQkM0kMVGBTAcZ2ZjJ2ZoIrMK7AuILgCnJ0QN7iwJ2yK6E7Sacz4CQ7wxza29v9tNo/MViD+u9FmC5+waw7ZDPrfVNU6OnjuzwfsULDqKBUhrYQ0EGpivPVMH6AHhqIpOyBqAUMvuf4b0SjxFEHwNXhJRtuBKL/VtRR6XXOuE1RLGC3e8kmtDhtiQ59Kvm/4bUGMjgQJ4xBGwSM4znsa75J3GWct8RewOF2BQCiEIHekhdocXjBTnDHE8kvI7+pjjCZwzEBQ311k18IggQSgKHXpICZ/NlUIY/pmEgS6KYAlUEVEwkMNJ+XM3kvCPrQY37EaIfkGb93yOAR/el+ZWOmvKEN0hFBvMCNLTeA72uanwNx1hKkKLTUq53V0M01eJw6FEfqE7jRTDTY1t6g4DT4R+axSBAkiEJNR3EX37ZzwAqIM2hIENw6zoredSJgZMoH28p7KYhgSyoIIYM6RLTPYU0A8hMGe3LXX2T0R5kquRF5VFZMCWjo2JAgGIc9U2HMoOfxzCqqLDeD+uHO5OujQmsTS76sbHB5FALq2ZbQnQvpgRA2JQ6vpIrEMpYelUjg3pJn8FJ9VrKDji3ghnMD1Ca03AwT2XEoW8qYkTmWPA+cyF/EMGZLhE+gkDy7YE49YYXZJeW5YJnbcQcTSidEvKpaFtLWMwzoku0JoLhAY7HI8fEDrCdOAVrZ8VbR/AFeQBE4HwlMY3ONhean4v8lmMX6QY1lP+S+FxjFU/gPFLA8ODoiCwQuqvTMRfE/MEYkCvgEIjKEZHxg3x/BE2lrG374es3Hz2zqzTrMJO7kdHj+QVRl+2UwhicQGcM64xpTHVTkPUFDEY8D2xgOIbv0jGPowYZEKU5PqwIv+dQ1XQ9peS4bjt1YdiRCbDiobAAbEGbX3RnOlS4fj/kG+0rdJy9BKLtZr6cxTDec9iXrbAKE2rUoqU2YhBkwdpuklk9BuL0ez7Sv2ywBQZT7mDEkE0ExRVgfyKvNHH8OM/eIiC/buwYhF0Yg0giG7uvrNY3rny7YrtOiLSJvmoOK8aJXxNd/0zqRC0QGTRzjr33TsYciHHLHPi9gunv55j0kBVEQiA0afk/fiW8UJ5jnRfW/h5ecvufNwDc8xwnsm2u7d+AdQeSrZUg7kXcRAfnIR+AIruqmH67Js1VwhiPi61jwgqAileDtSaxZtqm8IwDEIS84maEErpYzascF0L5gxx49fhq0xDGN5lCMYEiJTrHjvBlhEapgbagbvIiOwPVApuoRott4EAPFwk46d2BhQ9v31AfM4Yepu+k05ZMcg2kSw6jIuKY//Diz9h+BmI0AAAAASUVORK5CYII=" x="8" y="8" width="48" height="48" preserveAspectRatio="xMidYMid meet" clip-path="url(#clip)"/>
+</svg>

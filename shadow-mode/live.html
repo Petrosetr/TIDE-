@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://plausible.io 'sha256-usTCGDDcjrn0M6X9jPuXcp7mLK07w8SAO3d9XKhcxm4='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://plausible.io https://fullnode.mainnet.sui.io https://sui-rpc.publicnode.com https://fullnode.testnet.sui.io https://sui-testnet-rpc.publicnode.com https://fullnode.devnet.sui.io https://sui.io https://suivision.xyz https://publisher.walrus-testnet.walrus.space https://aggregator.walrus-testnet.walrus.space https://app.tidesui.pro https://dev.tidesui.pro https://testnet.tidesui.pro; base-uri 'self'; form-action 'self'; object-src 'none';" />
+    <title>TIDE Live</title>
+    <meta
+      name="description"
+      content="Read-only live rail monitor for the TIDE console."
+    />
+    <meta name="color-scheme" content="dark light" />
+    <script>
+      try {
+        var tideTheme = localStorage.getItem("tide.shadow-mode.theme.v1");
+        if (tideTheme) try { tideTheme = JSON.parse(tideTheme); } catch(e) {}
+        document.documentElement.dataset.theme = tideTheme === "light" ? "light" : "dark";
+      } catch (error) {
+        document.documentElement.dataset.theme = "dark";
+      }
+    </script>
+    <style>
+      html { background: #06060a; color: #d0d4e0; color-scheme: dark; }
+      html[data-theme="light"] { background: #F4F7FB; color: #0d1a30; color-scheme: light; }
+      body { margin: 0; background: inherit; color: inherit; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="prefetch" href="/" as="document" />
+    <link rel="prefetch" href="/setup" as="document" />
+    <link rel="prefetch" href="/results" as="document" />
+    <link rel="prefetch" href="/library" as="document" />
+    <link rel="stylesheet" href="/styles-readout.css?v=1bbbdd2" />
+  </head>
+  <body data-page="live">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="app-shell app-shell--topbar">
+      <header class="app-topbar" aria-label="TIDE navigation">
+        <a class="app-topbar__brand" href="/" aria-label="TIDE workspace">
+          <img src="/tide-mark.svg" alt="" />
+          <span>TIDE</span>
+        </a>
+        <div class="app-topbar__actions">
+          <span id="env-badge" class="network-badge" role="status" aria-live="polite" hidden></span>
+          <div class="theme-toggle" role="group" aria-label="Color theme">
+            <button type="button" data-theme-value="light" aria-label="Light theme" title="Light theme">
+              <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="4.5" fill="currentColor"/>
+                <path d="M12 2.5V5.1M12 18.9V21.5M21.5 12H18.9M5.1 12H2.5M18.7 5.3L16.8 7.2M7.2 16.8L5.3 18.7M18.7 18.7L16.8 16.8M7.2 7.2L5.3 5.3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"/>
+              </svg>
+              <span class="sr-only">Light</span>
+            </button>
+            <button type="button" data-theme-value="dark" aria-label="Dark theme" title="Dark theme">
+              <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14.9 3.2A8.8 8.8 0 1 0 20.8 18 7.6 7.6 0 1 1 14.9 3.2Z" fill="currentColor"/>
+              </svg>
+              <span class="sr-only">Dark</span>
+            </button>
+          </div>
+          <section id="header-wallet" class="header-wallet" aria-label="Wallet"></section>
+        </div>
+      </header>
+
+      <div class="app-main app-main--topbar">
+        <header class="page-header page-header-compact page-header--product">
+          <div class="page-heading">
+            <p class="page-eyebrow">Live</p>
+            <h1>Live Readout</h1>
+            <p class="page-copy">Review the anchored policy, modeled position, receipts, and next operator action. Read-only unless this runtime is explicitly wired for testnet proof signing.</p>
+          </div>
+
+          <div class="page-tools">
+            <div class="action-cluster">
+              <a class="button button-ghost" href="/setup" title="Reopen the draft that produced this run in Create. Forking from /live is a Journey C affordance: keep the live policy intact, iterate on the parameters as a fresh draft.">Edit in Create</a>
+              <button id="save-current" class="button button-secondary" type="button" data-state="idle">Save as draft</button>
+              <button id="export-current" class="button button-secondary" type="button">Export JSON</button>
+              <button id="save-policy-current" class="button button-secondary" type="button" disabled aria-disabled="true" title="Anchor this policy object on Sui testnet. No real BTC moves.">Anchor policy object</button>
+              <button id="mint-receipt" class="button button-primary button-primary--gradient" type="button" disabled aria-disabled="true">Mint action receipt</button>
+            </div>
+            <p id="status-note" class="status-line" role="status" aria-live="polite" aria-atomic="true"></p>
+          </div>
+
+          <div class="trust-labels trust-strip trust-strip--in-header" aria-label="Safety posture"></div>
+        </header>
+
+        <!-- /live is a stable legacy alias for Readout. The dispatcher in
+             app.js routes both currentPage="live" and "results" to the
+             same mode-aware renderer.
+             Phase D.13 — /live order DIVERGES from /results because the
+             operator's P1 differs:
+               /results = "did this draft survive" → action verdict first
+               /live    = "is my anchored policy safe right now" →
+                          position center (live LTV, buffer) first.
+             #live-position-center renders the live position center when
+             isLiveMode; in sim mode the renderer leaves it empty and
+             the :empty CSS hides the bordered shell. Actions sit
+             immediately after the operator verdict because run-scoped
+             signed activity is P1 operational state, not archive evidence. -->
+        <main class="page-stack readout-page" id="main">
+          <section id="readout-status" class="readout-status"></section>
+          <section id="live-position-center" class="surface surface-hero" data-edge="accent"></section>
+          <section id="readout-action" class="surface readout-action"></section>
+          <section id="readout-autopilot" class="surface readout-autopilot"></section>
+          <section id="readout-hero" class="surface readout-hero"></section>
+          <!-- Phase D.25 — #results-operating slot removed (DOM zombie
+               from D.20 merge into stress block). -->
+          <section id="results-scenarios" class="surface"></section>
+          <section id="results-market-forecast" class="surface data-surface"></section>
+          <section id="results-route" class="surface"></section>
+          <div class="readout-position-details">
+            <section id="health-notes" class="surface"></section>
+            <section id="results-review" class="surface"></section>
+          </div>
+          <details class="surface-evidence" id="results-evidence">
+            <summary class="surface-evidence__summary">
+              <span class="section-label">Evidence</span>
+              <strong>Decision trail archive</strong>
+              <span class="surface-evidence__hint">Open archive</span>
+            </summary>
+            <div class="surface-evidence__body">
+              <section id="action-log" class="surface"></section>
+            </div>
+          </details>
+        </main>
+      </div>
+    </div>
+
+    <script src="/runtime-config.js?v=1bbbdd2"></script>
+    <script src="/telemetry.js?v=1bbbdd2"></script>
+    <script type="module" src="/app.js?v=1bbbdd2"></script>
+  </body>
+</html>

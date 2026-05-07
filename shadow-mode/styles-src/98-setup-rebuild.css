@@ -1,0 +1,1805 @@
+/* ==========================================================================
+   Setup Rebuild
+   Setup-only visual layer after isolation. Owns Create, the scenario plane,
+   custom steppers, wallet pill, and sticky footer rail.
+   ========================================================================= */
+
+/* C.12 — local --setup-* token aliases dropped. Were duplicates of
+   --radius-lg / --radius-md / --ring with no live consumers. */
+
+body[data-page="setup"] .app-shell--setup {
+  background: var(--bg) !important;
+}
+
+body[data-page="setup"] .page-stack {
+  display: grid;
+  position: relative;
+  /* Phase D.28 — DS rule §2.7 / §9.4. Was 1rem (luxury slab gap),
+     producing the "стопка блинов" reading between titlebar, primer,
+     and policy-stack. Aligned to the canonical inter-surface rhythm. */
+  gap: clamp(0.65rem, 0.8vw, 0.85rem);
+  padding-bottom: 8rem;
+}
+
+body[data-page="setup"] .setup-titlebar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 1rem;
+}
+
+body[data-page="setup"] .setup-titlebar__main {
+  min-width: 0;
+}
+
+body[data-page="setup"] .setup-titlebar .inline-title-shell {
+  max-width: min(100%, 34rem);
+}
+
+body[data-page="setup"] .setup-titlebar .inline-title-hint {
+  margin: 0.35rem 0 0;
+  max-width: min(100%, 34rem);
+  font-size: var(--fs-sm) !important;
+  line-height: 1.35;
+  /* Phase D.10 — was raw var(--warn) (bright amber yellow) which read
+     as a loud "not on DS" warning. The collision hint is a soft notice,
+     not a hard error; use --amber-text (muted readable amber) so it
+     matches the .state-badge--amber tone family. */
+  color: var(--amber-text) !important;
+}
+
+body[data-page="setup"] .setup-titlebar .inline-title-hint--dirty {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.4rem;
+  width: fit-content;
+  margin-top: 0.28rem;
+  padding: 0.16rem 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--amber) 32%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--amber) 7%, transparent);
+  font-size: var(--fs-xs) !important;
+  line-height: 1.2;
+  color: var(--amber-text) !important;
+}
+
+body[data-page="setup"] .setup-titlebar .inline-title-hint--dirty[hidden] {
+  display: none;
+}
+
+body[data-page="setup"] .inline-title-hint--dirty span {
+  font-weight: 700;
+}
+
+body[data-page="setup"] .inline-title-hint--dirty em {
+  font-style: normal;
+  color: var(--muted);
+}
+
+body[data-page="setup"] .inline-title-hint__apply {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0 0.15rem;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+body[data-page="setup"] .inline-title-hint__apply:hover {
+  color: var(--accent-strong);
+}
+
+body[data-page="setup"] .setup-titlebar [data-header-name].has-collision {
+  /* Phase D.10 — was raw var(--warn) (bright amber yellow) on both
+     border + 1px box-shadow which made the input frame loud. Now uses
+     a subtle amber-tinted border via color-mix and an amber-soft glow
+     so the collision state reads as "soft notice" not "loud error". */
+  border-color: color-mix(in srgb, var(--amber) 55%, var(--line-strong)) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--amber) 40%, transparent) !important;
+}
+
+@keyframes tide-scenario-name-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+body[data-page="setup"] .inline-title-hint.is-shaking,
+body[data-page="setup"] [data-header-name].is-shaking {
+  animation: tide-scenario-name-shake 0.5s ease-in-out;
+}
+
+body[data-page="setup"] .setup-titlebar .status-line {
+  margin: 0;
+  max-width: 34rem;
+  justify-self: end;
+  text-align: right !important;
+}
+
+body[data-page="setup"] .setup-boot-skeleton {
+  position: relative;
+  z-index: 4;
+  width: 100%;
+  min-height: 24rem;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  cursor: progress;
+}
+
+body[data-page="setup"]:not([data-app-ready="true"]) .page-stack > :not(.setup-boot-skeleton) {
+  visibility: hidden;
+}
+
+body[data-page="setup"][data-app-ready="true"] .setup-boot-skeleton,
+body[data-page="setup"] .setup-boot-skeleton[hidden] {
+  display: none;
+}
+
+body[data-page="setup"] .setup-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  body[data-page="setup"] .setup-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+body[data-page="setup"] .setup-main,
+body[data-page="setup"] .setup-aside,
+body[data-page="setup"] .create-top-grid,
+body[data-page="setup"] .policy-cashflow--inline,
+body[data-page="setup"] .swap-stats--policy,
+body[data-page="setup"] .guardrails-finetune__grid,
+body[data-page="setup"] .guardrails-grid,
+body[data-page="setup"] .toggle-stack,
+body[data-page="setup"] .setup-footer-summary,
+body[data-page="setup"] .setup-footer-summary__mid {
+  min-width: 0;
+}
+
+body[data-page="setup"] .setup-main,
+body[data-page="setup"] .setup-aside {
+  display: grid;
+  /* Phase D.28 — DS rule §2.7. Aligned to canonical inter-surface
+     rhythm (was 1rem, producing pancake stack between sections). */
+  gap: 0.75rem;
+  align-content: start;
+}
+
+body[data-page="setup"] .setup-aside-panel {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  padding: 1.2rem;
+}
+
+body[data-page="setup"] .setup-aside-panel__section {
+  min-width: 0;
+}
+
+body[data-page="setup"] .setup-aside-panel__section + .setup-aside-panel__section {
+  padding-top: var(--space-4);
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+body[data-page="setup"] .setup-aside-panel .guardrails-market-panel,
+body[data-page="setup"] .setup-aside-panel .policy-cashflow--inline,
+body[data-page="setup"] .setup-aside-panel .create-advanced-drawer {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body[data-page="setup"] .setup-aside-panel .section-head-compact {
+  margin-bottom: var(--space-3);
+}
+
+body[data-page="setup"] .create-top-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 208px) minmax(0, 1fr);
+  gap: .75rem;
+  align-items: start;
+}
+
+body[data-page="setup"] .policy-cashflow--inline {
+  display: grid;
+  gap: 0.8rem;
+}
+
+body[data-page="setup"] .swap-stats--policy {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+/* Phase D.5 — guardrails-finetune__grid + toggle-stack consolidated.
+   Was duplicated here (line 178 + 190) and again at line 1006 + 1011
+   with conflicting column counts; the later block always won, making
+   the earlier declarations dead code. Now declared once with the
+   intended column count. */
+body[data-page="setup"] .guardrails-finetune__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+body[data-page="setup"] .guardrails-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+body[data-page="setup"] .toggle-stack {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+}
+
+body[data-page="setup"] .guardrails-finetune {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+body[data-page="setup"] .guardrails-finetune .advanced-drawer__section {
+  padding-top: var(--space-3);
+  border-top: 0;
+}
+
+body[data-page="setup"] .header-wallet {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+/* Setup uses the shared foundation wallet pill; only clamp width in
+   the narrow topbar column. */
+body[data-page="setup"] .wallet-pill,
+body[data-page="setup"] .wallet-pill__trigger {
+  max-width: 100%;
+}
+
+body[data-page="setup"] .wallet-address {
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Phase D.28 — was a blanket `outline: 0 !important` on every
+   interactive setup element. That violated WCAG 2.4.7 (no visible
+   focus indicator) and DS interaction rule (canonical focus ring
+   uses the accent token). Restored: 2 px accent outline with offset,
+   matching .button-primary:focus-visible elsewhere. The previous
+   suppression was a workaround from the pre-Phase-C era; canonical
+   focus is now safe because every interactive element has tightened
+   chrome and the outline doesn't visually clash. */
+body[data-page="setup"] .wallet-pill__trigger:focus-visible,
+body[data-page="setup"] .theme-toggle button:focus-visible,
+body[data-page="setup"] .mode-card__opt:focus-within,
+body[data-page="setup"] .collateral-asset-trigger:focus-visible,
+body[data-page="setup"] .stable-asset-pill:focus-within,
+body[data-page="setup"] .swap-card__preset:focus-visible,
+body[data-page="setup"] .swap-stepper__btn:focus-visible,
+body[data-page="setup"] .btc-price-meta__reset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+body[data-page="setup"] :where(a[href], button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+body[data-page="setup"] .create-entry-surface {
+  padding: 0.92rem;
+}
+
+/* Phase D.14 — every surface in /setup aligns to --radius-sm so the
+   page reads as one radius family. The global .surface rule sets
+   --radius-md (18 px); on /setup we override to --radius-sm (12 px)
+   to match the policy stack peers + footer + composer chrome. */
+body[data-page="setup"] .surface {
+  border-radius: var(--radius-sm);
+}
+
+/* Phase D.14 — .create-policy-stack is the wrapper around the three
+   decomposed peer surfaces (goal, cashflow, guardrails). It carries
+   the gap rhythm so the three surfaces read as articulated steps in
+   one workflow rather than one undifferentiated block. The existing
+   .create-policy-surface rules apply via .create-policy-stack >
+   .surface so all three peers inherit the setup-specific chrome
+   (padding, borders, etc).
+
+   Visual hierarchy across the three:
+   - .create-goal-surface       — P1: preset selection drives
+                                   everything downstream. Accent
+                                   section-label for emphasis.
+   - .create-cashflow-surface   — P2: numbers configuration. Muted.
+   - .create-guardrails-surface — P3: expert-mode threshold tuning.
+                                   Slightly dimmed section label. */
+body[data-page="setup"] .create-policy-stack {
+  display: grid;
+  /* Phase D.18 — was gap: 1rem (16 px). At that gap the three peer
+     surfaces read as three independent forms stacked like pancakes
+     ("стопка сплюснутых блинов" — user). Tightened to 0.55 rem
+     (~9 px) so the three steps read as one workflow with light
+     internal separation, like /design-system's shelf-to-shelf
+     rhythm where adjacent shelves use a tight gap to belong to
+     one section, larger gap to mark new chapters. The .surface
+     border + radius still articulates each step as a distinct
+     decision; the tighter gap couples them into one workflow. */
+  gap: 0.55rem;
+}
+/* Phase D.18 — connect the three peer surfaces with a vertical
+   accent thread on hover/focus-within so the operator sees them
+   as steps in one funnel, not three independent forms. */
+body[data-page="setup"] .create-policy-stack > .surface {
+  position: relative;
+}
+body[data-page="setup"] .create-policy-stack > .surface:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line-strong));
+}
+body[data-page="setup"] .create-policy-stack > .surface .section-label {
+  color: var(--muted);
+}
+body[data-page="setup"] .create-goal-surface > .strategy-goal-main .section-label {
+  color: var(--accent);
+}
+body[data-page="setup"] .create-guardrails-surface > .section-head .section-label {
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+/* Mode card: side tabs inside the composer. The mode is the context for
+   the whole position composer, so it belongs on the side rail instead of
+   floating as a top-right switcher. */
+body[data-page="setup"] .create-top-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+}
+body[data-page="setup"] .create-entry-surface .mode-card {
+  grid-area: mode;
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.9rem 0.72rem;
+  border: 0 !important;
+  border-right: 1px solid color-mix(in srgb, var(--line) 78%, transparent) !important;
+  border-radius: 0 !important;
+  background: color-mix(in srgb, var(--surface) 22%, transparent) !important;
+  box-shadow: none !important;
+  align-self: stretch;
+}
+body[data-page="setup"] .create-entry-surface .mode-card .section-micro-label {
+  display: inline-flex;
+  margin: 0;
+  color: var(--muted);
+}
+body[data-page="setup"] .create-entry-surface .mode-card__options {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+body[data-page="setup"] .create-entry-surface .mode-card__opt {
+  display: grid;
+  gap: 0.18rem;
+  align-content: center;
+  min-height: 3.45rem;
+  padding: 0.45rem 0.72rem 0.45rem 0.95rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  cursor: pointer;
+  position: relative;
+  transition:
+    color 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+body[data-page="setup"] .create-entry-surface .mode-card__opt::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  opacity: 0;
+  transform: scaleY(0.6);
+  transition:
+    background 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+body[data-page="setup"] .create-entry-surface .mode-card__opt:hover {
+  color: var(--text) !important;
+}
+body[data-page="setup"] .create-entry-surface .mode-card__opt strong {
+  font-size: var(--fs-sm) !important;
+  font-weight: 700 !important;
+  line-height: 1.2;
+  color: inherit !important;
+  display: block;
+}
+body[data-page="setup"] .create-entry-surface .mode-card__opt em {
+  display: block;
+  font-size: var(--fs-xs) !important;
+  font-style: normal !important;
+  line-height: 1.25;
+  opacity: 0.74 !important;
+}
+body[data-page="setup"] .create-entry-surface .mode-card__opt:has(input:checked),
+body[data-page="setup"] .create-entry-surface .mode-card__opt.is-active {
+  color: var(--text-strong) !important;
+  box-shadow: none;
+  z-index: 2;
+}
+body[data-page="setup"] .create-entry-surface .mode-card__opt:has(input:checked)::before,
+body[data-page="setup"] .create-entry-surface .mode-card__opt.is-active::before {
+  background: var(--accent);
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+body[data-page="setup"] .create-entry-surface .mode-card__opt.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.5 !important;
+  pointer-events: auto !important;
+}
+
+body[data-page="setup"] .create-entry-surface .mode-card__opt.is-disabled strong::after {
+  content: "";
+  display: none;
+}
+/* Fit-and-finish passc — coming-soon variant suppresses the "wallet required"
+   suffix; the em sublabel already reads "Coming soon" from JS, and we
+   don't want both signals competing. Used on dev / live-disabled builds
+   where wallet state is irrelevant — the feature simply isn't shipped
+   to that environment yet. */
+body[data-page="setup"] .create-entry-surface .mode-card__opt.is-disabled[data-live-state="coming-soon"] strong::after {
+  content: "";
+}
+body[data-page="setup"] .create-entry-surface .mode-card__origin { display: none; }
+@media (max-width: 1180px) {
+  body[data-page="setup"] .create-top-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  body[data-page="setup"] .create-entry-surface .mode-card {
+    border-right: 0 !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 78%, transparent) !important;
+  }
+  body[data-page="setup"] .create-entry-surface .mode-card__options {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+  body[data-page="setup"] .create-entry-surface .mode-card__opt {
+    min-height: 4.25rem;
+    padding-left: 0.9rem;
+  }
+  body[data-page="setup"] .create-entry-surface .mode-card__opt::before {
+    inset: auto 0 0;
+    width: auto;
+    height: 2px;
+    transform: scaleX(0.6);
+  }
+  body[data-page="setup"] .create-entry-surface .mode-card__opt:has(input:checked)::before,
+  body[data-page="setup"] .create-entry-surface .mode-card__opt.is-active::before {
+    transform: scaleX(1);
+  }
+}
+
+/* === Create composer (7k-style, flat) === */
+body[data-page="setup"] .create-entry-surface .create-composer {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.24fr) minmax(0, 1fr);
+  grid-template-areas:
+    "mode main"
+    "mode controls"
+    "mode hint"
+    "mode error";
+  justify-content: stretch;
+  align-items: stretch;
+  column-gap: var(--space-3);
+  row-gap: 0.72rem;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-soft) 44%, transparent);
+  min-width: 0;
+  align-self: stretch;
+  position: relative;
+}
+@media (max-width: 1180px) {
+  body[data-page="setup"] .create-entry-surface .create-composer {
+    grid-template-columns: minmax(10rem, 0.3fr) minmax(0, 1fr);
+    border-radius: var(--radius-sm);
+    border-top: 0;
+  }
+}
+body[data-page="setup"] .create-composer__row {
+  grid-area: main;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr);
+  gap: 0.9rem;
+  padding: 0.55rem 0.72rem;
+  margin: 0;
+  align-items: center;
+  align-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 66%, transparent);
+  transition: background-color 150ms ease;
+}
+body[data-page="setup"] .create-composer__controls {
+  grid-area: controls;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.9rem;
+  row-gap: 0.36rem;
+  padding: 0.55rem 0.72rem 0.64rem;
+  margin: 0;
+  align-items: center;
+  border: 0;
+  border-top: 1px dashed var(--line);
+  border-radius: 0;
+  background: transparent;
+  transition: background-color 150ms ease;
+}
+body[data-page="setup"] .create-composer__aux,
+body[data-page="setup"] .create-composer__trail {
+  display: contents;
+}
+body[data-page="setup"] .create-composer__spot {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
+body[data-page="setup"] .create-composer__meta {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+  margin: 0;
+}
+body[data-page="setup"] .create-composer__presets {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+}
+body[data-page="setup"] .create-composer__debt {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+}
+body[data-page="setup"] .create-composer__input-wrap {
+  min-width: 0;
+  text-align: right;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+body[data-page="setup"] .create-composer__input-wrap label {
+  display: block;
+  width: 100%;
+}
+body[data-page="setup"] .create-composer__input {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  outline: 0;
+  /* Phase D.29.7 — was clamp(1.5rem, 2.4vw, 2rem) which sat outside
+     the canonical type scale and produced a scale step (~2rem) that
+     no other surface emits. --fs-xl (1.5rem) is the closest canonical
+     step; the composer input no longer fluid-scales but stays in the
+     scale ladder. */
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+  text-align: right;
+}
+body[data-page="setup"] .create-composer__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+body[data-page="setup"] .create-composer__input::placeholder { color: color-mix(in srgb, var(--muted) 60%, transparent); }
+body[data-page="setup"] .create-composer__usd {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-height: 1em;
+}
+body[data-page="setup"] .create-composer__token {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  align-self: center;
+  gap: 0.32rem;
+}
+body[data-page="setup"] .create-composer__token .collateral-picker { width: auto; }
+body[data-page="setup"] .create-composer__token .collateral-asset-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.46rem 0.8rem 0.46rem 0.46rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  background: var(--bg-strong);
+  font-weight: 700;
+  font-size: var(--fs-base);
+  line-height: 1.1;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+body[data-page="setup"] .create-composer__token .collateral-picker[open] .collateral-asset-trigger {
+  border-color: transparent;
+  background: transparent;
+}
+body[data-page="setup"] .create-composer__token .collateral-asset-trigger-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+body[data-page="setup"] .create-composer__token .collateral-asset-trigger-mark .collateral-asset-mark {
+  width: 26px;
+  height: 26px;
+  border: 0 !important;
+  background: transparent !important;
+}
+body[data-page="setup"] .create-composer__token .collateral-asset-trigger-mark .collateral-asset-mark-image {
+  width: 21px;
+  height: 21px;
+}
+body[data-page="setup"] .create-composer__presets {
+  display: inline-flex;
+  gap: 0.28rem;
+  padding: 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  width: fit-content;
+}
+body[data-page="setup"] .create-composer__presets .swap-card__preset {
+  padding: 0.28rem 0.7rem;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+body[data-page="setup"] .create-composer__presets .swap-card__preset:hover { color: var(--text-strong); }
+body[data-page="setup"] .create-composer__presets .swap-card__preset:disabled { opacity: 0.5; cursor: not-allowed; }
+body[data-page="setup"] .create-composer__debt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  padding: .25rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--bg-strong);
+  height: calc(0.76rem * 1.5 + 0.28rem * 2 + 0.4rem);
+}
+body[data-page="setup"] .create-composer__debt-label {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1;
+}
+body[data-page="setup"] .create-composer__debt-value {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--ff-mono);
+  color: var(--text-strong);
+  line-height: 1;
+}
+body[data-page="setup"] .create-composer__stable {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.4rem 0.1rem 0.34rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: transparent;
+}
+body[data-page="setup"] .create-composer__stable .stable-asset-pill__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+body[data-page="setup"] .create-composer__stable .stable-asset-pill__mark .visual-mark {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+body[data-page="setup"] .create-composer__stable .stable-asset-pill__mark .visual-mark-image {
+  width: 14px;
+  height: 14px;
+}
+body[data-page="setup"] .create-composer__stable select {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 0;
+  outline: 0;
+  line-height: 1;
+}
+body[data-page="setup"] .create-composer__stable select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+body[data-page="setup"] .create-composer__stable svg {
+  width: 10px;
+  height: 10px;
+}
+body[data-page="setup"] .create-composer__stable.is-single {
+  cursor: default;
+}
+body[data-page="setup"] .create-composer__stable.is-single svg {
+  display: none;
+}
+body[data-page="setup"] .create-composer__stable.is-single select {
+  pointer-events: none;
+}
+body[data-page="setup"] .create-composer__spot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: .25rem 0.5rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--line);
+}
+body[data-page="setup"] .create-composer__spot span {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+body[data-page="setup"] .create-composer__spot input {
+  width: 6ch;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  outline: 0;
+  text-align: right;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--ff-mono);
+  color: var(--text-strong);
+}
+body[data-page="setup"] .create-composer__spot input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+body[data-page="setup"] .create-composer__hint {
+  grid-area: hint;
+}
+body[data-page="setup"] .create-composer__error {
+  grid-area: error;
+}
+body[data-page="setup"] .create-composer__error:not([hidden]),
+body[data-page="setup"] .create-composer__hint:not([hidden]) {
+  margin: 0 var(--space-3) var(--space-3) 0;
+}
+body[data-page="setup"] .create-composer__error { color: var(--rose-text); }
+body[data-page="setup"] .create-entry-surface .btc-price-meta__reset {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+body[data-page="setup"] [data-create-scope-panel].is-live .collateral-asset-trigger,
+body[data-page="setup"] [data-create-scope-panel].is-live .collateral-picker,
+body[data-page="setup"] [data-create-scope-panel].is-live .stable-asset-pill {
+  opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
+@media (max-width: 760px) {
+  body[data-page="setup"] .setup-boot-skeleton {
+    min-height: min(42rem, calc(100dvh - 2rem));
+    padding: var(--space-3);
+  }
+
+  body[data-page="setup"] .create-entry-surface .create-composer {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "mode"
+      "main"
+      "controls"
+      "hint"
+      "error";
+    row-gap: var(--space-3);
+  }
+  body[data-page="setup"] .create-composer__row { grid-template-columns: minmax(0,1fr); align-items: start; }
+  body[data-page="setup"] .create-composer__row,
+  body[data-page="setup"] .create-composer__controls {
+    margin-inline: var(--space-3);
+  }
+  body[data-page="setup"] .create-composer__controls {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    gap: var(--space-2);
+    padding: 0.65rem var(--space-3);
+  }
+  body[data-page="setup"] .create-composer__aux,
+  body[data-page="setup"] .create-composer__trail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+  body[data-page="setup"] .create-composer__spot,
+  body[data-page="setup"] .create-composer__meta,
+  body[data-page="setup"] .create-composer__presets,
+  body[data-page="setup"] .create-composer__debt {
+    grid-column: auto;
+    grid-row: auto;
+    justify-self: stretch;
+  }
+  body[data-page="setup"] .create-composer__token .collateral-asset-trigger {
+    min-height: 44px;
+  }
+  body[data-page="setup"] .create-composer__presets {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+  body[data-page="setup"] .create-composer__presets .swap-card__preset {
+    min-height: 40px;
+  }
+  body[data-page="setup"] .create-composer__debt {
+    width: 100%;
+    min-height: 44px;
+    height: auto;
+    justify-content: space-between;
+  }
+  body[data-page="setup"] .create-composer__stable {
+    min-height: 36px;
+  }
+  body[data-page="setup"] .create-composer__error:not([hidden]),
+  body[data-page="setup"] .create-composer__hint:not([hidden]) {
+    margin-left: var(--space-3);
+  }
+  body[data-page="setup"] .create-composer__token { align-items: flex-start; }
+}
+
+/* === Policy surface: unified with composer design language === */
+body[data-page="setup"] .create-policy-stack > .surface {
+  padding: 1rem 1.5rem;
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--line) !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+}
+
+/* Charts are evidence, not card canvases. Keep Goal and Cashflow surfaced,
+   but let the editable guardrails chart sit on the page canvas like the
+   Readout/Live evidence plane. */
+body[data-page="setup"] .create-policy-stack > .create-guardrails-surface.surface {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-page="setup"] .create-policy-stack > .surface .section-micro-label {
+  display: block;
+  font-size: var(--fs-2xs) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: var(--muted) !important;
+  margin-bottom: 0.5rem;
+  line-height: 1;
+}
+
+body[data-page="setup"] .create-policy-stack > .surface .strategy-goal-main { display: block; }
+
+body[data-page="setup"] .setup-aside .policy-cashflow--inline {
+  gap: 0.45rem;
+}
+
+body[data-page="setup"] .setup-aside .policy-cashflow__head {
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+body[data-page="setup"] .setup-aside .policy-cashflow__head p {
+  margin: 0;
+  font-size: var(--fs-sm) !important;
+  line-height: 1.42;
+  color: var(--muted) !important;
+}
+
+body[data-page="setup"] .setup-aside .policy-cashflow__head .section-micro-label {
+  margin-bottom: 0.3rem;
+}
+
+body[data-page="setup"] .setup-aside .swap-stats--policy {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: auto;
+  align-items: stretch;
+  gap: 0.55rem;
+}
+
+/* Phase D.6 — swap-stat tiles step DOWN one ladder rung from the
+   strategy-preset row above so the operator's eye reads "profile
+   first, cashflow second". Was --bg-strong (same weight as preset
+   cards) which made both rows compete; now --surface-soft with a
+   line border. */
+body[data-page="setup"] .setup-aside .swap-stat {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  padding: 0.68rem 0.85rem;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-sm) !important;
+  background: var(--surface-soft) !important;
+  gap: 0.38rem;
+  min-height: 0;
+  align-self: stretch;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+body[data-page="setup"] .setup-aside .swap-stat:hover,
+body[data-page="setup"] .setup-aside .swap-stat:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line-strong)) !important;
+  background: var(--surface) !important;
+}
+
+body[data-page="setup"] .setup-aside .swap-stat__label {
+  font-size: var(--fs-2xs) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: var(--muted) !important;
+  line-height: 1;
+}
+
+body[data-page="setup"] .setup-aside .swap-stat__inline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  padding: 0;
+  min-height: 0;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  align-items: center;
+  align-self: start;
+}
+
+body[data-page="setup"] .setup-aside .swap-stat__value-shell {
+  display: flex;
+  align-items: baseline;
+  gap: 0.42rem;
+  min-width: 0;
+  padding: 0;
+}
+
+body[data-page="setup"] .setup-aside .swap-stat__inline input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  outline: 0 !important;
+  color: var(--text-strong) !important;
+  -webkit-text-fill-color: var(--text-strong) !important;
+  font-size: clamp(var(--fs-lg), 1.45vw, var(--fs-xl)) !important;
+  font-weight: 700 !important;
+  line-height: 1.05;
+  letter-spacing: -0.01em !important;
+  font-variant-numeric: tabular-nums !important;
+  font-family: var(--ff-mono) !important;
+}
+body[data-page="setup"] .setup-aside .swap-stat__inline input:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px;
+}
+
+body[data-page="setup"] .setup-aside .swap-stat__unit {
+  font-size: var(--fs-xs) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--muted) !important;
+  min-width: max-content;
+}
+
+body[data-page="setup"] .setup-aside .swap-stepper {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: visible;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  align-self: center;
+}
+
+body[data-page="setup"] .setup-aside .swap-stepper__btn {
+  width: 1.7rem;
+  height: 1.7rem;
+  min-width: 1.7rem;
+  min-height: 1.7rem;
+  padding: 0;
+  border-radius: var(--radius-pill) !important;
+  border: 0 !important;
+  background: transparent !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted) !important;
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+body[data-page="setup"] .setup-aside .swap-stepper__btn:hover {
+  color: var(--text-strong) !important;
+  background: color-mix(in srgb, var(--line) 60%, transparent) !important;
+}
+
+body[data-page="setup"] .setup-aside .swap-stepper__icon {
+  width: 0.68rem;
+  height: 0.68rem;
+  display: block;
+}
+
+body[data-page="setup"] .setup-aside .swap-stat__meta {
+  margin: 0;
+  font-size: var(--fs-xs) !important;
+  line-height: 1.28;
+  color: var(--muted) !important;
+  align-self: start;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@media (max-width: 760px) {
+  body[data-page="setup"] .setup-aside .swap-stat {
+    padding: 0.8rem 0.9rem;
+    gap: 0.5rem;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stepper {
+    gap: 2px;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stepper__btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stat__meta {
+    line-height: 1.35;
+  }
+}
+
+@media (min-width: 1181px) {
+  body[data-page="setup"] .setup-aside .policy-cashflow--inline {
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0.65rem;
+    min-height: clamp(28rem, 31vw, 30rem);
+  }
+
+  body[data-page="setup"] .setup-aside .policy-cashflow__head h2 {
+    font-size: var(--fs-lg) !important;
+    line-height: 1.1;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stats--policy {
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+    min-height: 0;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stat {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    align-items: stretch;
+    padding: 0.68rem 0.85rem;
+    gap: 0.48rem;
+    min-height: 0;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stat__label {
+    min-width: 0;
+    line-height: 1.15;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stat__inline {
+    gap: 0.4rem;
+    align-self: start;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stat__value-shell {
+    justify-content: flex-start;
+    gap: 0.35rem;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stat__inline input {
+    text-align: left;
+    font-size: var(--fs-xl) !important;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stat__unit {
+    font-size: var(--fs-xs) !important;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stepper__btn {
+    width: 1.55rem;
+    height: 1.55rem;
+    min-width: 1.55rem;
+    min-height: 1.55rem;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stat__meta {
+    display: -webkit-box;
+    align-self: end;
+    -webkit-line-clamp: 2;
+  }
+
+  body[data-page="setup"] .setup-aside .swap-stepper {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+  }
+}
+
+body[data-page="setup"] .create-policy-stack > .surface input[type="number"]::-webkit-inner-spin-button,
+body[data-page="setup"] .create-policy-stack > .surface input[type="number"]::-webkit-outer-spin-button,
+body[data-page="setup"] .create-policy-stack > .surface input[type="text"]::-webkit-inner-spin-button,
+body[data-page="setup"] .create-policy-stack > .surface input[type="text"]::-webkit-outer-spin-button {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  margin: 0;
+}
+
+body[data-page="setup"] .create-policy-stack > .surface .field small {
+  position: static;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+
+  color: var(--muted) !important;
+  font-size: var(--fs-sm) !important;
+  font-weight: 500 !important;
+  line-height: 1.42;
+}
+
+body[data-page="setup"] [data-scenario-threshold-handle] {
+  cursor: ns-resize;
+  pointer-events: all !important;
+}
+
+/* Phase D.5 — duplicate guardrails-finetune__grid and toggle-stack
+   blocks removed. Single canonical declaration lives at line 178/190. */
+
+/* Phase D.6 — aside form-grid-2 / form-grid-3 reflow on narrow
+   container. The right-side aside is 320–380px wide; a 3-col grid
+   inside that gives ~95–110px cells which truncated labels like
+   "Venue health" / "Oracle floor, %" + their descriptions. Now
+   uses auto-fit minmax so cells reflow to fit width: 3-col on full,
+   2-col when narrow, 1-col on the tightest. Scoped to setup-aside
+   so the rest of the app is unaffected. */
+body[data-page="setup"] .setup-aside .form-grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+body[data-page="setup"] .setup-aside .form-grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+body[data-page="setup"] .toggle-row {
+  position: relative;
+  display: block;
+  padding: 0;
+  border-radius: var(--radius-sm) !important;
+  height: 100%;
+}
+
+body[data-page="setup"] .toggle-row input {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  position: absolute;
+  top: 50%;
+  left: 0.9rem;
+  transform: translateY(-50%) !important;
+  margin: 0;
+  padding: 0;
+  border: 0 !important;
+  width: 2.1rem;
+  height: 1.1rem;
+  border-radius: var(--radius-full) !important;
+  background: color-mix(in srgb, var(--muted) 35%, transparent) !important;
+  cursor: pointer;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 2;
+  transition: background-color 160ms ease !important;
+}
+
+body[data-page="setup"] .toggle-row input:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+
+body[data-page="setup"] .toggle-row input::before {
+  content: "" !important;
+  position: absolute;
+  top: 0.12rem;
+  left: 0.12rem;
+  width: 0.86rem;
+  height: 0.86rem;
+  border-radius: 50% !important;
+  background: var(--surface) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: transform 160ms ease !important;
+}
+
+body[data-page="setup"] .toggle-row input:checked {
+  background: var(--accent) !important;
+}
+body[data-page="setup"] .toggle-row input:checked::before {
+  transform: translateX(1rem) !important;
+}
+
+body[data-page="setup"] .toggle-row span {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  row-gap: .25rem;
+  padding: .75rem 0.9rem .75rem calc(0.9rem + 2.1rem + 0.8rem);
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--line) !important;
+  /* Phase D.6 — was --bg-strong (heavy dark) which made toggle rows
+     compete visually with strategy-presets and swap-stats. Now on
+     --surface-soft for a lighter aside step. */
+  background: var(--surface-soft) !important;
+  min-height: 100%;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+body[data-page="setup"] .toggle-row:hover span,
+body[data-page="setup"] .toggle-row:focus-within span {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line-strong)) !important;
+  background: var(--surface) !important;
+}
+
+body[data-page="setup"] .toggle-row span::before,
+body[data-page="setup"] .toggle-row span::after {
+  content: none !important;
+  display: none;
+}
+
+body[data-page="setup"] .toggle-row strong {
+  font-size: var(--fs-base) !important;
+  font-weight: 700 !important;
+  line-height: 1.2;
+}
+
+body[data-page="setup"] .toggle-row small {
+  font-size: var(--fs-sm) !important;
+  line-height: 1.42;
+  max-height: none;
+  opacity: 0.7 !important;
+  display: block;
+  position: static;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+body[data-page="setup"] .setup-footer-summary {
+  --setup-footer-inline: max(var(--space-4), calc((100vw - 1440px) / 2 + var(--space-4)));
+  --setup-footer-reserve: 8.75rem;
+  position: fixed;
+  left: var(--setup-footer-inline);
+  right: var(--setup-footer-inline);
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  z-index: 70;
+  padding: .75rem .75rem;
+  /* Phase D.14 — was --radius-lg (22 px); diverged from every other
+     surface on /setup which uses --radius-sm (12 px). */
+  border-radius: var(--radius-sm) !important;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, auto) minmax(18rem, 1fr) auto;
+  border: 1px solid var(--line-strong) !important;
+  background: color-mix(in srgb, var(--surface) 94%, transparent) !important;
+  box-shadow: var(--shadow-md) !important;
+  max-height: min(15rem, calc(100dvh - var(--space-6)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+body[data-page="setup"] .page-stack {
+  padding-bottom: var(--setup-footer-reserve, 8.75rem);
+}
+
+html[data-theme="dark"] body[data-page="setup"] .setup-footer-summary {
+  background: color-mix(in srgb, var(--surface) 94%, transparent) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+@media (max-width: 760px) {
+  body[data-page="setup"] {
+    --setup-footer-reserve: 0px;
+  }
+
+  body[data-page="setup"] .setup-footer-summary {
+    position: static;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    margin-top: var(--space-4);
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.55rem;
+    padding: 0.6rem;
+  }
+
+  body[data-page="setup"] .page-stack {
+    padding-bottom: var(--space-4);
+  }
+
+  body[data-page="setup"] .setup-footer-summary__mid,
+  body[data-page="setup"] .setup-footer-summary__meta .create-preview-copy,
+  body[data-page="setup"] .setup-footer-summary__meta .create-preview-next,
+  body[data-page="setup"] #reset-setup-footer {
+    display: none !important;
+  }
+
+  body[data-page="setup"] .setup-footer-summary__left,
+  body[data-page="setup"] .setup-footer-summary__right,
+  body[data-page="setup"] .setup-footer-bar__actions {
+    width: 100%;
+  }
+
+  body[data-page="setup"] .setup-footer-summary__left {
+    gap: 0.55rem;
+  }
+
+  body[data-page="setup"] .setup-footer-summary__right {
+    justify-self: stretch;
+    justify-content: stretch;
+  }
+
+  body[data-page="setup"] .setup-footer-summary__right > * {
+    flex: 1 1 100%;
+  }
+
+  body[data-page="setup"] .setup-footer-bar__actions {
+    order: 3;
+    margin-left: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body[data-page="setup"] #save-policy-toolbar {
+    order: 2;
+  }
+
+  body[data-page="setup"] #run-sim-toolbar {
+    order: 1;
+  }
+
+  body[data-page="setup"] #save-as-draft-footer,
+  body[data-page="setup"] #save-policy-toolbar,
+  body[data-page="setup"] #run-sim-toolbar {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 1180px) {
+  body[data-page="setup"] .setup-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body[data-page="setup"] .setup-titlebar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body[data-page="setup"] .setup-titlebar .status-line {
+    justify-self: start;
+    text-align: left !important;
+  }
+
+  body[data-page="setup"] .create-top-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body[data-page="setup"] .swap-stats--policy,
+  body[data-page="setup"] .guardrails-finetune__grid,
+  body[data-page="setup"] .guardrails-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body[data-page="setup"] .toggle-stack {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+/* First-run primer ------------------------------------------------ */
+body[data-page="setup"] .setup-primer {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-xs);
+  /* Phase D.14 — was accent-tinted bg + accent border, which read
+     as a CTA/primary action zone. The primer is informational, not
+     a call to action. Now uses surface-soft bg + 3px accent left
+     edge so it reads as a "soft notice" matching the canonical
+     surface-soft + tone-edge grammar (same pattern .surface-hero
+     uses for the page anchor card). */
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  font-size: var(--fs-base);
+  line-height: 1.45;
+}
+body[data-page="setup"] .setup-primer[hidden] { display: none; }
+body[data-page="setup"] .setup-primer__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1 1 auto;
+}
+body[data-page="setup"] .setup-primer__title {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+body[data-page="setup"] .setup-primer__text em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--text);
+}
+body[data-page="setup"] .setup-primer__close {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+body[data-page="setup"] .setup-primer__close:hover { opacity: 1; background: color-mix(in srgb, currentColor 10%, transparent); }
+
+/* ─────────────────────────────────────────────────────────────────
+   Polish pass — DS polish appendix (setup slice, additive)
+   Date: 2026-04-29
+   Source: public UI polish pass C
+   ───────────────────────────────────────────────────────────────── */
+
+/* P-14 — setup composer :focus-within mirrors P-01 (foundation .composer__row).
+   /setup uses .create-composer__controls as the input host so the
+   foundation rule never reaches it. Same paint so both composers feel
+   like the same primitive. */
+body[data-page="setup"] .create-composer__controls:focus-within {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent);
+  transition:
+    background-color 120ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Product-surface polish — setup top-panel compaction. The CREATE POLICY page
+   header was bulkier than its content warranted: large title, generous
+   right-side status copy, and separate dirty pill row. Compaction approach
+   (all additive overrides on existing selectors): tighter header padding,
+   smaller title, tighter dirty pill, and smaller status text. */
+body[data-page="setup"] .page-header.page-header--product {
+  padding: 0.55rem 0.95rem;
+  margin-bottom: 0.45rem;
+}
+body[data-page="setup"] .page-header.page-header--product .page-eyebrow {
+  margin-bottom: 0.2rem;
+  font-size: var(--fs-2xs);
+}
+body[data-page="setup"] .setup-titlebar .inline-title-shell {
+  min-height: 1.8rem;
+}
+body[data-page="setup"] .setup-titlebar .inline-title-shell input {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  min-height: 1.55rem;
+}
+body[data-page="setup"] .setup-titlebar .inline-title-hint--dirty {
+  margin-top: 0.18rem;
+  padding: 0.08rem 0.4rem;
+  font-size: var(--fs-2xs) !important;
+  line-height: 1.15;
+}
+body[data-page="setup"] .setup-titlebar .status-line {
+  max-width: 26rem;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  line-height: 1.35;
+}
+/* ── End Polish pass + D.35 setup appendix ───────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   Product-surface polish — product-surface polish (setup slice)
+   ───────────────────────────────────────────────────────────────── */
+
+/* D-01 — strategy-preset active accent halo (matches P-04 + P-09 language) */
+body[data-page="setup"] .strategy-preset {
+  transition:
+    background-color var(--motion-base) var(--ease-out),
+    border-color var(--motion-base) var(--ease-out),
+    color var(--motion-base) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+body[data-page="setup"] .strategy-preset[aria-pressed="true"] {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent),
+    0 1px 0 color-mix(in srgb, var(--accent) 16%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-page="setup"] .strategy-preset { transition: none; }
+}
+
+/* D-02 — strategy-preset hover lift + accent drop-shadow (idle state only) */
+@media (hover: hover) and (pointer: fine) {
+  body[data-page="setup"] .strategy-preset:not([aria-pressed="true"]):not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 4px 14px -6px color-mix(in srgb, var(--accent) 42%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-page="setup"] .strategy-preset:not([aria-pressed="true"]):not(:disabled):hover {
+    transform: none;
+  }
+}
+
+body[data-page="setup"] .strategy-preset:disabled,
+body[data-page="setup"] .strategy-preset.is-roadmap {
+  cursor: not-allowed;
+  opacity: 0.62;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--surface-soft) 88%, transparent);
+  box-shadow: none;
+}
+
+body[data-page="setup"] .strategy-preset:disabled .strategy-preset__cue,
+body[data-page="setup"] .strategy-preset.is-roadmap .strategy-preset__cue {
+  color: var(--muted-strong);
+  border-color: var(--line-strong);
+  background: var(--surface-soft);
+}
+/* ── End Product-surface polish setup appendix ──────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   Phase D.36 — restore surface chrome on Fine-tune thresholds (only)
+   The wrapping .create-guardrails-surface was stripped (line 836-840
+   above) so the editable chart sits on the page canvas as evidence.
+   That left the Fine-tune thresholds disclosure card-less — visually
+   floating in the section. Restore card chrome on .guardrails-finetune
+   itself; chart section above stays naked.
+   ───────────────────────────────────────────────────────────────── */
+body[data-page="setup"] .guardrails-finetune {
+  padding: var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+body[data-page="setup"] .guardrails-finetune > summary {
+  margin: calc(var(--space-4) * -1) calc(var(--space-4) * -1) 0;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+body[data-page="setup"] .guardrails-finetune[open] > summary {
+  margin-bottom: var(--space-3);
+}
+/* ── End Phase D.36 setup surface restoration ───────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   Fit-and-finish pass — setup slice (deadweight removal)
+   ───────────────────────────────────────────────────────────────── */
+
+/* E-11 — section-head-compact redundant border drop on /setup. The
+   4 placements all sit inside .surface cards with their own
+   top-border; the compact head's bottom hairline double-stamps it
+   0.6rem below. /design-system + /results + /live keep the canonical
+   hairline. */
+body[data-page="setup"] .section-head-compact {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+/* ── End Fit-and-finish pass setup appendix ──────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   Fit-and-finish passc — composer vertical balance (more aggressive override)
+   Earlier .__row/.__controls `align-self: center` was specced but
+   visually didn't take effect on the live cockpit. Override the parent
+   .create-composer's `align-items: stretch` directly so all grid
+   items default to centered. Mode card already declares its own
+   explicit `align-self: stretch` (line 356) so it stays full-height
+   regardless. Right-column rows + controls collapse to natural height
+   centered against Mode.
+   ───────────────────────────────────────────────────────────────── */
+body[data-page="setup"] .create-entry-surface .create-composer {
+  align-items: center;
+}
+/* D.37g — let the rows stretch into their tracks (align-self stays at
+   default `auto` → resolves to parent's `align-items: center` for
+   content-height items, but if the track ends up taller than content
+   we want the row's own `align-content: center` to redistribute the
+   slack). Set `align-self: stretch` on the inner __row + __controls
+   so the row container fills the cell and its inner grid centers
+   content via the existing `align-content: center` rule.  */
+body[data-page="setup"] .create-composer__row,
+body[data-page="setup"] .create-composer__controls {
+  align-self: stretch;
+}
+body[data-page="setup"] .create-composer__controls {
+  align-content: center;
+}
+/* ── End Fit-and-finish passc composer balance ──────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   Fit-and-finish passd — composer overall height compaction
+   With both rows centered (D.37c), Mode card on the left still
+   dictates total height because of its own padding + 2 options at
+   3.45rem each. Tighten mode-card padding, the gap between MODE
+   label and options block, and the option min-height. Right-column
+   row paddings tighten in parallel for visual symmetry.
+   ───────────────────────────────────────────────────────────────── */
+body[data-page="setup"] .create-entry-surface .mode-card {
+  padding: 0.55rem 0.65rem;
+  gap: 0.45rem;
+}
+body[data-page="setup"] .create-entry-surface .mode-card__opt {
+  min-height: 2.8rem;
+  padding: 0.32rem 0.65rem 0.32rem 0.85rem;
+}
+body[data-page="setup"] .create-composer__row {
+  padding: 0.45rem 0.72rem;
+}
+body[data-page="setup"] .create-composer__controls {
+  padding: 0.45rem 0.72rem 0.5rem;
+}
+/* ── End Fit-and-finish passd composer height compaction ────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   Fit-and-finish passf — drop empty hint/error rows entirely (final composer fix)
+   Earlier drafts kept placeholder rows for hint/error. CSS Grid still
+   created those tracks and row-gap added empty space below the visible
+   content. The final fix drops rows 3 + 4 from the explicit template. Hint and
+   error elements (with `grid-area: hint/error`) become auto-placed
+   when their named area no longer exists — they fall through to
+   implicit rows below row 2 only when actually visible. When
+   display:none (the common case), they don't take space at all and
+   no extra gap accrues. Mode card's "mode" area now spans exactly
+   2 rows = right column's 2 content rows; column heights match.
+   ───────────────────────────────────────────────────────────────── */
+body[data-page="setup"] .create-entry-surface .create-composer {
+  grid-template-areas:
+    "mode main"
+    "mode controls";
+}
+body[data-page="setup"] .create-composer__hint,
+body[data-page="setup"] .create-composer__error {
+  grid-column: 2;
+}
+@media (max-width: 760px) {
+  body[data-page="setup"] .create-entry-surface .create-composer {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "mode"
+      "main"
+      "controls"
+      "hint"
+      "error";
+    align-items: stretch;
+  }
+
+  body[data-page="setup"] .create-composer__hint,
+  body[data-page="setup"] .create-composer__error {
+    grid-column: 1;
+  }
+
+  body[data-page="setup"] .create-entry-surface .mode-card {
+    width: 100%;
+    min-width: 0;
+  }
+}
+/* ── End Fit-and-finish passf composer drop empty rows ──────────────────── */
+
+/* ─────────────────────────────────────────────────────────────────
+   Fit-and-finish passh — collateral dropdown horizontal alignment with trigger
+   The token-picker dropdown's option rows had padding 0.6rem 1.5rem
+   0.6rem 2.08rem — that put the option icon ~14px to the right of
+   the trigger pill's icon, and the option amount column ~12px
+   farther from the right edge than the trigger's amount echo.
+   Dropdown inherits its width from the composer row, so we just need
+   to match the inner column paddings to .create-composer__row's
+   own (0.72rem horizontal). Icons line up with the trigger pill;
+   right-edge amounts line up with the trigger's $-echo.
+   ───────────────────────────────────────────────────────────────── */
+body[data-page="setup"] .create-composer__token .collateral-asset-menu .collateral-asset-option {
+  padding-left: 0.72rem;
+  padding-right: 0.72rem;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 0.25rem 0.5rem;
+}
+body[data-page="setup"] .create-composer__token .collateral-asset-menu .collateral-asset-option-leading .collateral-asset-mark {
+  width: 26px;
+  height: 26px;
+}
+body[data-page="setup"] .create-composer__token .collateral-asset-menu .collateral-asset-option-leading .collateral-asset-mark-image {
+  width: 21px;
+  height: 21px;
+}
+/* ── End Fit-and-finish passh dropdown alignment ────────────────────────── */

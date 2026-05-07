@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Protocol">
+  <defs>
+    <linearGradient id="generic-bg" x1="10" y1="8" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2E3A50"/>
+      <stop offset="1" stop-color="#182131"/>
+    </linearGradient>
+    <linearGradient id="generic-accent" x1="22" y1="18" x2="42" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#50D6E8"/>
+      <stop offset="1" stop-color="#3B70FF"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#generic-bg)"/>
+  <rect x="18" y="18" width="12" height="12" rx="4" fill="url(#generic-accent)"/>
+  <rect x="34" y="18" width="12" height="12" rx="4" fill="#DCE7F7" opacity="0.92"/>
+  <rect x="18" y="34" width="12" height="12" rx="4" fill="#DCE7F7" opacity="0.92"/>
+  <rect x="34" y="34" width="12" height="12" rx="4" fill="url(#generic-accent)"/>
+</svg>

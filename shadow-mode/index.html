@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://plausible.io 'sha256-usTCGDDcjrn0M6X9jPuXcp7mLK07w8SAO3d9XKhcxm4='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://plausible.io https://fullnode.mainnet.sui.io https://sui-rpc.publicnode.com https://fullnode.testnet.sui.io https://sui-testnet-rpc.publicnode.com https://fullnode.devnet.sui.io https://sui.io https://suivision.xyz https://publisher.walrus-testnet.walrus.space https://aggregator.walrus-testnet.walrus.space https://app.tidesui.pro https://dev.tidesui.pro https://testnet.tidesui.pro; base-uri 'self'; form-action 'self'; object-src 'none';" />
+    <title>TIDE Workspace</title>
+    <meta
+      name="description"
+      content="TIDE Workspace — your on-chain policies, drafts, and recent receipts in one place."
+    />
+    <meta name="color-scheme" content="dark light" />
+    <script>
+      try {
+        var tideTheme = localStorage.getItem("tide.shadow-mode.theme.v1");
+        if (tideTheme) try { tideTheme = JSON.parse(tideTheme); } catch(e) {}
+        document.documentElement.dataset.theme = tideTheme === "light" ? "light" : "dark";
+      } catch (error) {
+        document.documentElement.dataset.theme = "dark";
+      }
+    </script>
+    <style>
+      html { background: #06060a; color: #d0d4e0; color-scheme: dark; }
+      html[data-theme="light"] { background: #F4F7FB; color: #0d1a30; color-scheme: light; }
+      body { margin: 0; background: inherit; color: inherit; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="prefetch" href="/setup" as="document" />
+    <link rel="prefetch" href="/live" as="document" />
+    <link rel="prefetch" href="/results" as="document" />
+    <link rel="prefetch" href="/library" as="document" />
+    <link rel="stylesheet" href="/styles-workspace.css?v=1bbbdd2" />
+  </head>
+  <body data-page="workspace">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="app-shell app-shell--topbar">
+      <header class="app-topbar" aria-label="TIDE navigation">
+        <a class="app-topbar__brand" href="/" aria-label="TIDE workspace">
+          <img src="/tide-mark.svg" alt="" />
+          <span>TIDE</span>
+        </a>
+        <div class="app-topbar__actions">
+          <span id="env-badge" class="network-badge" role="status" aria-live="polite" hidden></span>
+          <div class="theme-toggle" role="group" aria-label="Color theme">
+            <button type="button" data-theme-value="light" aria-label="Light theme" title="Light theme">
+              <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="4.5" fill="currentColor"/>
+                <path d="M12 2.5V5.1M12 18.9V21.5M21.5 12H18.9M5.1 12H2.5M18.7 5.3L16.8 7.2M7.2 16.8L5.3 18.7M18.7 18.7L16.8 16.8M7.2 7.2L5.3 5.3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8"/>
+              </svg>
+              <span class="sr-only">Light</span>
+            </button>
+            <button type="button" data-theme-value="dark" aria-label="Dark theme" title="Dark theme">
+              <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14.9 3.2A8.8 8.8 0 1 0 20.8 18 7.6 7.6 0 1 1 14.9 3.2Z" fill="currentColor"/>
+              </svg>
+              <span class="sr-only">Dark</span>
+            </button>
+          </div>
+          <section id="header-wallet" class="header-wallet" aria-label="Wallet"></section>
+        </div>
+      </header>
+
+      <div class="app-main app-main--topbar">
+        <main class="page-stack" id="main">
+          <section id="workspace-identity" class="surface surface-hero workspace-head" aria-label="Workspace portfolio">
+            <p id="status-note" class="status-line" role="status" aria-live="polite" aria-atomic="true" hidden></p>
+            <div class="trust-labels trust-strip trust-strip--workspace" aria-label="Safety posture"></div>
+            <div class="ui-skeleton ui-skeleton--workspace" aria-hidden="true">
+              <span class="ui-skeleton__pill"></span>
+              <span class="ui-skeleton__title"></span>
+              <span class="ui-skeleton__line"></span>
+              <span class="ui-skeleton__bar"></span>
+            </div>
+          </section>
+
+          <section id="workspace-list" class="page-stack" aria-label="Workspace entries">
+            <div class="ui-skeleton ui-skeleton--list" aria-hidden="true">
+              <span class="ui-skeleton__card"></span>
+              <span class="ui-skeleton__card"></span>
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+
+    <script src="/runtime-config.js?v=1bbbdd2"></script>
+    <script src="/telemetry.js?v=1bbbdd2"></script>
+    <script type="module" src="/app.js?v=1bbbdd2"></script>
+  </body>
+</html>

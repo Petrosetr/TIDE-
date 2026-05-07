@@ -1,0 +1,1775 @@
+{
+  "generatedAt": "2026-05-06T07:01:10.925Z",
+  "proofRef": "3467a12d5312732c0456f04f7feb241227c29a61",
+  "network": "testnet",
+  "packageId": "0x999c34ce039388017838a5da6670195affa55c4dfbd466612494058963d502f0",
+  "railAllowlistId": "0x83d2c87d5ace7117b5869d6524c5b837925fec9c79333b5990a51c37491cfb66",
+  "operatorAddress": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "runs": [
+    {
+      "runNumber": 1,
+      "label": "Harbor / Scallop / buffer refill",
+      "network": "testnet",
+      "setup": {
+        "mode": "Income",
+        "railId": "scallop-sui",
+        "railName": "Scallop",
+        "payoutTargetUsd": 1200,
+        "maxLtvBps": 3400,
+        "targetLtvLowBps": 1000,
+        "targetLtvHighBps": 1600,
+        "repayLtvBps": 2500,
+        "emergencyLtvBps": 3100,
+        "railDataMode": "fixture"
+      },
+      "evidencePosture": {
+        "railDataMode": "fixture",
+        "walrusSource": "walrus",
+        "pythSource": "configured",
+        "executionMode": "testnet-rehearsal",
+        "claimBoundary": "testnet receipt + local proof digest; no mainnet capital movement"
+      },
+      "draft": {
+        "scenarioName": "Proof Run 01 - Scallop",
+        "mode": "Income",
+        "priority": "Stability",
+        "createScope": "shadow",
+        "selectedRail": "scallop-sui",
+        "venueId": "scallop-sui",
+        "railId": "scallop-sui",
+        "venueName": "Scallop",
+        "railName": "Scallop",
+        "venueHealthy": true,
+        "oracleConfidencePct": 95,
+        "liquidityScorePct": 84,
+        "venueHealthScorePct": 88,
+        "btcUnits": 1.4,
+        "collateralCoinType": "0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC",
+        "collateralAssetSymbol": "BTC",
+        "btcPriceUsd": 82500,
+        "debtUsd": 19000,
+        "stableBufferUsd": 1000,
+        "venueExposurePct": 58,
+        "wrapperExposurePct": 63,
+        "desiredRunwayMonths": 4,
+        "monthlyPayoutTargetUsd": 1200,
+        "minStableBufferUsd": 4800,
+        "maxLtvPct": 34,
+        "targetLtvLowPct": 10,
+        "targetLtvHighPct": 16,
+        "autoRepayLtvPct": 25,
+        "emergencyLtvPct": 31,
+        "allowPayoutPauseInStress": true,
+        "maxSingleVenueExposurePct": 65,
+        "maxWrapperExposurePct": 78,
+        "minOracleConfidencePct": 90,
+        "minLiquidityScorePct": 78,
+        "allowNewBorrowInStress": false,
+        "allowNewBorrowInCrisis": false,
+        "marketRealizedVolPct": 78,
+        "marketDailyMovePct": 2.8,
+        "marketWeeklyDrawdownPct": 6,
+        "marketTrendStrengthPct": 48
+      },
+      "input": {
+        "now": "2026-05-06T06:59:43.539Z",
+        "policy": {
+          "mode": "Income",
+          "priority": "Stability",
+          "maxLtv": 0.34,
+          "targetLtvLow": 0.1,
+          "targetLtvHigh": 0.16,
+          "minStableBufferUsd": 4800,
+          "desiredRunwayMonths": 4,
+          "monthlyPayoutTargetUsd": 1200,
+          "allowPayoutPauseInStress": true,
+          "maxSingleVenueExposurePct": 0.65,
+          "maxWrapperExposurePct": 0.78,
+          "autoRepayLtv": 0.25,
+          "emergencyLtv": 0.31,
+          "minOracleConfidence": 0.9,
+          "minLiquidityScore": 0.78,
+          "allowNewBorrowInStress": false,
+          "allowNewBorrowInCrisis": false
+        },
+        "portfolio": {
+          "btcUnits": 1.4,
+          "btcPriceUsd": 82500,
+          "collateralUsd": 115500,
+          "debtUsd": 19000,
+          "stableBufferUsd": 1000,
+          "venueExposurePct": 0.58,
+          "wrapperExposurePct": 0.63
+        },
+        "market": {
+          "realizedVol30d": 0.78,
+          "dailyMovePctAbs": 0.027999999999999997,
+          "weeklyDrawdownPct": 0.06,
+          "trendStrength": 0.48
+        },
+        "venues": [
+          {
+            "name": "Scallop",
+            "healthy": true,
+            "oracleConfidence": 0.95,
+            "liquidityScore": 0.84,
+            "healthScore": 0.88
+          }
+        ]
+      },
+      "reportSummary": {
+        "survivablePayoutBandLowUsd": 185.94,
+        "survivablePayoutBandHighUsd": 250,
+        "currentLtv": 0.1654,
+        "bufferCoverageDays": 25,
+        "baselineHorizonDays": 30,
+        "baselineCarryCostUsd": 98.93,
+        "baselineRebalanceCostUsd": 0,
+        "breakwaterTriggerDrawdownPct": 0.35,
+        "averageHealthScore": 36,
+        "worstOperatingState": "StressLockdown",
+        "worstCaseTotalDragUsd": 385.36,
+        "worstCaseLiquidationPenaltyUsd": 0,
+        "projectedTideFeeBpsAnnual": 75,
+        "projectedTideFeeUsd30d": 11.77,
+        "projectedTideFeePctOfPayout": 0.0098,
+        "actionExamples": [
+          {
+            "type": "BuildBuffer",
+            "amountUsd": 3800,
+            "reason": "Stable buffer below policy minimum; new borrowing restricted",
+            "explanation": "The engine needs to rebuild the stable buffer, but current regime rules restrict fresh borrowing. Priority shifts to preserving cash and rebuilding liquidity conservatively.",
+            "metadata": {
+              "shortfallUsd": 3800,
+              "regime": "Trend"
+            }
+          },
+          {
+            "type": "EmergencyDeRisk",
+            "amountUsd": 11740.81,
+            "reason": "Emergency risk condition detected",
+            "explanation": "TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.",
+            "metadata": {
+              "regime": "Crisis",
+              "currentLtv": 0.25638774558774563,
+              "targetLtvLow": 0.1
+            }
+          }
+        ],
+        "primaryRailId": "scallop-sui",
+        "primaryRailName": "Scallop",
+        "backupRailId": "scallop",
+        "backupRailName": "Scallop",
+        "railWarnings": [],
+        "railDataMode": "fixture",
+        "railCount": 16,
+        "liveRailCount": 0
+      },
+      "policyAnchor": {
+        "txDigest": "FCNdxdXu5rmsduAskrgP3ab9KkurBm7NxsQPL2vMGMYN",
+        "txUrl": "https://testnet.suivision.xyz/txblock/FCNdxdXu5rmsduAskrgP3ab9KkurBm7NxsQPL2vMGMYN",
+        "objectId": "0x684df0226ad46f63e1b938498e9d5e74af86415af24a23b89ca347530a6b8e5a",
+        "objectUrl": "https://testnet.suivision.xyz/object/0x684df0226ad46f63e1b938498e9d5e74af86415af24a23b89ca347530a6b8e5a",
+        "version": 2,
+        "selectedRail": "scallop-sui",
+        "owner": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "receiptMint": {
+        "txDigest": "Enek5ZHWFij7XzdhCGvaAv9rhUZ2EWZtT9Uh9avqj4NG",
+        "txUrl": "https://testnet.suivision.xyz/txblock/Enek5ZHWFij7XzdhCGvaAv9rhUZ2EWZtT9Uh9avqj4NG",
+        "objectId": "0xc1dd92d083dd866849b2d0f78c5527b524e84fd841d380e7acae3d74605c3268",
+        "objectUrl": "https://testnet.suivision.xyz/object/0xc1dd92d083dd866849b2d0f78c5527b524e84fd841d380e7acae3d74605c3268",
+        "walrusBlobId": "sSlvsjJf_GEGf6vEQf7AsLWuYOV1vNrJvL8vb0XEyxU",
+        "walrusSource": "walrus",
+        "contentDigestHex": "0x9dc75b3e9fbeb2aa9a579d9eca0adc8b21f85ec555261f1597ea53d687181564",
+        "railPackDigestHex": "0x7ea81c3d71e1c64a2daf1b54cdb48b267641b452ee560f45fd550729fec6004c",
+        "policyVersion": 2,
+        "selectedRail": "scallop-sui",
+        "decisionType": "BuildBuffer",
+        "limitations": "testnet-rehearsal",
+        "stateBeforeDigestHex": "0x229987692b055655660654caa59c04f2877a6d661eb286e2cdab55196c691f34",
+        "createdAtMs": 1778050797785
+      },
+      "proofBundle": {
+        "canonical": "{\"action\":\"shadow_run_completed\",\"correlationId\":\"977e36281b35811309eae4abf25787ae1637e7938b996f4472d6054bdb301832\",\"createdAtMs\":1778050785488,\"decisionType\":\"BuildBuffer\",\"limitations\":\"testnet-rehearsal\",\"policy\":{\"collateralCoinType\":\"0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC\",\"collateralSymbol\":\"BTC\",\"emergencyLtvBps\":3100,\"id\":\"0x684df0226ad46f63e1b938498e9d5e74af86415af24a23b89ca347530a6b8e5a\",\"maxLtvBps\":3400,\"minBufferUsd\":4800,\"mode\":\"Income\",\"owner\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"payoutTargetUsd\":1200,\"priority\":\"Stability\",\"repayLtvBps\":2500,\"selectedRail\":\"scallop-sui\",\"targetLtvHighBps\":1600,\"targetLtvLowBps\":1000,\"version\":2},\"railPack\":{\"digest\":[126,168,28,61,113,225,198,74,45,175,27,84,205,180,139,38,118,65,180,82,238,86,15,69,253,85,7,41,254,198,0,76],\"generatedAtMs\":1778050785486,\"signatureAlg\":\"ed25519\",\"signedBy\":\"local-proof-operator\"},\"report\":{\"schemaVersion\":1,\"summary\":{\"actionExamples\":[{\"amountUsd\":3800,\"explanation\":\"The engine needs to rebuild the stable buffer, but current regime rules restrict fresh borrowing. Priority shifts to preserving cash and rebuilding liquidity conservatively.\",\"metadata\":{\"regime\":\"Trend\",\"shortfallUsd\":3800},\"reason\":\"Stable buffer below policy minimum; new borrowing restricted\",\"type\":\"BuildBuffer\"},{\"amountUsd\":11740.81,\"explanation\":\"TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.\",\"metadata\":{\"currentLtv\":0.25638774558774563,\"regime\":\"Crisis\",\"targetLtvLow\":0.1},\"reason\":\"Emergency risk condition detected\",\"type\":\"EmergencyDeRisk\"}],\"averageHealthScore\":36,\"backupRailId\":\"scallop\",\"backupRailName\":\"Scallop\",\"baselineCarryCostUsd\":98.93,\"baselineHorizonDays\":30,\"baselineRebalanceCostUsd\":0,\"breakwaterTriggerDrawdownPct\":0.35,\"bufferCoverageDays\":25,\"currentLtv\":0.1654,\"liveRailCount\":0,\"primaryRailId\":\"scallop-sui\",\"primaryRailName\":\"Scallop\",\"projectedTideFeeBpsAnnual\":75,\"projectedTideFeePctOfPayout\":0.0098,\"projectedTideFeeUsd30d\":11.77,\"railCount\":16,\"railDataMode\":\"fixture\",\"railWarnings\":[],\"survivablePayoutBandHighUsd\":250,\"survivablePayoutBandLowUsd\":185.94,\"worstCaseLiquidationPenaltyUsd\":0,\"worstCaseTotalDragUsd\":385.36,\"worstOperatingState\":\"StressLockdown\"}},\"stateBefore\":{\"bufferUsd\":1000,\"ltvBps\":1654,\"stressLabel\":\"StressLockdown\"},\"version\":2}",
+        "bundle": {
+          "version": 2,
+          "createdAtMs": 1778050785488,
+          "correlationId": "977e36281b35811309eae4abf25787ae1637e7938b996f4472d6054bdb301832",
+          "action": "shadow_run_completed",
+          "decisionType": "BuildBuffer",
+          "limitations": "testnet-rehearsal",
+          "stateBefore": {
+            "ltvBps": 1654,
+            "bufferUsd": 1000,
+            "stressLabel": "StressLockdown"
+          },
+          "policy": {
+            "id": "0x684df0226ad46f63e1b938498e9d5e74af86415af24a23b89ca347530a6b8e5a",
+            "version": 2,
+            "owner": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "selectedRail": "scallop-sui",
+            "mode": "Income",
+            "priority": "Stability",
+            "collateralSymbol": "BTC",
+            "collateralCoinType": "0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC",
+            "payoutTargetUsd": 1200,
+            "minBufferUsd": 4800,
+            "maxLtvBps": 3400,
+            "targetLtvLowBps": 1000,
+            "targetLtvHighBps": 1600,
+            "repayLtvBps": 2500,
+            "emergencyLtvBps": 3100
+          },
+          "report": {
+            "summary": {
+              "survivablePayoutBandLowUsd": 185.94,
+              "survivablePayoutBandHighUsd": 250,
+              "currentLtv": 0.1654,
+              "bufferCoverageDays": 25,
+              "baselineHorizonDays": 30,
+              "baselineCarryCostUsd": 98.93,
+              "baselineRebalanceCostUsd": 0,
+              "breakwaterTriggerDrawdownPct": 0.35,
+              "averageHealthScore": 36,
+              "worstOperatingState": "StressLockdown",
+              "worstCaseTotalDragUsd": 385.36,
+              "worstCaseLiquidationPenaltyUsd": 0,
+              "projectedTideFeeBpsAnnual": 75,
+              "projectedTideFeeUsd30d": 11.77,
+              "projectedTideFeePctOfPayout": 0.0098,
+              "actionExamples": [
+                {
+                  "type": "BuildBuffer",
+                  "reason": "Stable buffer below policy minimum; new borrowing restricted",
+                  "explanation": "The engine needs to rebuild the stable buffer, but current regime rules restrict fresh borrowing. Priority shifts to preserving cash and rebuilding liquidity conservatively.",
+                  "amountUsd": 3800,
+                  "metadata": {
+                    "regime": "Trend",
+                    "shortfallUsd": 3800
+                  }
+                },
+                {
+                  "type": "EmergencyDeRisk",
+                  "reason": "Emergency risk condition detected",
+                  "explanation": "TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.",
+                  "amountUsd": 11740.81,
+                  "metadata": {
+                    "currentLtv": 0.25638774558774563,
+                    "regime": "Crisis",
+                    "targetLtvLow": 0.1
+                  }
+                }
+              ],
+              "primaryRailId": "scallop-sui",
+              "primaryRailName": "Scallop",
+              "backupRailId": "scallop",
+              "backupRailName": "Scallop",
+              "railWarnings": [],
+              "railDataMode": "fixture",
+              "railCount": 16,
+              "liveRailCount": 0
+            },
+            "schemaVersion": 1
+          },
+          "railPack": {
+            "digest": [
+              126,
+              168,
+              28,
+              61,
+              113,
+              225,
+              198,
+              74,
+              45,
+              175,
+              27,
+              84,
+              205,
+              180,
+              139,
+              38,
+              118,
+              65,
+              180,
+              82,
+              238,
+              86,
+              15,
+              69,
+              253,
+              85,
+              7,
+              41,
+              254,
+              198,
+              0,
+              76
+            ],
+            "signedBy": "local-proof-operator",
+            "signatureAlg": "ed25519",
+            "generatedAtMs": 1778050785486
+          }
+        },
+        "stateBeforeDigestHex": "0x229987692b055655660654caa59c04f2877a6d661eb286e2cdab55196c691f34",
+        "contentDigestHex": "0x9dc75b3e9fbeb2aa9a579d9eca0adc8b21f85ec555261f1597ea53d687181564",
+        "railPackDigestHex": "0x7ea81c3d71e1c64a2daf1b54cdb48b267641b452ee560f45fd550729fec6004c",
+        "redacted": true,
+        "canonicalKind": "redacted-summary",
+        "redactionNotice": "Canonical proof JSON is redacted for public sharing; use on-chain receipt fields and the canonical unredacted bundle for digest verification."
+      },
+      "proofVerification": {
+        "ok": false,
+        "digestOk": false,
+        "digestReason": "public proof JSON is redacted; use the original canonical bundle or Walrus bytes for digest verification.",
+        "semanticOk": false,
+        "semanticReason": "public proof JSON omits/redacts wallet-specific proof fields and is not a canonical bundle.",
+        "semanticMismatches": [],
+        "bundleFreshnessOk": true,
+        "bundleFreshnessReason": "",
+        "freshnessOk": true,
+        "freshnessReason": "",
+        "ageMs": 12165,
+        "actualDigestHex": "0x9dc75b3e9fbeb2aa9a579d9eca0adc8b21f85ec555261f1597ea53d687181564",
+        "expectedDigestHex": "0x9dc75b3e9fbeb2aa9a579d9eca0adc8b21f85ec555261f1597ea53d687181564",
+        "evidencePosture": {
+          "railDataMode": "fixture",
+          "walrusSource": "walrus",
+          "pythSource": "configured",
+          "executionMode": "testnet-rehearsal",
+          "claimBoundary": "testnet receipt + local proof digest; no mainnet capital movement"
+        },
+        "publicArtifactOnly": true
+      },
+      "verifyAfter": {
+        "ok": true,
+        "status": 0,
+        "ranAt": "2026-05-06T07:00:00.217Z",
+        "runNumber": 1,
+        "summary": "[verify] network=testnet [verify] package=0x999c34…02f0 [verify] PASS package 0x999c34…02f0 (cli, owner Immutable) [verify] PASS admin cap 0xb8154f…2427 (cli, owner AddressOwner) [verify] PASS rail allowlist 0x83d2c8…fb66 (cli, owner Shared, rails: suilend-sui, bucket-sui, alphalend-sui, navi-sui, scallop-sui) [verify] PASS upgrade cap 0xb36e3d…82d5 (cli, owner AddressOwner) [verify] PASS publisher 0xd59409…c1cd (cli, owner AddressOwner) [verify] PASS cap separation admin cap ≠ upgrade cap (hardened beyond the older cap-separation baseline) [verify] PASS receipt schema 0x999c34…02f0::execution_receipts (strict v3 ABI) [verify] all checks passed. All on-chain checks passed."
+      },
+      "notes": [
+        "railDataMode=fixture",
+        "walrusSource=walrus",
+        "pythSource=configured",
+        "Execution surface is testnet Autopilot Rehearsal only."
+      ]
+    },
+    {
+      "runNumber": 2,
+      "label": "Harbor / Navi / partial repay",
+      "network": "testnet",
+      "setup": {
+        "mode": "Income",
+        "railId": "navi-sui",
+        "railName": "Navi",
+        "payoutTargetUsd": 1050,
+        "maxLtvBps": 4000,
+        "targetLtvLowBps": 1200,
+        "targetLtvHighBps": 2000,
+        "repayLtvBps": 2500,
+        "emergencyLtvBps": 3500,
+        "railDataMode": "fixture"
+      },
+      "evidencePosture": {
+        "railDataMode": "fixture",
+        "walrusSource": "walrus",
+        "pythSource": "configured",
+        "executionMode": "testnet-rehearsal",
+        "claimBoundary": "testnet receipt + local proof digest; no mainnet capital movement"
+      },
+      "draft": {
+        "scenarioName": "Proof Run 02 - Navi",
+        "mode": "Income",
+        "priority": "Stability",
+        "createScope": "shadow",
+        "selectedRail": "navi-sui",
+        "venueId": "navi-sui",
+        "railId": "navi-sui",
+        "venueName": "Navi",
+        "railName": "Navi",
+        "venueHealthy": true,
+        "oracleConfidencePct": 95,
+        "liquidityScorePct": 84,
+        "venueHealthScorePct": 88,
+        "btcUnits": 1.32,
+        "collateralCoinType": "0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC",
+        "collateralAssetSymbol": "BTC",
+        "btcPriceUsd": 81250,
+        "debtUsd": 35000,
+        "stableBufferUsd": 5250,
+        "venueExposurePct": 54,
+        "wrapperExposurePct": 60,
+        "desiredRunwayMonths": 5,
+        "monthlyPayoutTargetUsd": 1050,
+        "minStableBufferUsd": 4200,
+        "maxLtvPct": 40,
+        "targetLtvLowPct": 12,
+        "targetLtvHighPct": 20,
+        "autoRepayLtvPct": 25,
+        "emergencyLtvPct": 35,
+        "allowPayoutPauseInStress": true,
+        "maxSingleVenueExposurePct": 65,
+        "maxWrapperExposurePct": 78,
+        "minOracleConfidencePct": 90,
+        "minLiquidityScorePct": 78,
+        "allowNewBorrowInStress": false,
+        "allowNewBorrowInCrisis": false,
+        "marketRealizedVolPct": 60,
+        "marketDailyMovePct": 1,
+        "marketWeeklyDrawdownPct": 3,
+        "marketTrendStrengthPct": 20
+      },
+      "input": {
+        "now": "2026-05-06T07:00:00.219Z",
+        "policy": {
+          "mode": "Income",
+          "priority": "Stability",
+          "maxLtv": 0.4,
+          "targetLtvLow": 0.12,
+          "targetLtvHigh": 0.2,
+          "minStableBufferUsd": 4200,
+          "desiredRunwayMonths": 5,
+          "monthlyPayoutTargetUsd": 1050,
+          "allowPayoutPauseInStress": true,
+          "maxSingleVenueExposurePct": 0.65,
+          "maxWrapperExposurePct": 0.78,
+          "autoRepayLtv": 0.25,
+          "emergencyLtv": 0.35,
+          "minOracleConfidence": 0.9,
+          "minLiquidityScore": 0.78,
+          "allowNewBorrowInStress": false,
+          "allowNewBorrowInCrisis": false
+        },
+        "portfolio": {
+          "btcUnits": 1.32,
+          "btcPriceUsd": 81250,
+          "collateralUsd": 107250,
+          "debtUsd": 35000,
+          "stableBufferUsd": 5250,
+          "venueExposurePct": 0.54,
+          "wrapperExposurePct": 0.6
+        },
+        "market": {
+          "realizedVol30d": 0.6,
+          "dailyMovePctAbs": 0.01,
+          "weeklyDrawdownPct": 0.03,
+          "trendStrength": 0.2
+        },
+        "venues": [
+          {
+            "name": "Navi",
+            "healthy": true,
+            "oracleConfidence": 0.95,
+            "liquidityScore": 0.84,
+            "healthScore": 0.88
+          }
+        ]
+      },
+      "reportSummary": {
+        "survivablePayoutBandLowUsd": 809.38,
+        "survivablePayoutBandHighUsd": 1040.63,
+        "currentLtv": 0.328,
+        "bufferCoverageDays": 151,
+        "baselineHorizonDays": 30,
+        "baselineCarryCostUsd": 182.26,
+        "baselineRebalanceCostUsd": 46.86,
+        "breakwaterTriggerDrawdownPct": 0.2,
+        "averageHealthScore": 48,
+        "worstOperatingState": "StressLockdown",
+        "worstCaseTotalDragUsd": 2137,
+        "worstCaseLiquidationPenaltyUsd": 1906.89,
+        "liquidationScenarioLabel": "-50% drawdown",
+        "projectedTideFeeBpsAnnual": 75,
+        "projectedTideFeeUsd30d": 21.69,
+        "projectedTideFeePctOfPayout": 0.0207,
+        "actionExamples": [
+          {
+            "type": "PartialRepay",
+            "amountUsd": 22312.26,
+            "reason": "LTV exceeded auto-repay threshold",
+            "explanation": "The current leverage moved above your auto-repay threshold. The rehearsal plan would reduce debt before the position approaches unsafe territory.",
+            "metadata": {
+              "currentLtv": 0.3280397202797203,
+              "autoRepayLtv": 0.25,
+              "targetLtvLow": 0.12
+            }
+          },
+          {
+            "type": "EmergencyDeRisk",
+            "amountUsd": 21383.36,
+            "reason": "Emergency risk condition detected",
+            "explanation": "TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.",
+            "metadata": {
+              "regime": "Stress",
+              "currentLtv": 0.3826000191576998,
+              "targetLtvLow": 0.12
+            }
+          }
+        ],
+        "primaryRailId": "navi-sui",
+        "primaryRailName": "Navi",
+        "backupRailId": "scallop",
+        "backupRailName": "Scallop",
+        "railWarnings": [
+          "AlphaLend caps max LTV at 39.0%, below the requested 40.0%.",
+          "AlphaLend caps max LTV at 38.3%, below the requested 40.0%.",
+          "AlphaLend caps max LTV at 37.7%, below the requested 40.0%.",
+          "AlphaLend caps max LTV at 37.2%, below the requested 40.0%.",
+          "AlphaLend caps max LTV at 38.4%, below the requested 40.0%."
+        ],
+        "railDataMode": "fixture",
+        "railCount": 16,
+        "liveRailCount": 0
+      },
+      "policyAnchor": {
+        "txDigest": "GeK8duBbpE1VfnfGPFqhHFMr5NZjEXgUVvCnYZS4AXyn",
+        "txUrl": "https://testnet.suivision.xyz/txblock/GeK8duBbpE1VfnfGPFqhHFMr5NZjEXgUVvCnYZS4AXyn",
+        "objectId": "0x698bf4dc1906ca330acfbd63bee52ff3641007d76c723c7bf440b4cabc0101d4",
+        "objectUrl": "https://testnet.suivision.xyz/object/0x698bf4dc1906ca330acfbd63bee52ff3641007d76c723c7bf440b4cabc0101d4",
+        "version": 2,
+        "selectedRail": "navi-sui",
+        "owner": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "receiptMint": {
+        "txDigest": "AUzypoAKNSUzZu489jtNaKFWG88wbPKYVCozvt3osuje",
+        "txUrl": "https://testnet.suivision.xyz/txblock/AUzypoAKNSUzZu489jtNaKFWG88wbPKYVCozvt3osuje",
+        "objectId": "0x2bc37f0fa2c8d1602123d70d8189f783bac2116ea7a67185bd2f749845156fce",
+        "objectUrl": "https://testnet.suivision.xyz/object/0x2bc37f0fa2c8d1602123d70d8189f783bac2116ea7a67185bd2f749845156fce",
+        "walrusBlobId": "z-iLvfWVejxr0R6GMlXpaRx4cx6FSSPfXY16EI383CU",
+        "walrusSource": "walrus",
+        "contentDigestHex": "0x8606265e0129c4732b2d623d29338490b4b4f4426757dfeab9fef89a61cfa24d",
+        "railPackDigestHex": "0x7c17d5e7cf88260d43a11076e2a78ea60218535956765802c5ea0475355203e2",
+        "policyVersion": 2,
+        "selectedRail": "navi-sui",
+        "decisionType": "PartialRepay",
+        "limitations": "testnet-rehearsal",
+        "stateBeforeDigestHex": "0x4106034302181b3fa8a2f4801823d1c28a42e66dbd82be0c713d80ba5b82ae0b",
+        "createdAtMs": 1778050815085
+      },
+      "proofBundle": {
+        "canonical": "{\"action\":\"decision.partial_repay\",\"correlationId\":\"f3052f5b6c912efc9d803d594072f889481f9faf06d767fbc26f944dd864fcf5\",\"createdAtMs\":1778050801945,\"decisionType\":\"PartialRepay\",\"limitations\":\"testnet-rehearsal\",\"policy\":{\"collateralCoinType\":\"0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC\",\"collateralSymbol\":\"BTC\",\"emergencyLtvBps\":3500,\"id\":\"0x698bf4dc1906ca330acfbd63bee52ff3641007d76c723c7bf440b4cabc0101d4\",\"maxLtvBps\":4000,\"minBufferUsd\":4200,\"mode\":\"Income\",\"owner\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"payoutTargetUsd\":1050,\"priority\":\"Stability\",\"repayLtvBps\":2500,\"selectedRail\":\"navi-sui\",\"targetLtvHighBps\":2000,\"targetLtvLowBps\":1200,\"version\":2},\"railPack\":{\"digest\":[124,23,213,231,207,136,38,13,67,161,16,118,226,167,142,166,2,24,83,89,86,118,88,2,197,234,4,117,53,82,3,226],\"generatedAtMs\":1778050801944,\"signatureAlg\":\"ed25519\",\"signedBy\":\"local-proof-operator\"},\"report\":{\"schemaVersion\":1,\"summary\":{\"actionExamples\":[{\"amountUsd\":22312.26,\"explanation\":\"The current leverage moved above your auto-repay threshold. The rehearsal plan would reduce debt before the position approaches unsafe territory.\",\"metadata\":{\"autoRepayLtv\":0.25,\"currentLtv\":0.3280397202797203,\"targetLtvLow\":0.12},\"reason\":\"LTV exceeded auto-repay threshold\",\"type\":\"PartialRepay\"},{\"amountUsd\":21383.36,\"explanation\":\"TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.\",\"metadata\":{\"currentLtv\":0.3826000191576998,\"regime\":\"Stress\",\"targetLtvLow\":0.12},\"reason\":\"Emergency risk condition detected\",\"type\":\"EmergencyDeRisk\"}],\"averageHealthScore\":48,\"backupRailId\":\"scallop\",\"backupRailName\":\"Scallop\",\"baselineCarryCostUsd\":182.26,\"baselineHorizonDays\":30,\"baselineRebalanceCostUsd\":46.86,\"breakwaterTriggerDrawdownPct\":0.2,\"bufferCoverageDays\":151,\"currentLtv\":0.328,\"liquidationScenarioLabel\":\"-50% drawdown\",\"liveRailCount\":0,\"primaryRailId\":\"navi-sui\",\"primaryRailName\":\"Navi\",\"projectedTideFeeBpsAnnual\":75,\"projectedTideFeePctOfPayout\":0.0207,\"projectedTideFeeUsd30d\":21.69,\"railCount\":16,\"railDataMode\":\"fixture\",\"railWarnings\":[\"AlphaLend caps max LTV at 39.0%, below the requested 40.0%.\",\"AlphaLend caps max LTV at 38.3%, below the requested 40.0%.\",\"AlphaLend caps max LTV at 37.7%, below the requested 40.0%.\",\"AlphaLend caps max LTV at 37.2%, below the requested 40.0%.\",\"AlphaLend caps max LTV at 38.4%, below the requested 40.0%.\"],\"survivablePayoutBandHighUsd\":1040.63,\"survivablePayoutBandLowUsd\":809.38,\"worstCaseLiquidationPenaltyUsd\":1906.89,\"worstCaseTotalDragUsd\":2137,\"worstOperatingState\":\"StressLockdown\"}},\"stateBefore\":{\"bufferUsd\":5250,\"ltvBps\":3280,\"stressLabel\":\"StressLockdown\"},\"version\":2}",
+        "bundle": {
+          "version": 2,
+          "createdAtMs": 1778050801945,
+          "correlationId": "f3052f5b6c912efc9d803d594072f889481f9faf06d767fbc26f944dd864fcf5",
+          "action": "decision.partial_repay",
+          "decisionType": "PartialRepay",
+          "limitations": "testnet-rehearsal",
+          "stateBefore": {
+            "ltvBps": 3280,
+            "bufferUsd": 5250,
+            "stressLabel": "StressLockdown"
+          },
+          "policy": {
+            "id": "0x698bf4dc1906ca330acfbd63bee52ff3641007d76c723c7bf440b4cabc0101d4",
+            "version": 2,
+            "owner": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "selectedRail": "navi-sui",
+            "mode": "Income",
+            "priority": "Stability",
+            "collateralSymbol": "BTC",
+            "collateralCoinType": "0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC",
+            "payoutTargetUsd": 1050,
+            "minBufferUsd": 4200,
+            "maxLtvBps": 4000,
+            "targetLtvLowBps": 1200,
+            "targetLtvHighBps": 2000,
+            "repayLtvBps": 2500,
+            "emergencyLtvBps": 3500
+          },
+          "report": {
+            "summary": {
+              "survivablePayoutBandLowUsd": 809.38,
+              "survivablePayoutBandHighUsd": 1040.63,
+              "currentLtv": 0.328,
+              "bufferCoverageDays": 151,
+              "baselineHorizonDays": 30,
+              "baselineCarryCostUsd": 182.26,
+              "baselineRebalanceCostUsd": 46.86,
+              "breakwaterTriggerDrawdownPct": 0.2,
+              "averageHealthScore": 48,
+              "worstOperatingState": "StressLockdown",
+              "worstCaseTotalDragUsd": 2137,
+              "worstCaseLiquidationPenaltyUsd": 1906.89,
+              "liquidationScenarioLabel": "-50% drawdown",
+              "projectedTideFeeBpsAnnual": 75,
+              "projectedTideFeeUsd30d": 21.69,
+              "projectedTideFeePctOfPayout": 0.0207,
+              "actionExamples": [
+                {
+                  "type": "PartialRepay",
+                  "reason": "LTV exceeded auto-repay threshold",
+                  "explanation": "The current leverage moved above your auto-repay threshold. The rehearsal plan would reduce debt before the position approaches unsafe territory.",
+                  "amountUsd": 22312.26,
+                  "metadata": {
+                    "autoRepayLtv": 0.25,
+                    "currentLtv": 0.3280397202797203,
+                    "targetLtvLow": 0.12
+                  }
+                },
+                {
+                  "type": "EmergencyDeRisk",
+                  "reason": "Emergency risk condition detected",
+                  "explanation": "TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.",
+                  "amountUsd": 21383.36,
+                  "metadata": {
+                    "currentLtv": 0.3826000191576998,
+                    "regime": "Stress",
+                    "targetLtvLow": 0.12
+                  }
+                }
+              ],
+              "primaryRailId": "navi-sui",
+              "primaryRailName": "Navi",
+              "backupRailId": "scallop",
+              "backupRailName": "Scallop",
+              "railWarnings": [
+                "AlphaLend caps max LTV at 39.0%, below the requested 40.0%.",
+                "AlphaLend caps max LTV at 38.3%, below the requested 40.0%.",
+                "AlphaLend caps max LTV at 37.7%, below the requested 40.0%.",
+                "AlphaLend caps max LTV at 37.2%, below the requested 40.0%.",
+                "AlphaLend caps max LTV at 38.4%, below the requested 40.0%."
+              ],
+              "railDataMode": "fixture",
+              "railCount": 16,
+              "liveRailCount": 0
+            },
+            "schemaVersion": 1
+          },
+          "railPack": {
+            "digest": [
+              124,
+              23,
+              213,
+              231,
+              207,
+              136,
+              38,
+              13,
+              67,
+              161,
+              16,
+              118,
+              226,
+              167,
+              142,
+              166,
+              2,
+              24,
+              83,
+              89,
+              86,
+              118,
+              88,
+              2,
+              197,
+              234,
+              4,
+              117,
+              53,
+              82,
+              3,
+              226
+            ],
+            "signedBy": "local-proof-operator",
+            "signatureAlg": "ed25519",
+            "generatedAtMs": 1778050801944
+          }
+        },
+        "stateBeforeDigestHex": "0x4106034302181b3fa8a2f4801823d1c28a42e66dbd82be0c713d80ba5b82ae0b",
+        "contentDigestHex": "0x8606265e0129c4732b2d623d29338490b4b4f4426757dfeab9fef89a61cfa24d",
+        "railPackDigestHex": "0x7c17d5e7cf88260d43a11076e2a78ea60218535956765802c5ea0475355203e2",
+        "redacted": true,
+        "canonicalKind": "redacted-summary",
+        "redactionNotice": "Canonical proof JSON is redacted for public sharing; use on-chain receipt fields and the canonical unredacted bundle for digest verification."
+      },
+      "proofVerification": {
+        "ok": false,
+        "digestOk": false,
+        "digestReason": "public proof JSON is redacted; use the original canonical bundle or Walrus bytes for digest verification.",
+        "semanticOk": false,
+        "semanticReason": "public proof JSON omits/redacts wallet-specific proof fields and is not a canonical bundle.",
+        "semanticMismatches": [],
+        "bundleFreshnessOk": true,
+        "bundleFreshnessReason": "",
+        "freshnessOk": true,
+        "freshnessReason": "",
+        "ageMs": 12975,
+        "actualDigestHex": "0x8606265e0129c4732b2d623d29338490b4b4f4426757dfeab9fef89a61cfa24d",
+        "expectedDigestHex": "0x8606265e0129c4732b2d623d29338490b4b4f4426757dfeab9fef89a61cfa24d",
+        "evidencePosture": {
+          "railDataMode": "fixture",
+          "walrusSource": "walrus",
+          "pythSource": "configured",
+          "executionMode": "testnet-rehearsal",
+          "claimBoundary": "testnet receipt + local proof digest; no mainnet capital movement"
+        },
+        "publicArtifactOnly": true
+      },
+      "verifyAfter": {
+        "ok": true,
+        "status": 0,
+        "ranAt": "2026-05-06T07:00:17.456Z",
+        "runNumber": 2,
+        "summary": "[verify] network=testnet [verify] package=0x999c34…02f0 [verify] PASS package 0x999c34…02f0 (cli, owner Immutable) [verify] PASS admin cap 0xb8154f…2427 (cli, owner AddressOwner) [verify] PASS rail allowlist 0x83d2c8…fb66 (cli, owner Shared, rails: suilend-sui, bucket-sui, alphalend-sui, navi-sui, scallop-sui) [verify] PASS upgrade cap 0xb36e3d…82d5 (cli, owner AddressOwner) [verify] PASS publisher 0xd59409…c1cd (cli, owner AddressOwner) [verify] PASS cap separation admin cap ≠ upgrade cap (hardened beyond the older cap-separation baseline) [verify] PASS receipt schema 0x999c34…02f0::execution_receipts (strict v3 ABI) [verify] all checks passed. All on-chain checks passed."
+      },
+      "notes": [
+        "railDataMode=fixture",
+        "walrusSource=walrus",
+        "pythSource=configured",
+        "Execution surface is testnet Autopilot Rehearsal only."
+      ]
+    },
+    {
+      "runNumber": 3,
+      "label": "Harbor / Suilend / emergency de-risk",
+      "network": "testnet",
+      "setup": {
+        "mode": "Income",
+        "railId": "suilend-sui",
+        "railName": "Suilend",
+        "payoutTargetUsd": 900,
+        "maxLtvBps": 4000,
+        "targetLtvLowBps": 1200,
+        "targetLtvHighBps": 2000,
+        "repayLtvBps": 2500,
+        "emergencyLtvBps": 3000,
+        "railDataMode": "fixture"
+      },
+      "evidencePosture": {
+        "railDataMode": "fixture",
+        "walrusSource": "walrus",
+        "pythSource": "configured",
+        "executionMode": "testnet-rehearsal",
+        "claimBoundary": "testnet receipt + local proof digest; no mainnet capital movement"
+      },
+      "draft": {
+        "scenarioName": "Proof Run 03 - Suilend",
+        "mode": "Income",
+        "priority": "Stability",
+        "createScope": "shadow",
+        "selectedRail": "suilend-sui",
+        "venueId": "suilend-sui",
+        "railId": "suilend-sui",
+        "venueName": "Suilend",
+        "railName": "Suilend",
+        "venueHealthy": true,
+        "oracleConfidencePct": 95,
+        "liquidityScorePct": 84,
+        "venueHealthScorePct": 88,
+        "btcUnits": 1.28,
+        "collateralCoinType": "0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC",
+        "collateralAssetSymbol": "BTC",
+        "btcPriceUsd": 79800,
+        "debtUsd": 38000,
+        "stableBufferUsd": 6100,
+        "venueExposurePct": 51,
+        "wrapperExposurePct": 57,
+        "desiredRunwayMonths": 5,
+        "monthlyPayoutTargetUsd": 900,
+        "minStableBufferUsd": 4000,
+        "maxLtvPct": 40,
+        "targetLtvLowPct": 12,
+        "targetLtvHighPct": 20,
+        "autoRepayLtvPct": 25,
+        "emergencyLtvPct": 30,
+        "allowPayoutPauseInStress": true,
+        "maxSingleVenueExposurePct": 65,
+        "maxWrapperExposurePct": 78,
+        "minOracleConfidencePct": 90,
+        "minLiquidityScorePct": 78,
+        "allowNewBorrowInStress": false,
+        "allowNewBorrowInCrisis": false,
+        "marketRealizedVolPct": 90,
+        "marketDailyMovePct": 5,
+        "marketWeeklyDrawdownPct": 20,
+        "marketTrendStrengthPct": 90
+      },
+      "input": {
+        "now": "2026-05-06T07:00:17.457Z",
+        "policy": {
+          "mode": "Income",
+          "priority": "Stability",
+          "maxLtv": 0.4,
+          "targetLtvLow": 0.12,
+          "targetLtvHigh": 0.2,
+          "minStableBufferUsd": 4000,
+          "desiredRunwayMonths": 5,
+          "monthlyPayoutTargetUsd": 900,
+          "allowPayoutPauseInStress": true,
+          "maxSingleVenueExposurePct": 0.65,
+          "maxWrapperExposurePct": 0.78,
+          "autoRepayLtv": 0.25,
+          "emergencyLtv": 0.3,
+          "minOracleConfidence": 0.9,
+          "minLiquidityScore": 0.78,
+          "allowNewBorrowInStress": false,
+          "allowNewBorrowInCrisis": false
+        },
+        "portfolio": {
+          "btcUnits": 1.28,
+          "btcPriceUsd": 79800,
+          "collateralUsd": 102144,
+          "debtUsd": 38000,
+          "stableBufferUsd": 6100,
+          "venueExposurePct": 0.51,
+          "wrapperExposurePct": 0.57
+        },
+        "market": {
+          "realizedVol30d": 0.9,
+          "dailyMovePctAbs": 0.05,
+          "weeklyDrawdownPct": 0.2,
+          "trendStrength": 0.9
+        },
+        "venues": [
+          {
+            "name": "Suilend",
+            "healthy": true,
+            "oracleConfidence": 0.95,
+            "liquidityScore": 0.84,
+            "healthScore": 0.88
+          }
+        ]
+      },
+      "reportSummary": {
+        "survivablePayoutBandLowUsd": 900,
+        "survivablePayoutBandHighUsd": 900,
+        "currentLtv": 0.374,
+        "bufferCoverageDays": 204,
+        "baselineHorizonDays": 30,
+        "baselineCarryCostUsd": 197.88,
+        "baselineRebalanceCostUsd": 54.48,
+        "breakwaterTriggerDrawdownPct": 0.2,
+        "averageHealthScore": 44,
+        "worstOperatingState": "StressLockdown",
+        "worstCaseTotalDragUsd": 2538.29,
+        "worstCaseLiquidationPenaltyUsd": 2391.28,
+        "liquidationScenarioLabel": "-50% drawdown",
+        "projectedTideFeeBpsAnnual": 75,
+        "projectedTideFeeUsd30d": 23.55,
+        "projectedTideFeePctOfPayout": 0.0262,
+        "actionExamples": [
+          {
+            "type": "EmergencyDeRisk",
+            "amountUsd": 25940.6,
+            "reason": "Emergency risk condition detected",
+            "explanation": "TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.",
+            "metadata": {
+              "regime": "Stress",
+              "currentLtv": 0.3739610745614035,
+              "targetLtvLow": 0.12
+            }
+          }
+        ],
+        "primaryRailId": "suilend-sui",
+        "primaryRailName": "Suilend",
+        "backupRailId": "scallop",
+        "backupRailName": "Scallop",
+        "railWarnings": [
+          "AlphaLend caps max LTV at 39.0%, below the requested 40.0%.",
+          "AlphaLend caps max LTV at 38.3%, below the requested 40.0%.",
+          "AlphaLend caps max LTV at 37.7%, below the requested 40.0%.",
+          "AlphaLend caps max LTV at 37.2%, below the requested 40.0%.",
+          "AlphaLend caps max LTV at 38.4%, below the requested 40.0%."
+        ],
+        "railDataMode": "fixture",
+        "railCount": 16,
+        "liveRailCount": 0
+      },
+      "policyAnchor": {
+        "txDigest": "4AF6MvD6mH4rfonmztqaWycvPhfpyxS4R1AUNDekQPCi",
+        "txUrl": "https://testnet.suivision.xyz/txblock/4AF6MvD6mH4rfonmztqaWycvPhfpyxS4R1AUNDekQPCi",
+        "objectId": "0xbb58326a98b4fdba1089aa51ba3c4cba870cd4f39e20e74ff3f7c3b4af51ea57",
+        "objectUrl": "https://testnet.suivision.xyz/object/0xbb58326a98b4fdba1089aa51ba3c4cba870cd4f39e20e74ff3f7c3b4af51ea57",
+        "version": 2,
+        "selectedRail": "suilend-sui",
+        "owner": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "receiptMint": {
+        "txDigest": "ARiVR93ur2hraGyRnh9sfzeL3n5nd1UjdijCuTLtPad2",
+        "txUrl": "https://testnet.suivision.xyz/txblock/ARiVR93ur2hraGyRnh9sfzeL3n5nd1UjdijCuTLtPad2",
+        "objectId": "0x1b8c37bbdc4816f648f0e825c1e2c58f8d3db8cb55da520b679876f3890b736f",
+        "objectUrl": "https://testnet.suivision.xyz/object/0x1b8c37bbdc4816f648f0e825c1e2c58f8d3db8cb55da520b679876f3890b736f",
+        "walrusBlobId": "ZPZ4wp6EF6vLV83kYyeXqnAA3yYjPRoeK_WwiCOimXA",
+        "walrusSource": "walrus",
+        "contentDigestHex": "0xec8519f3cfd0a38c0974d6dc80af2021dda83883f63e5dd4ce90b830f99092c8",
+        "railPackDigestHex": "0x53f3fc96f3e6e1fcc89befe100386b3a77bd94d2a6e0d47595f87e4729887963",
+        "policyVersion": 2,
+        "selectedRail": "suilend-sui",
+        "decisionType": "EmergencyDeRisk",
+        "limitations": "testnet-rehearsal",
+        "stateBeforeDigestHex": "0x7f788f8a073cac080bef2264d1b4cdc36d7154f27aaa5f52e8421d44770959ea",
+        "createdAtMs": 1778050831703
+      },
+      "proofBundle": {
+        "canonical": "{\"action\":\"decision.emergency_de_risk\",\"correlationId\":\"191cf6bae91cbc089baf6f059b94aae98a32fe6e4a55f6f77461f9f37a7f258d\",\"createdAtMs\":1778050819207,\"decisionType\":\"EmergencyDeRisk\",\"limitations\":\"testnet-rehearsal\",\"policy\":{\"collateralCoinType\":\"0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC\",\"collateralSymbol\":\"BTC\",\"emergencyLtvBps\":3000,\"id\":\"0xbb58326a98b4fdba1089aa51ba3c4cba870cd4f39e20e74ff3f7c3b4af51ea57\",\"maxLtvBps\":4000,\"minBufferUsd\":4000,\"mode\":\"Income\",\"owner\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"payoutTargetUsd\":900,\"priority\":\"Stability\",\"repayLtvBps\":2500,\"selectedRail\":\"suilend-sui\",\"targetLtvHighBps\":2000,\"targetLtvLowBps\":1200,\"version\":2},\"railPack\":{\"digest\":[83,243,252,150,243,230,225,252,200,155,239,225,0,56,107,58,119,189,148,210,166,224,212,117,149,248,126,71,41,136,121,99],\"generatedAtMs\":1778050819207,\"signatureAlg\":\"ed25519\",\"signedBy\":\"local-proof-operator\"},\"report\":{\"schemaVersion\":1,\"summary\":{\"actionExamples\":[{\"amountUsd\":25940.6,\"explanation\":\"TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.\",\"metadata\":{\"currentLtv\":0.3739610745614035,\"regime\":\"Stress\",\"targetLtvLow\":0.12},\"reason\":\"Emergency risk condition detected\",\"type\":\"EmergencyDeRisk\"}],\"averageHealthScore\":44,\"backupRailId\":\"scallop\",\"backupRailName\":\"Scallop\",\"baselineCarryCostUsd\":197.88,\"baselineHorizonDays\":30,\"baselineRebalanceCostUsd\":54.48,\"breakwaterTriggerDrawdownPct\":0.2,\"bufferCoverageDays\":204,\"currentLtv\":0.374,\"liquidationScenarioLabel\":\"-50% drawdown\",\"liveRailCount\":0,\"primaryRailId\":\"suilend-sui\",\"primaryRailName\":\"Suilend\",\"projectedTideFeeBpsAnnual\":75,\"projectedTideFeePctOfPayout\":0.0262,\"projectedTideFeeUsd30d\":23.55,\"railCount\":16,\"railDataMode\":\"fixture\",\"railWarnings\":[\"AlphaLend caps max LTV at 39.0%, below the requested 40.0%.\",\"AlphaLend caps max LTV at 38.3%, below the requested 40.0%.\",\"AlphaLend caps max LTV at 37.7%, below the requested 40.0%.\",\"AlphaLend caps max LTV at 37.2%, below the requested 40.0%.\",\"AlphaLend caps max LTV at 38.4%, below the requested 40.0%.\"],\"survivablePayoutBandHighUsd\":900,\"survivablePayoutBandLowUsd\":900,\"worstCaseLiquidationPenaltyUsd\":2391.28,\"worstCaseTotalDragUsd\":2538.29,\"worstOperatingState\":\"StressLockdown\"}},\"stateBefore\":{\"bufferUsd\":6100,\"ltvBps\":3740,\"stressLabel\":\"StressLockdown\"},\"version\":2}",
+        "bundle": {
+          "version": 2,
+          "createdAtMs": 1778050819207,
+          "correlationId": "191cf6bae91cbc089baf6f059b94aae98a32fe6e4a55f6f77461f9f37a7f258d",
+          "action": "decision.emergency_de_risk",
+          "decisionType": "EmergencyDeRisk",
+          "limitations": "testnet-rehearsal",
+          "stateBefore": {
+            "ltvBps": 3740,
+            "bufferUsd": 6100,
+            "stressLabel": "StressLockdown"
+          },
+          "policy": {
+            "id": "0xbb58326a98b4fdba1089aa51ba3c4cba870cd4f39e20e74ff3f7c3b4af51ea57",
+            "version": 2,
+            "owner": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "selectedRail": "suilend-sui",
+            "mode": "Income",
+            "priority": "Stability",
+            "collateralSymbol": "BTC",
+            "collateralCoinType": "0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC",
+            "payoutTargetUsd": 900,
+            "minBufferUsd": 4000,
+            "maxLtvBps": 4000,
+            "targetLtvLowBps": 1200,
+            "targetLtvHighBps": 2000,
+            "repayLtvBps": 2500,
+            "emergencyLtvBps": 3000
+          },
+          "report": {
+            "summary": {
+              "survivablePayoutBandLowUsd": 900,
+              "survivablePayoutBandHighUsd": 900,
+              "currentLtv": 0.374,
+              "bufferCoverageDays": 204,
+              "baselineHorizonDays": 30,
+              "baselineCarryCostUsd": 197.88,
+              "baselineRebalanceCostUsd": 54.48,
+              "breakwaterTriggerDrawdownPct": 0.2,
+              "averageHealthScore": 44,
+              "worstOperatingState": "StressLockdown",
+              "worstCaseTotalDragUsd": 2538.29,
+              "worstCaseLiquidationPenaltyUsd": 2391.28,
+              "liquidationScenarioLabel": "-50% drawdown",
+              "projectedTideFeeBpsAnnual": 75,
+              "projectedTideFeeUsd30d": 23.55,
+              "projectedTideFeePctOfPayout": 0.0262,
+              "actionExamples": [
+                {
+                  "type": "EmergencyDeRisk",
+                  "reason": "Emergency risk condition detected",
+                  "explanation": "TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.",
+                  "amountUsd": 25940.6,
+                  "metadata": {
+                    "currentLtv": 0.3739610745614035,
+                    "regime": "Stress",
+                    "targetLtvLow": 0.12
+                  }
+                }
+              ],
+              "primaryRailId": "suilend-sui",
+              "primaryRailName": "Suilend",
+              "backupRailId": "scallop",
+              "backupRailName": "Scallop",
+              "railWarnings": [
+                "AlphaLend caps max LTV at 39.0%, below the requested 40.0%.",
+                "AlphaLend caps max LTV at 38.3%, below the requested 40.0%.",
+                "AlphaLend caps max LTV at 37.7%, below the requested 40.0%.",
+                "AlphaLend caps max LTV at 37.2%, below the requested 40.0%.",
+                "AlphaLend caps max LTV at 38.4%, below the requested 40.0%."
+              ],
+              "railDataMode": "fixture",
+              "railCount": 16,
+              "liveRailCount": 0
+            },
+            "schemaVersion": 1
+          },
+          "railPack": {
+            "digest": [
+              83,
+              243,
+              252,
+              150,
+              243,
+              230,
+              225,
+              252,
+              200,
+              155,
+              239,
+              225,
+              0,
+              56,
+              107,
+              58,
+              119,
+              189,
+              148,
+              210,
+              166,
+              224,
+              212,
+              117,
+              149,
+              248,
+              126,
+              71,
+              41,
+              136,
+              121,
+              99
+            ],
+            "signedBy": "local-proof-operator",
+            "signatureAlg": "ed25519",
+            "generatedAtMs": 1778050819207
+          }
+        },
+        "stateBeforeDigestHex": "0x7f788f8a073cac080bef2264d1b4cdc36d7154f27aaa5f52e8421d44770959ea",
+        "contentDigestHex": "0xec8519f3cfd0a38c0974d6dc80af2021dda83883f63e5dd4ce90b830f99092c8",
+        "railPackDigestHex": "0x53f3fc96f3e6e1fcc89befe100386b3a77bd94d2a6e0d47595f87e4729887963",
+        "redacted": true,
+        "canonicalKind": "redacted-summary",
+        "redactionNotice": "Canonical proof JSON is redacted for public sharing; use on-chain receipt fields and the canonical unredacted bundle for digest verification."
+      },
+      "proofVerification": {
+        "ok": false,
+        "digestOk": false,
+        "digestReason": "public proof JSON is redacted; use the original canonical bundle or Walrus bytes for digest verification.",
+        "semanticOk": false,
+        "semanticReason": "public proof JSON omits/redacts wallet-specific proof fields and is not a canonical bundle.",
+        "semanticMismatches": [],
+        "bundleFreshnessOk": true,
+        "bundleFreshnessReason": "",
+        "freshnessOk": true,
+        "freshnessReason": "",
+        "ageMs": 12388,
+        "actualDigestHex": "0xec8519f3cfd0a38c0974d6dc80af2021dda83883f63e5dd4ce90b830f99092c8",
+        "expectedDigestHex": "0xec8519f3cfd0a38c0974d6dc80af2021dda83883f63e5dd4ce90b830f99092c8",
+        "evidencePosture": {
+          "railDataMode": "fixture",
+          "walrusSource": "walrus",
+          "pythSource": "configured",
+          "executionMode": "testnet-rehearsal",
+          "claimBoundary": "testnet receipt + local proof digest; no mainnet capital movement"
+        },
+        "publicArtifactOnly": true
+      },
+      "verifyAfter": {
+        "ok": true,
+        "status": 0,
+        "ranAt": "2026-05-06T07:00:34.935Z",
+        "runNumber": 3,
+        "summary": "[verify] network=testnet [verify] package=0x999c34…02f0 [verify] PASS package 0x999c34…02f0 (cli, owner Immutable) [verify] PASS admin cap 0xb8154f…2427 (cli, owner AddressOwner) [verify] PASS rail allowlist 0x83d2c8…fb66 (cli, owner Shared, rails: suilend-sui, bucket-sui, alphalend-sui, navi-sui, scallop-sui) [verify] PASS upgrade cap 0xb36e3d…82d5 (cli, owner AddressOwner) [verify] PASS publisher 0xd59409…c1cd (cli, owner AddressOwner) [verify] PASS cap separation admin cap ≠ upgrade cap (hardened beyond the older cap-separation baseline) [verify] PASS receipt schema 0x999c34…02f0::execution_receipts (strict v3 ABI) [verify] all checks passed. All on-chain checks passed."
+      },
+      "notes": [
+        "railDataMode=fixture",
+        "walrusSource=walrus",
+        "pythSource=configured",
+        "Execution surface is testnet Autopilot Rehearsal only."
+      ]
+    },
+    {
+      "runNumber": 4,
+      "label": "Harbor / Bucket / extra buffer",
+      "network": "testnet",
+      "setup": {
+        "mode": "Income",
+        "railId": "bucket-sui",
+        "railName": "Bucket",
+        "payoutTargetUsd": 850,
+        "maxLtvBps": 3100,
+        "targetLtvLowBps": 850,
+        "targetLtvHighBps": 1350,
+        "repayLtvBps": 2100,
+        "emergencyLtvBps": 2700,
+        "railDataMode": "fixture"
+      },
+      "evidencePosture": {
+        "railDataMode": "fixture",
+        "walrusSource": "walrus",
+        "pythSource": "configured",
+        "executionMode": "testnet-rehearsal",
+        "claimBoundary": "testnet receipt + local proof digest; no mainnet capital movement"
+      },
+      "draft": {
+        "scenarioName": "Proof Run 04 - Bucket",
+        "mode": "Income",
+        "priority": "Stability",
+        "createScope": "shadow",
+        "selectedRail": "bucket-sui",
+        "venueId": "bucket-sui",
+        "railId": "bucket-sui",
+        "venueName": "Bucket",
+        "railName": "Bucket",
+        "venueHealthy": true,
+        "oracleConfidencePct": 95,
+        "liquidityScorePct": 84,
+        "venueHealthScorePct": 88,
+        "btcUnits": 1.22,
+        "collateralCoinType": "0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC",
+        "collateralAssetSymbol": "BTC",
+        "btcPriceUsd": 78600,
+        "debtUsd": 15400,
+        "stableBufferUsd": 6900,
+        "venueExposurePct": 49,
+        "wrapperExposurePct": 55,
+        "desiredRunwayMonths": 6,
+        "monthlyPayoutTargetUsd": 850,
+        "minStableBufferUsd": 4500,
+        "maxLtvPct": 31,
+        "targetLtvLowPct": 8.5,
+        "targetLtvHighPct": 13.5,
+        "autoRepayLtvPct": 21,
+        "emergencyLtvPct": 27,
+        "allowPayoutPauseInStress": true,
+        "maxSingleVenueExposurePct": 65,
+        "maxWrapperExposurePct": 78,
+        "minOracleConfidencePct": 90,
+        "minLiquidityScorePct": 78,
+        "allowNewBorrowInStress": false,
+        "allowNewBorrowInCrisis": false,
+        "marketRealizedVolPct": 68,
+        "marketDailyMovePct": 1.9,
+        "marketWeeklyDrawdownPct": 4.5,
+        "marketTrendStrengthPct": 38
+      },
+      "input": {
+        "now": "2026-05-06T07:00:34.938Z",
+        "policy": {
+          "mode": "Income",
+          "priority": "Stability",
+          "maxLtv": 0.31,
+          "targetLtvLow": 0.085,
+          "targetLtvHigh": 0.135,
+          "minStableBufferUsd": 4500,
+          "desiredRunwayMonths": 6,
+          "monthlyPayoutTargetUsd": 850,
+          "allowPayoutPauseInStress": true,
+          "maxSingleVenueExposurePct": 0.65,
+          "maxWrapperExposurePct": 0.78,
+          "autoRepayLtv": 0.21,
+          "emergencyLtv": 0.27,
+          "minOracleConfidence": 0.9,
+          "minLiquidityScore": 0.78,
+          "allowNewBorrowInStress": false,
+          "allowNewBorrowInCrisis": false
+        },
+        "portfolio": {
+          "btcUnits": 1.22,
+          "btcPriceUsd": 78600,
+          "collateralUsd": 95892,
+          "debtUsd": 15400,
+          "stableBufferUsd": 6900,
+          "venueExposurePct": 0.49,
+          "wrapperExposurePct": 0.55
+        },
+        "market": {
+          "realizedVol30d": 0.68,
+          "dailyMovePctAbs": 0.019,
+          "weeklyDrawdownPct": 0.045,
+          "trendStrength": 0.38
+        },
+        "venues": [
+          {
+            "name": "Bucket",
+            "healthy": true,
+            "oracleConfidence": 0.95,
+            "liquidityScore": 0.84,
+            "healthScore": 0.88
+          }
+        ]
+      },
+      "reportSummary": {
+        "survivablePayoutBandLowUsd": 850,
+        "survivablePayoutBandHighUsd": 850,
+        "currentLtv": 0.1614,
+        "bufferCoverageDays": 247,
+        "baselineHorizonDays": 30,
+        "baselineCarryCostUsd": 80.21,
+        "baselineRebalanceCostUsd": 0,
+        "breakwaterTriggerDrawdownPct": 0.2,
+        "averageHealthScore": 60,
+        "worstOperatingState": "StressLockdown",
+        "worstCaseTotalDragUsd": 383.12,
+        "worstCaseLiquidationPenaltyUsd": 90.69,
+        "liquidationScenarioLabel": "-50% drawdown",
+        "projectedTideFeeBpsAnnual": 75,
+        "projectedTideFeeUsd30d": 9.54,
+        "projectedTideFeePctOfPayout": 0.0112,
+        "actionExamples": [
+          {
+            "type": "Hold",
+            "reason": "Position is inside policy band",
+            "explanation": "No intervention is required right now. The position remains within risk, buffer, and policy constraints.",
+            "metadata": {
+              "regime": "Quiet",
+              "currentLtv": 0.16143380052559128,
+              "sustainablePayoutUsd": 850
+            }
+          },
+          {
+            "type": "EmergencyDeRisk",
+            "amountUsd": 10303.24,
+            "reason": "Emergency risk condition detected",
+            "explanation": "TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.",
+            "metadata": {
+              "regime": "Crisis",
+              "currentLtv": 0.2503019422491328,
+              "targetLtvLow": 0.085
+            }
+          }
+        ],
+        "primaryRailId": "bucket-sui",
+        "primaryRailName": "Bucket",
+        "backupRailId": "scallop",
+        "backupRailName": "Scallop",
+        "railWarnings": [],
+        "railDataMode": "fixture",
+        "railCount": 16,
+        "liveRailCount": 0
+      },
+      "policyAnchor": {
+        "txDigest": "DtQTZRyn4KgtycrX1wS21YGMRshwtoqgWpG2BGnRjfHd",
+        "txUrl": "https://testnet.suivision.xyz/txblock/DtQTZRyn4KgtycrX1wS21YGMRshwtoqgWpG2BGnRjfHd",
+        "objectId": "0x82712fb67fc9f249a7c571ea087fee50564eed4a78756c4ea53778ce22212b6e",
+        "objectUrl": "https://testnet.suivision.xyz/object/0x82712fb67fc9f249a7c571ea087fee50564eed4a78756c4ea53778ce22212b6e",
+        "version": 2,
+        "selectedRail": "bucket-sui",
+        "owner": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "receiptMint": {
+        "txDigest": "B1QHApzjrDELSdDkc5SQuZVKui2FBQp1KBaAtG186Pam",
+        "txUrl": "https://testnet.suivision.xyz/txblock/B1QHApzjrDELSdDkc5SQuZVKui2FBQp1KBaAtG186Pam",
+        "objectId": "0x5691b3c1c72bdf48085c9f86fd4d88a3f31cb55fffc326b238e1fb59a5f0df8f",
+        "objectUrl": "https://testnet.suivision.xyz/object/0x5691b3c1c72bdf48085c9f86fd4d88a3f31cb55fffc326b238e1fb59a5f0df8f",
+        "walrusBlobId": "R9a15__mb7_aXSlVIX-3ciruk-Iy1d2WqyY0xA0EbsI",
+        "walrusSource": "walrus",
+        "contentDigestHex": "0xeda82b8b452f5a03b87d727c9cb497e643874c87a32f2d89def5f962a00861e1",
+        "railPackDigestHex": "0xab26f13914c025383391322fdb14c645cd2b0b977a2c9de3ac5faeb1c5eede99",
+        "policyVersion": 2,
+        "selectedRail": "bucket-sui",
+        "decisionType": "Hold",
+        "limitations": "testnet-rehearsal",
+        "stateBeforeDigestHex": "0x5bfd6be1c461b4ae85db4367a15afae3338af3c8e10a7ace9fcc45c381802837",
+        "createdAtMs": 1778050849739
+      },
+      "proofBundle": {
+        "canonical": "{\"action\":\"decision.hold\",\"correlationId\":\"ebeadaa3347e545995dd4307720ff9760ef2c1f4b34785c491a80a7b720a0c7a\",\"createdAtMs\":1778050837174,\"decisionType\":\"Hold\",\"limitations\":\"testnet-rehearsal\",\"policy\":{\"collateralCoinType\":\"0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC\",\"collateralSymbol\":\"BTC\",\"emergencyLtvBps\":2700,\"id\":\"0x82712fb67fc9f249a7c571ea087fee50564eed4a78756c4ea53778ce22212b6e\",\"maxLtvBps\":3100,\"minBufferUsd\":4500,\"mode\":\"Income\",\"owner\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"payoutTargetUsd\":850,\"priority\":\"Stability\",\"repayLtvBps\":2100,\"selectedRail\":\"bucket-sui\",\"targetLtvHighBps\":1350,\"targetLtvLowBps\":850,\"version\":2},\"railPack\":{\"digest\":[171,38,241,57,20,192,37,56,51,145,50,47,219,20,198,69,205,43,11,151,122,44,157,227,172,95,174,177,197,238,222,153],\"generatedAtMs\":1778050837174,\"signatureAlg\":\"ed25519\",\"signedBy\":\"local-proof-operator\"},\"report\":{\"schemaVersion\":1,\"summary\":{\"actionExamples\":[{\"explanation\":\"No intervention is required right now. The position remains within risk, buffer, and policy constraints.\",\"metadata\":{\"currentLtv\":0.16143380052559128,\"regime\":\"Quiet\",\"sustainablePayoutUsd\":850},\"reason\":\"Position is inside policy band\",\"type\":\"Hold\"},{\"amountUsd\":10303.24,\"explanation\":\"TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.\",\"metadata\":{\"currentLtv\":0.2503019422491328,\"regime\":\"Crisis\",\"targetLtvLow\":0.085},\"reason\":\"Emergency risk condition detected\",\"type\":\"EmergencyDeRisk\"}],\"averageHealthScore\":60,\"backupRailId\":\"scallop\",\"backupRailName\":\"Scallop\",\"baselineCarryCostUsd\":80.21,\"baselineHorizonDays\":30,\"baselineRebalanceCostUsd\":0,\"breakwaterTriggerDrawdownPct\":0.2,\"bufferCoverageDays\":247,\"currentLtv\":0.1614,\"liquidationScenarioLabel\":\"-50% drawdown\",\"liveRailCount\":0,\"primaryRailId\":\"bucket-sui\",\"primaryRailName\":\"Bucket\",\"projectedTideFeeBpsAnnual\":75,\"projectedTideFeePctOfPayout\":0.0112,\"projectedTideFeeUsd30d\":9.54,\"railCount\":16,\"railDataMode\":\"fixture\",\"railWarnings\":[],\"survivablePayoutBandHighUsd\":850,\"survivablePayoutBandLowUsd\":850,\"worstCaseLiquidationPenaltyUsd\":90.69,\"worstCaseTotalDragUsd\":383.12,\"worstOperatingState\":\"StressLockdown\"}},\"stateBefore\":{\"bufferUsd\":6900,\"ltvBps\":1614,\"stressLabel\":\"StressLockdown\"},\"version\":2}",
+        "bundle": {
+          "version": 2,
+          "createdAtMs": 1778050837174,
+          "correlationId": "ebeadaa3347e545995dd4307720ff9760ef2c1f4b34785c491a80a7b720a0c7a",
+          "action": "decision.hold",
+          "decisionType": "Hold",
+          "limitations": "testnet-rehearsal",
+          "stateBefore": {
+            "ltvBps": 1614,
+            "bufferUsd": 6900,
+            "stressLabel": "StressLockdown"
+          },
+          "policy": {
+            "id": "0x82712fb67fc9f249a7c571ea087fee50564eed4a78756c4ea53778ce22212b6e",
+            "version": 2,
+            "owner": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "selectedRail": "bucket-sui",
+            "mode": "Income",
+            "priority": "Stability",
+            "collateralSymbol": "BTC",
+            "collateralCoinType": "0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC",
+            "payoutTargetUsd": 850,
+            "minBufferUsd": 4500,
+            "maxLtvBps": 3100,
+            "targetLtvLowBps": 850,
+            "targetLtvHighBps": 1350,
+            "repayLtvBps": 2100,
+            "emergencyLtvBps": 2700
+          },
+          "report": {
+            "summary": {
+              "survivablePayoutBandLowUsd": 850,
+              "survivablePayoutBandHighUsd": 850,
+              "currentLtv": 0.1614,
+              "bufferCoverageDays": 247,
+              "baselineHorizonDays": 30,
+              "baselineCarryCostUsd": 80.21,
+              "baselineRebalanceCostUsd": 0,
+              "breakwaterTriggerDrawdownPct": 0.2,
+              "averageHealthScore": 60,
+              "worstOperatingState": "StressLockdown",
+              "worstCaseTotalDragUsd": 383.12,
+              "worstCaseLiquidationPenaltyUsd": 90.69,
+              "liquidationScenarioLabel": "-50% drawdown",
+              "projectedTideFeeBpsAnnual": 75,
+              "projectedTideFeeUsd30d": 9.54,
+              "projectedTideFeePctOfPayout": 0.0112,
+              "actionExamples": [
+                {
+                  "type": "Hold",
+                  "reason": "Position is inside policy band",
+                  "explanation": "No intervention is required right now. The position remains within risk, buffer, and policy constraints.",
+                  "metadata": {
+                    "currentLtv": 0.16143380052559128,
+                    "regime": "Quiet",
+                    "sustainablePayoutUsd": 850
+                  }
+                },
+                {
+                  "type": "EmergencyDeRisk",
+                  "reason": "Emergency risk condition detected",
+                  "explanation": "TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.",
+                  "amountUsd": 10303.24,
+                  "metadata": {
+                    "currentLtv": 0.2503019422491328,
+                    "regime": "Crisis",
+                    "targetLtvLow": 0.085
+                  }
+                }
+              ],
+              "primaryRailId": "bucket-sui",
+              "primaryRailName": "Bucket",
+              "backupRailId": "scallop",
+              "backupRailName": "Scallop",
+              "railWarnings": [],
+              "railDataMode": "fixture",
+              "railCount": 16,
+              "liveRailCount": 0
+            },
+            "schemaVersion": 1
+          },
+          "railPack": {
+            "digest": [
+              171,
+              38,
+              241,
+              57,
+              20,
+              192,
+              37,
+              56,
+              51,
+              145,
+              50,
+              47,
+              219,
+              20,
+              198,
+              69,
+              205,
+              43,
+              11,
+              151,
+              122,
+              44,
+              157,
+              227,
+              172,
+              95,
+              174,
+              177,
+              197,
+              238,
+              222,
+              153
+            ],
+            "signedBy": "local-proof-operator",
+            "signatureAlg": "ed25519",
+            "generatedAtMs": 1778050837174
+          }
+        },
+        "stateBeforeDigestHex": "0x5bfd6be1c461b4ae85db4367a15afae3338af3c8e10a7ace9fcc45c381802837",
+        "contentDigestHex": "0xeda82b8b452f5a03b87d727c9cb497e643874c87a32f2d89def5f962a00861e1",
+        "railPackDigestHex": "0xab26f13914c025383391322fdb14c645cd2b0b977a2c9de3ac5faeb1c5eede99",
+        "redacted": true,
+        "canonicalKind": "redacted-summary",
+        "redactionNotice": "Canonical proof JSON is redacted for public sharing; use on-chain receipt fields and the canonical unredacted bundle for digest verification."
+      },
+      "proofVerification": {
+        "ok": false,
+        "digestOk": false,
+        "digestReason": "public proof JSON is redacted; use the original canonical bundle or Walrus bytes for digest verification.",
+        "semanticOk": false,
+        "semanticReason": "public proof JSON omits/redacts wallet-specific proof fields and is not a canonical bundle.",
+        "semanticMismatches": [],
+        "bundleFreshnessOk": true,
+        "bundleFreshnessReason": "",
+        "freshnessOk": true,
+        "freshnessReason": "",
+        "ageMs": 12615,
+        "actualDigestHex": "0xeda82b8b452f5a03b87d727c9cb497e643874c87a32f2d89def5f962a00861e1",
+        "expectedDigestHex": "0xeda82b8b452f5a03b87d727c9cb497e643874c87a32f2d89def5f962a00861e1",
+        "evidencePosture": {
+          "railDataMode": "fixture",
+          "walrusSource": "walrus",
+          "pythSource": "configured",
+          "executionMode": "testnet-rehearsal",
+          "claimBoundary": "testnet receipt + local proof digest; no mainnet capital movement"
+        },
+        "publicArtifactOnly": true
+      },
+      "verifyAfter": {
+        "ok": true,
+        "status": 0,
+        "ranAt": "2026-05-06T07:00:53.075Z",
+        "runNumber": 4,
+        "summary": "[verify] network=testnet [verify] package=0x999c34…02f0 [verify] PASS package 0x999c34…02f0 (cli, owner Immutable) [verify] PASS admin cap 0xb8154f…2427 (cli, owner AddressOwner) [verify] PASS rail allowlist 0x83d2c8…fb66 (cli, owner Shared, rails: suilend-sui, bucket-sui, alphalend-sui, navi-sui, scallop-sui) [verify] PASS upgrade cap 0xb36e3d…82d5 (cli, owner AddressOwner) [verify] PASS publisher 0xd59409…c1cd (cli, owner AddressOwner) [verify] PASS cap separation admin cap ≠ upgrade cap (hardened beyond the older cap-separation baseline) [verify] PASS receipt schema 0x999c34…02f0::execution_receipts (strict v3 ABI) [verify] all checks passed. All on-chain checks passed."
+      },
+      "notes": [
+        "railDataMode=fixture",
+        "walrusSource=walrus",
+        "pythSource=configured",
+        "Execution surface is testnet Autopilot Rehearsal only."
+      ]
+    },
+    {
+      "runNumber": 5,
+      "label": "Harbor / Scallop / conservative stress",
+      "network": "testnet",
+      "setup": {
+        "mode": "Income",
+        "railId": "scallop-sui",
+        "railName": "Scallop",
+        "payoutTargetUsd": 700,
+        "maxLtvBps": 3000,
+        "targetLtvLowBps": 800,
+        "targetLtvHighBps": 1250,
+        "repayLtvBps": 2000,
+        "emergencyLtvBps": 2600,
+        "railDataMode": "fixture"
+      },
+      "evidencePosture": {
+        "railDataMode": "fixture",
+        "walrusSource": "walrus",
+        "pythSource": "configured",
+        "executionMode": "testnet-rehearsal",
+        "claimBoundary": "testnet receipt + local proof digest; no mainnet capital movement"
+      },
+      "draft": {
+        "scenarioName": "Proof Run 05 - Scallop",
+        "mode": "Income",
+        "priority": "Stability",
+        "createScope": "shadow",
+        "selectedRail": "scallop-sui",
+        "venueId": "scallop-sui",
+        "railId": "scallop-sui",
+        "venueName": "Scallop",
+        "railName": "Scallop",
+        "venueHealthy": true,
+        "oracleConfidencePct": 95,
+        "liquidityScorePct": 84,
+        "venueHealthScorePct": 88,
+        "btcUnits": 1.18,
+        "collateralCoinType": "0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC",
+        "collateralAssetSymbol": "BTC",
+        "btcPriceUsd": 77250,
+        "debtUsd": 14250,
+        "stableBufferUsd": 7600,
+        "venueExposurePct": 46,
+        "wrapperExposurePct": 52,
+        "desiredRunwayMonths": 7,
+        "monthlyPayoutTargetUsd": 700,
+        "minStableBufferUsd": 5000,
+        "maxLtvPct": 30,
+        "targetLtvLowPct": 8,
+        "targetLtvHighPct": 12.5,
+        "autoRepayLtvPct": 20,
+        "emergencyLtvPct": 26,
+        "allowPayoutPauseInStress": true,
+        "maxSingleVenueExposurePct": 65,
+        "maxWrapperExposurePct": 78,
+        "minOracleConfidencePct": 90,
+        "minLiquidityScorePct": 78,
+        "allowNewBorrowInStress": false,
+        "allowNewBorrowInCrisis": false,
+        "marketRealizedVolPct": 64,
+        "marketDailyMovePct": 1.7,
+        "marketWeeklyDrawdownPct": 4.2,
+        "marketTrendStrengthPct": 35
+      },
+      "input": {
+        "now": "2026-05-06T07:00:53.078Z",
+        "policy": {
+          "mode": "Income",
+          "priority": "Stability",
+          "maxLtv": 0.3,
+          "targetLtvLow": 0.08,
+          "targetLtvHigh": 0.125,
+          "minStableBufferUsd": 5000,
+          "desiredRunwayMonths": 7,
+          "monthlyPayoutTargetUsd": 700,
+          "allowPayoutPauseInStress": true,
+          "maxSingleVenueExposurePct": 0.65,
+          "maxWrapperExposurePct": 0.78,
+          "autoRepayLtv": 0.2,
+          "emergencyLtv": 0.26,
+          "minOracleConfidence": 0.9,
+          "minLiquidityScore": 0.78,
+          "allowNewBorrowInStress": false,
+          "allowNewBorrowInCrisis": false
+        },
+        "portfolio": {
+          "btcUnits": 1.18,
+          "btcPriceUsd": 77250,
+          "collateralUsd": 91155,
+          "debtUsd": 14250,
+          "stableBufferUsd": 7600,
+          "venueExposurePct": 0.46,
+          "wrapperExposurePct": 0.52
+        },
+        "market": {
+          "realizedVol30d": 0.64,
+          "dailyMovePctAbs": 0.017,
+          "weeklyDrawdownPct": 0.042,
+          "trendStrength": 0.35
+        },
+        "venues": [
+          {
+            "name": "Scallop",
+            "healthy": true,
+            "oracleConfidence": 0.95,
+            "liquidityScore": 0.84,
+            "healthScore": 0.88
+          }
+        ]
+      },
+      "reportSummary": {
+        "survivablePayoutBandLowUsd": 700,
+        "survivablePayoutBandHighUsd": 700,
+        "currentLtv": 0.1571,
+        "bufferCoverageDays": 330,
+        "baselineHorizonDays": 30,
+        "baselineCarryCostUsd": 74.22,
+        "baselineRebalanceCostUsd": 0,
+        "breakwaterTriggerDrawdownPct": 0.2,
+        "averageHealthScore": 60,
+        "worstOperatingState": "StressLockdown",
+        "worstCaseTotalDragUsd": 359.67,
+        "worstCaseLiquidationPenaltyUsd": 90.85,
+        "liquidationScenarioLabel": "-50% drawdown",
+        "projectedTideFeeBpsAnnual": 75,
+        "projectedTideFeeUsd30d": 8.83,
+        "projectedTideFeePctOfPayout": 0.0126,
+        "actionExamples": [
+          {
+            "type": "Hold",
+            "reason": "Position is inside policy band",
+            "explanation": "No intervention is required right now. The position remains within risk, buffer, and policy constraints.",
+            "metadata": {
+              "regime": "Quiet",
+              "currentLtv": 0.1571413526411058,
+              "sustainablePayoutUsd": 700
+            }
+          },
+          {
+            "type": "EmergencyDeRisk",
+            "amountUsd": 9696.18,
+            "reason": "Emergency risk condition detected",
+            "explanation": "TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.",
+            "metadata": {
+              "regime": "Crisis",
+              "currentLtv": 0.24364653611979595,
+              "targetLtvLow": 0.08
+            }
+          }
+        ],
+        "primaryRailId": "scallop-sui",
+        "primaryRailName": "Scallop",
+        "backupRailId": "scallop",
+        "backupRailName": "Scallop",
+        "railWarnings": [],
+        "railDataMode": "fixture",
+        "railCount": 16,
+        "liveRailCount": 0
+      },
+      "policyAnchor": {
+        "txDigest": "GbxV5ELkvcwd1fpA3TmLVEV8wZ66nY4UszUXiYiwgtwo",
+        "txUrl": "https://testnet.suivision.xyz/txblock/GbxV5ELkvcwd1fpA3TmLVEV8wZ66nY4UszUXiYiwgtwo",
+        "objectId": "0x0adf0d937a3d5caa7a0a9cc7eb755378a55af20589ba37857c3c66447edb430a",
+        "objectUrl": "https://testnet.suivision.xyz/object/0x0adf0d937a3d5caa7a0a9cc7eb755378a55af20589ba37857c3c66447edb430a",
+        "version": 2,
+        "selectedRail": "scallop-sui",
+        "owner": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "receiptMint": {
+        "txDigest": "HjHCUPa5WBYZpDcCPrnhA4Z6K59cfyoFpPLR8LLeXxnB",
+        "txUrl": "https://testnet.suivision.xyz/txblock/HjHCUPa5WBYZpDcCPrnhA4Z6K59cfyoFpPLR8LLeXxnB",
+        "objectId": "0x872deefba9fb341247cc9807ff599056084b3e715d62b1a0ae9d826780453318",
+        "objectUrl": "https://testnet.suivision.xyz/object/0x872deefba9fb341247cc9807ff599056084b3e715d62b1a0ae9d826780453318",
+        "walrusBlobId": "WnKJPDakQPQz6-PtEdcQdNG-Iy_9b5CMoWo6uasyAfM",
+        "walrusSource": "walrus",
+        "contentDigestHex": "0x0816afcb39f203a57fad46cf009fd291e9df4feb240e6f2408ecfe318f6e5659",
+        "railPackDigestHex": "0x1bbab5b24ba51d3d3df31a0e596af507384860f8efbe00c286d275a31a14118b",
+        "policyVersion": 2,
+        "selectedRail": "scallop-sui",
+        "decisionType": "Hold",
+        "limitations": "testnet-rehearsal",
+        "stateBeforeDigestHex": "0x7ed6eedba1c000713f705f6b06b59527c6f2e0144623ee7529ddffa1089ced1b",
+        "createdAtMs": 1778050867465
+      },
+      "proofBundle": {
+        "canonical": "{\"action\":\"decision.hold\",\"correlationId\":\"d35dcc2de7af91d4a97a9a649a320b0b0fe015f80f2f3219f85d81ed37cb94af\",\"createdAtMs\":1778050855345,\"decisionType\":\"Hold\",\"limitations\":\"testnet-rehearsal\",\"policy\":{\"collateralCoinType\":\"0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC\",\"collateralSymbol\":\"BTC\",\"emergencyLtvBps\":2600,\"id\":\"0x0adf0d937a3d5caa7a0a9cc7eb755378a55af20589ba37857c3c66447edb430a\",\"maxLtvBps\":3000,\"minBufferUsd\":5000,\"mode\":\"Income\",\"owner\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"payoutTargetUsd\":700,\"priority\":\"Stability\",\"repayLtvBps\":2000,\"selectedRail\":\"scallop-sui\",\"targetLtvHighBps\":1250,\"targetLtvLowBps\":800,\"version\":2},\"railPack\":{\"digest\":[27,186,181,178,75,165,29,61,61,243,26,14,89,106,245,7,56,72,96,248,239,190,0,194,134,210,117,163,26,20,17,139],\"generatedAtMs\":1778050855345,\"signatureAlg\":\"ed25519\",\"signedBy\":\"local-proof-operator\"},\"report\":{\"schemaVersion\":1,\"summary\":{\"actionExamples\":[{\"explanation\":\"No intervention is required right now. The position remains within risk, buffer, and policy constraints.\",\"metadata\":{\"currentLtv\":0.1571413526411058,\"regime\":\"Quiet\",\"sustainablePayoutUsd\":700},\"reason\":\"Position is inside policy band\",\"type\":\"Hold\"},{\"amountUsd\":9696.18,\"explanation\":\"TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.\",\"metadata\":{\"currentLtv\":0.24364653611979595,\"regime\":\"Crisis\",\"targetLtvLow\":0.08},\"reason\":\"Emergency risk condition detected\",\"type\":\"EmergencyDeRisk\"}],\"averageHealthScore\":60,\"backupRailId\":\"scallop\",\"backupRailName\":\"Scallop\",\"baselineCarryCostUsd\":74.22,\"baselineHorizonDays\":30,\"baselineRebalanceCostUsd\":0,\"breakwaterTriggerDrawdownPct\":0.2,\"bufferCoverageDays\":330,\"currentLtv\":0.1571,\"liquidationScenarioLabel\":\"-50% drawdown\",\"liveRailCount\":0,\"primaryRailId\":\"scallop-sui\",\"primaryRailName\":\"Scallop\",\"projectedTideFeeBpsAnnual\":75,\"projectedTideFeePctOfPayout\":0.0126,\"projectedTideFeeUsd30d\":8.83,\"railCount\":16,\"railDataMode\":\"fixture\",\"railWarnings\":[],\"survivablePayoutBandHighUsd\":700,\"survivablePayoutBandLowUsd\":700,\"worstCaseLiquidationPenaltyUsd\":90.85,\"worstCaseTotalDragUsd\":359.67,\"worstOperatingState\":\"StressLockdown\"}},\"stateBefore\":{\"bufferUsd\":7600,\"ltvBps\":1571,\"stressLabel\":\"StressLockdown\"},\"version\":2}",
+        "bundle": {
+          "version": 2,
+          "createdAtMs": 1778050855345,
+          "correlationId": "d35dcc2de7af91d4a97a9a649a320b0b0fe015f80f2f3219f85d81ed37cb94af",
+          "action": "decision.hold",
+          "decisionType": "Hold",
+          "limitations": "testnet-rehearsal",
+          "stateBefore": {
+            "ltvBps": 1571,
+            "bufferUsd": 7600,
+            "stressLabel": "StressLockdown"
+          },
+          "policy": {
+            "id": "0x0adf0d937a3d5caa7a0a9cc7eb755378a55af20589ba37857c3c66447edb430a",
+            "version": 2,
+            "owner": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "selectedRail": "scallop-sui",
+            "mode": "Income",
+            "priority": "Stability",
+            "collateralSymbol": "BTC",
+            "collateralCoinType": "0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC",
+            "payoutTargetUsd": 700,
+            "minBufferUsd": 5000,
+            "maxLtvBps": 3000,
+            "targetLtvLowBps": 800,
+            "targetLtvHighBps": 1250,
+            "repayLtvBps": 2000,
+            "emergencyLtvBps": 2600
+          },
+          "report": {
+            "summary": {
+              "survivablePayoutBandLowUsd": 700,
+              "survivablePayoutBandHighUsd": 700,
+              "currentLtv": 0.1571,
+              "bufferCoverageDays": 330,
+              "baselineHorizonDays": 30,
+              "baselineCarryCostUsd": 74.22,
+              "baselineRebalanceCostUsd": 0,
+              "breakwaterTriggerDrawdownPct": 0.2,
+              "averageHealthScore": 60,
+              "worstOperatingState": "StressLockdown",
+              "worstCaseTotalDragUsd": 359.67,
+              "worstCaseLiquidationPenaltyUsd": 90.85,
+              "liquidationScenarioLabel": "-50% drawdown",
+              "projectedTideFeeBpsAnnual": 75,
+              "projectedTideFeeUsd30d": 8.83,
+              "projectedTideFeePctOfPayout": 0.0126,
+              "actionExamples": [
+                {
+                  "type": "Hold",
+                  "reason": "Position is inside policy band",
+                  "explanation": "No intervention is required right now. The position remains within risk, buffer, and policy constraints.",
+                  "metadata": {
+                    "currentLtv": 0.1571413526411058,
+                    "regime": "Quiet",
+                    "sustainablePayoutUsd": 700
+                  }
+                },
+                {
+                  "type": "EmergencyDeRisk",
+                  "reason": "Emergency risk condition detected",
+                  "explanation": "TIDE detected a crisis-level risk signal or unhealthy infrastructure state. The rehearsal plan would prioritize survival, reduce debt, and protect the BTC core.",
+                  "amountUsd": 9696.18,
+                  "metadata": {
+                    "currentLtv": 0.24364653611979595,
+                    "regime": "Crisis",
+                    "targetLtvLow": 0.08
+                  }
+                }
+              ],
+              "primaryRailId": "scallop-sui",
+              "primaryRailName": "Scallop",
+              "backupRailId": "scallop",
+              "backupRailName": "Scallop",
+              "railWarnings": [],
+              "railDataMode": "fixture",
+              "railCount": 16,
+              "liveRailCount": 0
+            },
+            "schemaVersion": 1
+          },
+          "railPack": {
+            "digest": [
+              27,
+              186,
+              181,
+              178,
+              75,
+              165,
+              29,
+              61,
+              61,
+              243,
+              26,
+              14,
+              89,
+              106,
+              245,
+              7,
+              56,
+              72,
+              96,
+              248,
+              239,
+              190,
+              0,
+              194,
+              134,
+              210,
+              117,
+              163,
+              26,
+              20,
+              17,
+              139
+            ],
+            "signedBy": "local-proof-operator",
+            "signatureAlg": "ed25519",
+            "generatedAtMs": 1778050855345
+          }
+        },
+        "stateBeforeDigestHex": "0x7ed6eedba1c000713f705f6b06b59527c6f2e0144623ee7529ddffa1089ced1b",
+        "contentDigestHex": "0x0816afcb39f203a57fad46cf009fd291e9df4feb240e6f2408ecfe318f6e5659",
+        "railPackDigestHex": "0x1bbab5b24ba51d3d3df31a0e596af507384860f8efbe00c286d275a31a14118b",
+        "redacted": true,
+        "canonicalKind": "redacted-summary",
+        "redactionNotice": "Canonical proof JSON is redacted for public sharing; use on-chain receipt fields and the canonical unredacted bundle for digest verification."
+      },
+      "proofVerification": {
+        "ok": false,
+        "digestOk": false,
+        "digestReason": "public proof JSON is redacted; use the original canonical bundle or Walrus bytes for digest verification.",
+        "semanticOk": false,
+        "semanticReason": "public proof JSON omits/redacts wallet-specific proof fields and is not a canonical bundle.",
+        "semanticMismatches": [],
+        "bundleFreshnessOk": true,
+        "bundleFreshnessReason": "",
+        "freshnessOk": true,
+        "freshnessReason": "",
+        "ageMs": 12191,
+        "actualDigestHex": "0x0816afcb39f203a57fad46cf009fd291e9df4feb240e6f2408ecfe318f6e5659",
+        "expectedDigestHex": "0x0816afcb39f203a57fad46cf009fd291e9df4feb240e6f2408ecfe318f6e5659",
+        "evidencePosture": {
+          "railDataMode": "fixture",
+          "walrusSource": "walrus",
+          "pythSource": "configured",
+          "executionMode": "testnet-rehearsal",
+          "claimBoundary": "testnet receipt + local proof digest; no mainnet capital movement"
+        },
+        "publicArtifactOnly": true
+      },
+      "verifyAfter": {
+        "ok": true,
+        "status": 0,
+        "ranAt": "2026-05-06T07:01:10.917Z",
+        "runNumber": 5,
+        "summary": "[verify] network=testnet [verify] package=0x999c34…02f0 [verify] PASS package 0x999c34…02f0 (cli, owner Immutable) [verify] PASS admin cap 0xb8154f…2427 (cli, owner AddressOwner) [verify] PASS rail allowlist 0x83d2c8…fb66 (cli, owner Shared, rails: suilend-sui, bucket-sui, alphalend-sui, navi-sui, scallop-sui) [verify] PASS upgrade cap 0xb36e3d…82d5 (cli, owner AddressOwner) [verify] PASS publisher 0xd59409…c1cd (cli, owner AddressOwner) [verify] PASS cap separation admin cap ≠ upgrade cap (hardened beyond the older cap-separation baseline) [verify] PASS receipt schema 0x999c34…02f0::execution_receipts (strict v3 ABI) [verify] all checks passed. All on-chain checks passed."
+      },
+      "notes": [
+        "railDataMode=fixture",
+        "walrusSource=walrus",
+        "pythSource=configured",
+        "Execution surface is testnet Autopilot Rehearsal only."
+      ]
+    }
+  ],
+  "guardChecks": []
+}

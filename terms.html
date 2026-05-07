@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TIDE | Terms</title>
+    <meta name="description" content="Terms for the TIDE public simulator and testnet proof surfaces." />
+    <link rel="stylesheet" href="styles.css?v=20260331-25" />
+    <style>
+      .legal-page { padding: 5.5rem 0 4rem; background: #f8fbff; min-height: 100vh; }
+      .legal-shell { max-width: 860px; display: grid; gap: 1.2rem; }
+      .legal-card { padding: 1.5rem; border: 1px solid rgba(10, 18, 38, 0.08); border-radius: 16px; background: rgba(255,255,255,0.9); }
+      .legal-card h2 { margin: 0 0 0.65rem; }
+      .legal-card p, .legal-card li { color: #475467; line-height: 1.7; }
+      .legal-links { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    </style>
+  </head>
+  <body data-page="legal-terms">
+    <header class="topbar">
+      <div class="shell topbar-shell">
+        <a class="brand" href="./" aria-label="TIDE home">
+          <img src="tide-mark.svg" alt="" />
+          <div class="brand-copy">
+            <span class="brand-name">TIDE</span>
+            <span class="brand-tag">Shadow-first BTC treasury policy cockpit</span>
+          </div>
+        </a>
+        <div class="legal-links">
+          <a class="button button-secondary" href="./">Back to site</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="legal-page">
+      <section class="shell legal-shell">
+        <div class="legal-card">
+          <p class="section-label">Terms</p>
+          <h1>Public alpha terms</h1>
+          <p>TIDE currently provides a simulation-first product and testnet proof surfaces. Live capital management remains gated unless explicitly agreed in writing.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>1. What the product is</h2>
+          <p>TIDE models Bitcoin treasury policies, route selection, and operating limits. Results are modeled outputs based on inputs, heuristics, and available market data. They are not guaranteed outcomes.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>2. No investment advice</h2>
+          <p>TIDE does not provide investment, legal, tax, accounting, or fiduciary advice. You remain responsible for any policy, transaction, or treasury decision made with or without the product.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>3. Custody and execution</h2>
+          <p>TIDE does not take custody of assets. Where the product connects to wallets or testnet proof flows, assets and approvals remain under the wallet or protocol chosen by the user. Any live execution path is subject to separate review and gating.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>4. Alpha status</h2>
+          <p>The service is provided on an alpha basis. Features may change, be disabled, or be removed without notice. Testnet proof features are not the same as mainnet execution.</p>
+        </div>
+
+        <div class="legal-card">
+          <h2>5. Acceptable use</h2>
+          <ul>
+            <li>Do not use the product for unlawful activity, sanctions evasion, or fraud.</li>
+            <li>Do not attempt to interfere with, reverse engineer, or overload the service.</li>
+            <li>Do not misrepresent simulated or testnet proof outputs as audited production execution.</li>
+          </ul>
+        </div>
+
+        <div class="legal-card">
+          <h2>6. Liability posture</h2>
+          <p>To the maximum extent allowed by law, the service is provided “as is” and “as available” without warranties of fitness, availability, profitability, or non-loss. Use of the product remains at your own risk.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="./runtime-config.js"></script>
+    <script src="./telemetry.js?v=20260331-25"></script>
+  </body>
+</html>
