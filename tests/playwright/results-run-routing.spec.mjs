@@ -55,6 +55,23 @@ test.describe("saved run readout routing", () => {
     await expect.poll(async () => page.evaluate(() => (
       window.__tideDebug?.wallet?.connected === true
     ))).toBe(true);
+    const proofConfigured = await page.evaluate(() => {
+      const cfg = window.TIDE_CONFIG || {};
+      return Boolean(cfg?.policyRegistry?.packageId && cfg?.policyRegistry?.railAllowlistId);
+    });
+    if (proofConfigured) {
+      await expect(page.locator("#save-policy-current")).toBeHidden();
+      await expect(page.locator("#mint-receipt")).toBeHidden();
+      await expect(page.locator(".readout-action-cta .button-primary")).toBeVisible();
+      await expect(page.locator('[data-disabled-reason-for="save-policy-current"]')).toHaveCount(0);
+      await expect(page.locator("#mint-receipt-disabled-reason")).toHaveCount(0);
+      await expect(page.locator("#readout-actions .action-disabled-hint")).toHaveCount(0);
+    } else {
+      await expect(page.locator('[data-disabled-reason-for="save-policy-current"]')).toHaveCount(0);
+      await expect(page.locator("#mint-receipt-disabled-reason")).toHaveCount(0);
+      await expect(page.locator("#save-policy-current")).toBeHidden();
+      await expect(page.locator("#mint-receipt")).toBeHidden();
+    }
 
     const seed = await page.evaluate(({ address }) => {
       const cloneJson = (value) => JSON.parse(JSON.stringify(value));
@@ -95,6 +112,13 @@ test.describe("saved run readout routing", () => {
     ))).toBe(seed.runA);
     await expect(page.getByText("Pinned run A").first()).toBeVisible();
     await expect(page.getByText("Current run B")).toHaveCount(0);
+    await expect(page.locator('[data-action="edit-in-create"]')).toHaveAttribute("href", "/setup?id=run-a");
+    const proofHref = await page.locator(".readout-action-cta a.button-primary").getAttribute("href");
+    const proofUrl = new URL(proofHref, "https://testnet.tidesui.pro");
+    expect(proofUrl.origin).toBe("https://testnet.tidesui.pro");
+    expect(proofUrl.pathname).toBe("/setup");
+    expect(proofUrl.searchParams.get("proof")).toBe("1");
+    expect((proofUrl.searchParams.get("draft") || "").length).toBeGreaterThan(20);
   });
 
   test("keeps legacy run= readout links working", async ({ page }) => {
@@ -161,7 +185,7 @@ test.describe("saved run readout routing", () => {
     ))).toBeNull();
   });
 
-  test("repairs a saved run that was not linked after policy anchor", async ({ page }) => {
+  test("repairs a saved run that was not linked after policy save", async ({ page }) => {
     await installMockWallet(page);
     await page.goto("/results?judge=1", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Overflow Judge Harbor").first()).toBeVisible();
@@ -175,11 +199,11 @@ test.describe("saved run readout routing", () => {
       const current = cloneJson(window.__tideDebug.appState.current);
       const policyId = `0x${"c".repeat(64)}`;
       current.sourceScenarioId = "run-new-anchor";
-      current.draft.scenarioName = "Newly anchored policy";
-      current.onChainPolicy = { id: policyId, network: "testnet", policyName: "Newly anchored policy" };
+      current.draft.scenarioName = "Newly saved policy";
+      current.onChainPolicy = { id: policyId, network: "testnet", policyName: "Newly saved policy" };
       const staleSaved = {
         id: current.sourceScenarioId,
-        name: "Newly anchored policy",
+        name: "Newly saved policy",
         createdAt: "2026-05-01T12:30:00.000Z",
         updatedAt: "2026-05-01T12:30:00.000Z",
         draft: cloneJson(current.draft),
@@ -200,13 +224,23 @@ test.describe("saved run readout routing", () => {
 
     await expect(page.locator("body")).toHaveAttribute("data-page", "live");
     await expect(page.getByText("Policy/run link mismatch")).toHaveCount(0);
-    await expect(page.getByText("Newly anchored policy").first()).toBeVisible();
-    await expect(page.locator("#readout-action").getByText("Re-run before anchoring")).toHaveCount(0);
-    await expect(page.locator("#readout-action").getByText("Draft state")).toHaveCount(0);
+    await expect(page.getByText("Newly saved policy").first()).toBeVisible();
     await expect.poll(async () => page.evaluate(({ address, runId }) => {
       const saved = JSON.parse(window.localStorage.getItem(`tide.shadow-mode.saved.v2:${address}`) || "[]");
       return saved.find((entry) => entry?.id === runId)?.onChainPolicy?.id || "";
     }, { address: E2E_WALLET_ADDRESS, runId: seed.runId })).toBe(seed.policyId);
+    await expect(page.locator("#readout-action").getByRole("heading", { name: "Re-run before saving" })).toHaveCount(0);
+    await expect(page.locator("#readout-action").getByText("Draft state")).toHaveCount(0);
+    await expect(page.locator('[data-action="edit-in-create"]')).toHaveAttribute(
+      "href",
+      `/setup?id=${encodeURIComponent(seed.runId)}&policy=${encodeURIComponent(seed.policyId)}`,
+    );
+    const proofHref = await page.locator(".readout-action-cta a.button-primary").getAttribute("href");
+    const proofUrl = new URL(proofHref, "https://testnet.tidesui.pro");
+    expect(proofUrl.origin).toBe("https://testnet.tidesui.pro");
+    expect(proofUrl.pathname).toBe("/setup");
+    expect(proofUrl.searchParams.get("proof")).toBe("1");
+    expect((proofUrl.searchParams.get("draft") || "").length).toBeGreaterThan(20);
   });
 
   test("does not bind a policy route to an unrelated saved run id", async ({ page }) => {

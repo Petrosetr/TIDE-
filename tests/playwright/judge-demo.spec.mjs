@@ -80,7 +80,7 @@ test.describe("judge demo golden flow", () => {
       await expect(page.getByText("Kalshi")).toBeVisible();
 
       if (route.manualSubmit) {
-        await page.getByRole("button", { name: /Run rehearsal check|Run simulation/i }).click();
+        await page.getByRole("button", { name: /Run rehearsal|Run simulation/i }).click();
       }
 
       await page.waitForURL(route.resultPattern, { timeout: 15_000 });
@@ -90,11 +90,12 @@ test.describe("judge demo golden flow", () => {
       await expect(page.getByText(route.readoutMarker).first()).toBeVisible();
       await expect(page.getByText(route.frameMarker).first()).toBeVisible();
       await expect(page.getByText(route.guardMarker).first()).toBeVisible();
-      await expect(page.getByText(/Policy verdict|Decision engine|Ready to anchor|Run this draft again/i).first()).toBeVisible();
+      await expect(page.getByText(/Policy verdict|Decision engine|Ready to save|Run this draft again/i).first()).toBeVisible();
       await expectAnyVisible([
-        page.getByRole("button", { name: /Mint action receipt/i }),
+        page.getByRole("button", { name: /Mint receipt/i }),
         page.getByRole("button", { name: /Connect Wallet/i }),
-        page.getByText(/Load in Create|Verified live feed required/i),
+        page.getByRole("link", { name: /Verify latest receipt/i }),
+        page.getByText(/Refresh rail data in Create|Verified market data required|Open testnet proof|Arm Testnet proof/i),
       ]);
 
       expect(actionableBrowserErrors(browserErrors)).toEqual([]);
@@ -128,7 +129,42 @@ test.describe("judge demo golden flow", () => {
     await expect(page.getByText("Overflow Judge Oracle Stale").first()).toBeVisible();
     await expect(page.getByText("Oracle guard").first()).toBeVisible();
     await expect(page.getByText("stale-forecast · Forecast is stale").first()).toBeVisible();
-    await expect(page.getByText(/Forecast is stale|stale/i).first()).toBeVisible();
     expect(actionableBrowserErrors(browserErrors)).toEqual([]);
+  });
+
+  test("connects first screen simulation to the testnet receipt verifier", async ({ page }) => {
+    const browserErrors = [];
+    page.on("pageerror", (error) => {
+      browserErrors.push(error.message);
+    });
+
+    await page.goto("/setup?judge=1", { waitUntil: "domcontentloaded" });
+    await expect(page.locator('body[data-page="setup"][data-app-ready="true"]')).toHaveCount(1);
+    await expect(page.getByText("Judge demo mode")).toBeVisible();
+
+    await page.getByRole("button", { name: /Run rehearsal|Run simulation/i }).click();
+    await page.waitForURL(/\/results\?judge=1$/, { timeout: 15_000 });
+
+    await expect(page.locator("body")).toHaveAttribute("data-page", "results");
+    await expect(page.getByText("Overflow Judge Harbor").first()).toBeVisible();
+
+    const receiptId = await page.evaluate(() => window.TIDE_CONFIG?.proof?.receiptMint?.objectId || "");
+    expect(receiptId).toMatch(/^0x[0-9a-fA-F]{64}$/);
+
+    const link = page.getByRole("link", { name: /Verify latest receipt/i });
+    await expect(link).toBeVisible({ timeout: 10_000 });
+    await expect(link).toHaveAttribute("href", `/r/${receiptId}`);
+    expect(actionableBrowserErrors(browserErrors)).toEqual([]);
+  });
+
+  test("direct Readout exposes latest testnet receipt verifier when proof summary is configured", async ({ page }) => {
+    await page.goto("/results?judge=1", { waitUntil: "domcontentloaded" });
+
+    const receiptId = await page.evaluate(() => window.TIDE_CONFIG?.proof?.receiptMint?.objectId || "");
+    expect(receiptId).toMatch(/^0x[0-9a-fA-F]{64}$/);
+
+    const link = page.getByRole("link", { name: /Verify latest receipt/i });
+    await expect(link).toBeVisible({ timeout: 10_000 });
+    await expect(link).toHaveAttribute("href", `/r/${receiptId}`);
   });
 });

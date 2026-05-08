@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "kind": "tide-mainnet-attested-demo/v1",
+  "rail": "suilend",
+  "railId": "suilend-sui",
+  "observedAt": "2026-05-06T11:31:12.986Z",
+  "network": {
+    "mainnetReadback": "mainnet",
+    "receiptMint": "testnet"
+  },
+  "claimBoundary": "founder-manual-mainnet-execution / TIDE-readonly-observation / testnet-decision-attestation",
+  "ownerAddress": "0xc41c7c26be987af23f16950cee2548008f734600c10cce2e374eb0d51b47f13a",
+  "obligationId": "0xbc3aada0f6cedd2ed9349f8358c965d522ff22dff0cf0d8fbb4a8fa19ff4370c",
+  "pre": {
+    "schemaVersion": 1,
+    "railId": "suilend-sui",
+    "walletAddress": "0xc41c7c26be987af23f16950cee2548008f734600c10cce2e374eb0d51b47f13a",
+    "obligationId": "0xbc3aada0f6cedd2ed9349f8358c965d522ff22dff0cf0d8fbb4a8fa19ff4370c",
+    "objectOwnerAddress": "0xc41c7c26be987af23f16950cee2548008f734600c10cce2e374eb0d51b47f13a",
+    "ownerBinding": "owner-cap-match",
+    "source": "live-mainnet-readonly",
+    "observedAt": "2026-05-06T11:00:37.089Z",
+    "stale": false,
+    "staleMaxMs": 120000,
+    "collateralUsd": 299.26959793349204,
+    "debtUsd": 9.998870537633849,
+    "ltvBps": 334,
+    "trustLabel": "Live mainnet read-only read-back from Sui RPC. Not execution.",
+    "ownerCapId": "0xbb65fa80d8f3524e5522535a6dfe8513bb41c6b37be602a5ef36f230d2afe04e"
+  },
+  "post": {
+    "schemaVersion": 1,
+    "railId": "suilend-sui",
+    "walletAddress": "0xc41c7c26be987af23f16950cee2548008f734600c10cce2e374eb0d51b47f13a",
+    "obligationId": "0xbc3aada0f6cedd2ed9349f8358c965d522ff22dff0cf0d8fbb4a8fa19ff4370c",
+    "objectOwnerAddress": "0xc41c7c26be987af23f16950cee2548008f734600c10cce2e374eb0d51b47f13a",
+    "ownerBinding": "owner-cap-match",
+    "source": "live-mainnet-readonly",
+    "observedAt": "2026-05-06T11:31:12.945Z",
+    "stale": false,
+    "staleMaxMs": 120000,
+    "collateralUsd": 299.26959793349204,
+    "debtUsd": 4.99959863836314,
+    "ltvBps": 167,
+    "trustLabel": "Live mainnet read-only read-back from Sui RPC. Not execution.",
+    "ownerCapId": "0xbb65fa80d8f3524e5522535a6dfe8513bb41c6b37be602a5ef36f230d2afe04e"
+  },
+  "mainnetEvidence": {
+    "digest": "AUWcPP223SpfobDUgX7aAJrrpqHCdiEWzTN8K8ZoduHC",
+    "sender": "0xc41c7c26be987af23f16950cee2548008f734600c10cce2e374eb0d51b47f13a",
+    "obligationId": "0xbc3aada0f6cedd2ed9349f8358c965d522ff22dff0cf0d8fbb4a8fa19ff4370c",
+    "checkpoint": "272689514",
+    "timestampMs": 1778066369291,
+    "objectChangeCount": 6,
+    "source": "live-mainnet-readonly"
+  },
+  "action": "decision.hold",
+  "decisionType": "Hold",
+  "limitations": "testnet-rehearsal",
+  "selectedRail": "suilend-sui"
+}

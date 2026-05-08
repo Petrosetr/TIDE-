@@ -267,6 +267,81 @@ async function assertFileContains(filePath, needles, label) {
   }
 }
 
+function normalizeSymbolKey(value) {
+  return String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function inferRailPackWrapperPriceUsd(pack, wrapperSymbol) {
+  const normalizedWanted = normalizeSymbolKey(wrapperSymbol);
+  if (!normalizedWanted) {
+    return 0;
+  }
+
+  const wantedAliases = new Set([normalizedWanted]);
+  if (normalizedWanted === "WBTC") {
+    wantedAliases.add("SBWBTC");
+  }
+
+  const references = [];
+  for (const rail of Array.isArray(pack?.rails) ? pack.rails : []) {
+    references.push({
+      wrapper: rail?.wrapper,
+      referencePriceUsd: rail?.referencePriceUsd,
+      source: rail?.id || rail?.source || "",
+    });
+    for (const reference of Array.isArray(rail?.priceReferences) ? rail.priceReferences : []) {
+      references.push({
+        wrapper: reference?.wrapper,
+        referencePriceUsd: reference?.referencePriceUsd,
+        source: reference?.source || rail?.id || "",
+      });
+    }
+  }
+
+  const prices = references
+    .filter((item) => wantedAliases.has(normalizeSymbolKey(item?.wrapper)))
+    .map((item) => Number(item?.referencePriceUsd || 0))
+    .filter((value) => Number.isFinite(value) && value > 1_000)
+    .sort((left, right) => left - right);
+
+  if (prices.length === 0) {
+    return 0;
+  }
+
+  const midpoint = Math.floor(prices.length / 2);
+  return prices.length % 2 === 0
+    ? (prices[midpoint - 1] + prices[midpoint]) / 2
+    : prices[midpoint];
+}
+
+async function assertLiveRailPackCoverage(configPath, config) {
+  if (config?.liveRailPack?.autoLoad !== true) {
+    return;
+  }
+
+  const appLiveRailPack = path.join(appDir, "live-rail-pack.json");
+  if (!(await exists(appLiveRailPack))) {
+    fail(`${path.relative(rootDir, configPath)} auto-loads live rail data, but ${path.relative(rootDir, appLiveRailPack)} is missing.`);
+    return;
+  }
+
+  let pack;
+  try {
+    pack = JSON.parse(await readFile(appLiveRailPack, "utf8"));
+  } catch (error) {
+    fail(`${path.relative(rootDir, appLiveRailPack)} failed to parse: ${error?.message || error}`);
+    return;
+  }
+
+  const missing = ["wBTC", "suiWBTC", "xBTC", "LBTC"]
+    .filter((symbol) => inferRailPackWrapperPriceUsd(pack, symbol) <= 1_000);
+  if (missing.length > 0) {
+    fail(`${path.relative(rootDir, appLiveRailPack)} is missing wrapper-specific prices for ${missing.join(", ")}.`);
+  }
+}
+
 async function main() {
   const appIndex = path.join(appDir, "index.html");
   const appSetup = path.join(appDir, "setup.html");
@@ -277,6 +352,10 @@ async function main() {
   const landingPrivacy = path.join(landingDir, "privacy.html");
   const landingTerms = path.join(landingDir, "terms.html");
   const landingRisk = path.join(landingDir, "risk.html");
+  const appReceiptIndex = path.join(appDir, "r", "index.html");
+  const appReceiptViewer = path.join(appDir, "r", "viewer.js");
+  const landingReceiptIndex = path.join(landingDir, "r", "index.html");
+  const landingReceiptViewer = path.join(landingDir, "r", "viewer.js");
   const appRuntimeConfig = path.join(appDir, "runtime-config.js");
   const appReleaseManifest = path.join(appDir, "release-manifest.json");
   const landingRuntimeConfig = path.join(landingDir, "runtime-config.js");
@@ -300,6 +379,10 @@ async function main() {
     landingPrivacy,
     landingTerms,
     landingRisk,
+    appReceiptIndex,
+    appReceiptViewer,
+    landingReceiptIndex,
+    landingReceiptViewer,
   ]) {
     if (!(await exists(required))) {
       fail(`Missing required artifact: ${path.relative(rootDir, required)}`);
@@ -355,6 +438,7 @@ async function main() {
     try {
       const config = await readRuntimeConfig(appRuntimeConfig);
       assertRuntimeTrustConfig(appRuntimeConfig, config);
+      await assertLiveRailPackCoverage(appRuntimeConfig, config);
     } catch (error) {
       fail(`${path.relative(rootDir, appRuntimeConfig)} failed to parse: ${error?.message || error}`);
     }
@@ -422,7 +506,7 @@ async function main() {
     'name="debtUsd" type="hidden"',
   ], "Built app/setup.html (golden flow)");
   await assertFileContains(appScript, [
-    "Run rehearsal check",
+    "Run rehearsal",
     "Managed repay",
     "Polymarket",
     "Kalshi",
@@ -445,13 +529,14 @@ async function main() {
     "receipt.mint",
   ], "Built app/app.js (hydration)");
   await assertFileContains(appSetupStyles, [
-    "--setup-footer-reserve: 8.75rem",
-    "position: fixed",
-    "max-height: min(15rem, calc(100dvh - var(--space-6)))",
-    "overflow-y: auto",
-    "--setup-footer-reserve: 0px",
-    "position: static",
-    "padding-bottom: var(--space-4)",
+    "--setup-footer-reserve: clamp(6.5rem, 9vh, 8rem)",
+    "scroll-padding-bottom: calc(var(--setup-footer-reserve) + var(--space-4))",
+    "position: sticky",
+    "bottom: max(var(--space-3), env(safe-area-inset-bottom))",
+    "max-height: none",
+    "overflow: visible",
+    "padding-bottom: var(--setup-footer-reserve, var(--space-5))",
+    "padding-bottom: var(--setup-footer-reserve, 8.75rem)",
   ], "Built app/styles-setup.css (setup dock)");
   await assertFileContains(landingIndex, [
     'id="live-proof"',
@@ -479,6 +564,16 @@ async function main() {
     "Risk disclosure",
     "Modeled results are not guaranteed",
   ], "Built landing/risk.html (legal)");
+  await assertFileContains(appReceiptIndex, [
+    'data-page="receipt-viewer"',
+    "<title>TIDE Receipt</title>",
+    'src="/r/viewer.js"',
+  ], "Built app/r/index.html (receipt verifier)");
+  await assertFileContains(appReceiptViewer, [
+    "RECEIPT_TYPE_BY_NETWORK",
+    "Fetch bundle",
+    "window.location.href = `/r/${id}`",
+  ], "Built app/r/viewer.js (receipt verifier)");
   await assertFetchOk(smokeAppUrl, [
     "/",
     "/setup",
@@ -487,6 +582,8 @@ async function main() {
     "/library",
     "/runtime-config.js",
     "/live-rail-pack.json",
+    "/r/",
+    "/r/viewer.js",
   ]);
   await assertFetchContains(smokeAppUrl, [
     ["/", ['data-page="workspace"', "<title>TIDE Workspace</title>"]],
@@ -499,6 +596,7 @@ async function main() {
     ["/results", ['data-page="results"', "<title>TIDE Readout</title>"]],
     ["/live", ['data-page="live"', "<title>TIDE Live</title>"]],
     ["/library", ['data-page="library"', "<title>TIDE Policy Library</title>"]],
+    ["/r/", ['data-page="receipt-viewer"', "<title>TIDE Receipt</title>"]],
   ]);
 
   await assertFetchOk(smokeApiUrl, [

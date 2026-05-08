@@ -68,18 +68,18 @@
       <div class="app-main app-main--topbar">
         <header class="page-header page-header-compact page-header--product">
           <div class="page-heading">
-            <p class="page-eyebrow">Live</p>
-            <h1>Live Readout</h1>
-            <p class="page-copy">Review the anchored policy, modeled position, receipts, and next operator action. Read-only unless this runtime is explicitly wired for testnet proof signing.</p>
+            <p class="page-eyebrow">Monitor</p>
+            <h1>Policy Monitor</h1>
+            <p class="page-copy">Review the saved policy, modeled position, receipts, and operator checklist. Signing stays testnet-only in this build.</p>
           </div>
 
           <div class="page-tools">
-            <div class="action-cluster">
-              <a class="button button-ghost" href="/setup" title="Reopen the draft that produced this run in Create. Forking from /live is a Journey C affordance: keep the live policy intact, iterate on the parameters as a fresh draft.">Edit in Create</a>
+            <div id="readout-actions" class="action-cluster">
+              <a class="button button-ghost" data-action="edit-in-create" href="/setup" title="Reopen the draft that produced this run in Create. Forking from /live is a Journey C affordance: keep the live policy intact, iterate on the parameters as a fresh draft.">Edit in Create</a>
               <button id="save-current" class="button button-secondary" type="button" data-state="idle">Save as draft</button>
               <button id="export-current" class="button button-secondary" type="button">Export JSON</button>
-              <button id="save-policy-current" class="button button-secondary" type="button" disabled aria-disabled="true" title="Anchor this policy object on Sui testnet. No real BTC moves.">Anchor policy object</button>
-              <button id="mint-receipt" class="button button-primary button-primary--gradient" type="button" disabled aria-disabled="true">Mint action receipt</button>
+              <button id="save-policy-current" class="button button-secondary" type="button" disabled aria-disabled="true" title="Save this policy on Sui testnet. No real BTC moves.">Save on testnet</button>
+              <button id="mint-receipt" class="button button-primary button-primary--gradient" type="button" disabled aria-disabled="true">Mint receipt</button>
             </div>
             <p id="status-note" class="status-line" role="status" aria-live="polite" aria-atomic="true"></p>
           </div>
@@ -93,7 +93,7 @@
              Phase D.13 — /live order DIVERGES from /results because the
              operator's P1 differs:
                /results = "did this draft survive" → action verdict first
-               /live    = "is my anchored policy safe right now" →
+               /live    = "is my saved policy safe right now" →
                           position center (live LTV, buffer) first.
              #live-position-center renders the live position center when
              isLiveMode; in sim mode the renderer leaves it empty and

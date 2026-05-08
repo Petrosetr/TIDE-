@@ -29,7 +29,7 @@ testnet receipt object.
 Quick verifier example:
 
 ```bash
-node scripts/tide-verify.mjs 0xbf44cdeda09398c96fb74138add3f883e425b01dab37dc9f6503a34d94b19011 \
+node scripts/tide-verify.mjs 0x66c93faaea12c3d4098ac8f3035ee08aa0b214c0ba92485b6f3384e2941ef07d \
   --network testnet \
   --bundle-from-walrus \
   --json

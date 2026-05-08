@@ -1952,7 +1952,7 @@ function updateSetupBalance() {
 
   const spotLabel = document.querySelector(".create-composer__spot > span");
   if (spotLabel) {
-    spotLabel.textContent = chosenSym === "BTC" ? "Spot" : `${chosenSym} Spot`;
+    spotLabel.textContent = chosenSym === "BTC" ? "Reference price" : `${chosenSym} reference`;
   }
 
   useMax.onclick = () => {
@@ -2032,7 +2032,7 @@ function updateSetupBalance() {
       const valueEqv = document.createElement("span");
       valueEqv.className = "collateral-asset-option-value-usd is-eqv";
       if (!asset.manual && btcPriceUsd > 0) {
-        const wrapperPrice = getLiveWrapperPriceUsd(asset.symbol, btcPriceUsd, { preferOverride: !isLiveScope });
+        const wrapperPrice = getLiveWrapperPriceUsd(asset.symbol, btcPriceUsd, { preferOverride: false });
         const eqv = (asset.value || 0) * wrapperPrice;
         valueEqv.textContent = eqv >= 1000
           ? `≈ $${Math.round(eqv).toLocaleString("en-US")}`
@@ -2078,7 +2078,7 @@ function updateSetupBalance() {
       }
 
       if (!asset.manual && btcPriceUsd > 0) {
-        const assetPrice = getLiveWrapperPriceUsd(asset.symbol, btcPriceUsd, { preferOverride: !isLiveScope });
+        const assetPrice = getLiveWrapperPriceUsd(asset.symbol, btcPriceUsd, { preferOverride: false });
         const rate = document.createElement("span");
         rate.className = "collateral-asset-option-rate";
         rate.textContent = assetPrice >= 1000
@@ -2096,9 +2096,20 @@ function updateSetupBalance() {
         picker.dataset.userSelectedAsset = "true";
         coinTypeInput.value = asset.coinType;
         assetSymbolInput.value = asset.symbol;
+        const priceInput = document.querySelector('input[name="btcPriceUsd"]');
+        const liveWrapperPrice = getLiveWrapperPriceUsd(asset.symbol, 0, { preferOverride: false });
+        if (!asset.manual && priceInput && liveWrapperPrice > 1_000) {
+          const rounded = Math.round(liveWrapperPrice);
+          priceInput.value = String(rounded);
+          priceInput.dataset.liveAutoFilled = String(rounded);
+          priceInput.dataset.wrapperSymbol = asset.symbol;
+          delete priceInput.dataset.userEditedPrice;
+        }
         picker.open = false;
         coinTypeInput.dispatchEvent(new Event("change", { bubbles: true }));
         assetSymbolInput.dispatchEvent(new Event("change", { bubbles: true }));
+        priceInput?.dispatchEvent(new Event("input", { bubbles: true }));
+        priceInput?.dispatchEvent(new Event("change", { bubbles: true }));
         updateSetupBalance();
       });
       menu.appendChild(option);

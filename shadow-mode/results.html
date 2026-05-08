@@ -70,16 +70,16 @@
           <div class="page-heading">
             <p class="page-eyebrow" data-page-eyebrow>Readout</p>
             <h1>Readout</h1>
-            <p class="page-copy">Review the decision, inspect the evidence, and anchor the policy or mint an action receipt.</p>
+            <p class="page-copy">Review the decision, stress evidence, and policy bounds. Save a testnet record only when you want a verifiable receipt.</p>
           </div>
 
           <div class="page-tools">
-            <div class="action-cluster">
-              <a class="button button-ghost" href="/setup" title="Reopen the draft that produced this run in Create.">Edit in Create</a>
+            <div id="readout-actions" class="action-cluster">
+              <a class="button button-ghost" data-action="edit-in-create" href="/setup" title="Reopen the draft that produced this run in Create.">Edit in Create</a>
               <button id="save-current" class="button button-secondary" type="button" data-state="idle">Save as draft</button>
               <button id="export-current" class="button button-secondary" type="button">Export JSON</button>
-              <button id="save-policy-current" class="button button-secondary" type="button" disabled aria-disabled="true" title="Anchor this policy object on Sui testnet. No real BTC moves.">Anchor policy object</button>
-              <button id="mint-receipt" class="button button-primary button-primary--gradient" type="button" disabled aria-disabled="true">Mint action receipt</button>
+              <button id="save-policy-current" class="button button-secondary" type="button" disabled aria-disabled="true" title="Save this policy on Sui testnet. No real BTC moves.">Save on testnet</button>
+              <button id="mint-receipt" class="button button-primary button-primary--gradient" type="button" disabled aria-disabled="true">Mint receipt</button>
             </div>
             <p id="status-note" class="status-line" role="status" aria-live="polite" aria-atomic="true"></p>
           </div>

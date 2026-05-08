@@ -62,10 +62,12 @@ import {
 
 import {
   buildProofBundleWithDigest,
+  canonicalizeRailPackForProof,
   canonicalizeBundle,
   checkFreshness,
   digestBundle,
   publishProofBundle,
+  toHexDigest,
   verifyBundleDigest,
 } from "./lib/execution-proof.mjs";
 import { emitObservation } from "./lib/observation-bus.mjs";
@@ -152,7 +154,7 @@ import {
 } from "./lib/judge-flow.mjs";
 
 import { fetchMarketForecast, fetchKalshiForecast } from "./lib/market-forecast-client.mjs";
-import { fetchPythReadback, buildMissingPythReadback } from "./lib/pyth-readback.mjs";
+import { fetchPythReadback, buildMissingPythReadback, isReadbackStale } from "./lib/pyth-readback.mjs";
 import { allowsUnsignedForecast, resolveOpsBaseUrl } from "./lib/runtime-config.mjs";
 import { verifyPackResponse, isRemoteUrl } from "./lib/pack-signature.mjs";
 import { preSigningCheck } from "./lib/pre-signing-check.mjs";
@@ -182,6 +184,24 @@ import {
 
 const DEFAULT_WRAPPED_BTC_SYMBOL = "wBTC";
 const DEFAULT_WRAPPED_BTC_COIN_TYPE = "0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC";
+const MAINNET_READONLY_RPC_URL = "https://fullnode.mainnet.sui.io:443";
+const MAINNET_READONLY_RPC_TIMEOUT_MS = 12_000;
+const MAINNET_READONLY_DECISION_TYPES = new Set([
+  "Hold",
+  "BuildBuffer",
+  "BorrowForBuffer",
+  "PartialRepay",
+  "EmergencyDeRisk",
+  "ReducePayout",
+  "PausePayout",
+  "RotateVenue",
+]);
+const SUILEND_MAINNET_PACKAGE_ID = "0xf95b06141ed4a174f239417323bde3f209b972f5930d8521ea38a52aff3a6ddf";
+const SUILEND_MAINNET_MARKET_PACKAGE_ID = "0xe53906c2c058d1e369763114418f3c144d1b74960d29b2785718a782fec09b61";
+const SUILEND_MAINNET_REPAY_PACKAGE_IDS = new Set([
+  SUILEND_MAINNET_PACKAGE_ID,
+  SUILEND_MAINNET_MARKET_PACKAGE_ID,
+]);
 const ACCOUNT_SCOPED_STORAGE_KEYS = new Set([
   STORAGE_SAVED_KEY,
   LEGACY_STORAGE_SAVED_KEY_V1,
@@ -244,9 +264,9 @@ const MODE_HINTS = {
 };
 
 const PRIORITY_HINTS = {
-  Safety: "Most conservative modeled liquidation posture. Lower LTV targets and faster de-risk prompts.",
+  Safety: "Most conservative modeled debt-pressure posture. Lower targets and faster de-risk prompts.",
   Stability: "Harbor default. Steady risk controls for most first runs while you learn the operating envelope.",
-  Income: "Maximise stablecoin income. Higher LTV tolerance and fuller use of borrowing capacity once you know your limits.",
+  Income: "Maximise stablecoin income. Higher debt-pressure tolerance and fuller use of borrowing capacity once you know your limits.",
 };
 
 function isLiveEnabled() {
@@ -255,6 +275,7 @@ function isLiveEnabled() {
 
 const WRAPPER_STABLE_ASSET_FALLBACKS = {
   WBTC: ["suiUSDT", "USDC"],
+  SUIWBTC: ["suiUSDT", "USDC"],
   XBTC: ["USDC"],
   BTC: ["USDB"],
 };
@@ -435,6 +456,67 @@ function normalizeDraftForAlpha(draft) {
   return coerced;
 }
 
+function encodeRouteDraftHandoff(draft = {}) {
+  try {
+    const payload = {
+      v: 1,
+      draft: clone(draft || {}),
+    };
+    const json = JSON.stringify(payload);
+    const bytes = new TextEncoder().encode(json);
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    const encoded = btoa(binary)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+    return encoded.length <= 6000 ? encoded : "";
+  } catch (_) {
+    return "";
+  }
+}
+
+function decodeRouteDraftHandoff(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  try {
+    const padded = raw.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(raw.length / 4) * 4, "=");
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const parsed = JSON.parse(new TextDecoder().decode(bytes));
+    if (!parsed || parsed.v !== 1 || !isPlainObject(parsed.draft)) return null;
+    return parsed.draft;
+  } catch (_) {
+    return null;
+  }
+}
+
+function readRouteDraftHandoffFromUrl() {
+  try {
+    const params = new URL(window.location.href).searchParams;
+    return decodeRouteDraftHandoff(params.get("draft") || "");
+  } catch (_) {
+    return null;
+  }
+}
+
+function readRouteProofArmFromUrl() {
+  try {
+    const value = String(new URL(window.location.href).searchParams.get("proof") || "").trim().toLowerCase();
+    return value === "1" || value === "true" || value === "testnet";
+  } catch (_) {
+    return false;
+  }
+}
+
+function armDraftForTestnetProof(draft = {}) {
+  return normalizeDraftForAlpha({
+    ...draft,
+    createScope: "live",
+    scenarioOrigin: String(draft?.scenarioOrigin || "").trim() || "testnet-proof-handoff",
+  });
+}
+
 function syncLiveAvailabilityUI() {
   const enabled = isLiveEnabled();
   document.querySelectorAll("[data-live-control]").forEach((node) => {
@@ -460,9 +542,10 @@ function syncLiveModeCardAvailability() {
   const connected = Boolean(getWalletState().connected);
   // On live-disabled builds (dev/preview), the option reads as
   // "Coming soon" and is fully disabled regardless of wallet state.
-  // On live-enabled builds (testnet), the existing wallet-gated logic
-  // applies — connect a wallet to unlock.
-  const disabled = !liveEnabled || !connected;
+  // On live-enabled builds (testnet), the option stays selectable as a
+  // proof intent; signing/save/mint actions remain wallet-gated deeper
+  // in getCreateScopeState/syncPolicyActionButtons.
+  const disabled = !liveEnabled;
   liveOpt.classList.toggle("is-disabled", disabled);
   liveOpt.dataset.liveState = !liveEnabled
     ? "coming-soon"
@@ -471,10 +554,10 @@ function syncLiveModeCardAvailability() {
       : "ready";
   liveOpt.setAttribute("aria-disabled", String(disabled));
   liveOpt.title = !liveEnabled
-    ? "Live rehearsal mode is coming soon. This build runs Simulation only."
+    ? "Testnet proof is unavailable here. Use testnet to connect a wallet and mint receipts."
     : connected
       ? "Bind the draft to a real wrapper + wallet balance."
-      : "Wallet session is required before Live can validate collateral. Simulation still works from manual assumptions.";
+      : "Select Testnet proof intent now; connect wallet before saving or minting receipts.";
   const radio = liveOpt.querySelector('input[type="radio"]');
   if (radio) {
     radio.disabled = disabled;
@@ -488,12 +571,12 @@ function syncLiveModeCardAvailability() {
       if (!subLabel.dataset.originalText) {
         subLabel.dataset.originalText = subLabel.textContent || "";
       }
-      subLabel.textContent = "Coming soon";
+      subLabel.textContent = "Use testnet";
     } else if (!connected) {
       if (!subLabel.dataset.originalText) {
         subLabel.dataset.originalText = subLabel.textContent || "";
       }
-      subLabel.textContent = "Wallet session required";
+      subLabel.textContent = "Connect wallet";
     } else if (connected) {
       subLabel.textContent = "Wallet connected";
     } else if (subLabel.dataset.originalText) {
@@ -508,14 +591,14 @@ function getDisabledLiveModeStatusCopy() {
   if (!liveEnabled) {
     const network = String(window.TIDE_CONFIG?.sui?.network || "").trim().toLowerCase();
     if (network === "mainnet") {
-      return "Live signing is disabled on this mainnet read-only build. Use testnet for wallet-backed rehearsal.";
+      return "Testnet proof is disabled on this mainnet read-only build. Use testnet for wallet-backed rehearsal.";
     }
-    return "Live mode is disabled on this build. Use testnet for wallet-backed rehearsal.";
+    return "Testnet proof is disabled on this build. Use testnet for wallet-backed rehearsal.";
   }
   if (!connected) {
-    return "Wallet session is not available to Create yet. Use Simulation while the wallet session finishes syncing.";
+    return "Testnet proof selected. Connect wallet before saving a policy or minting a receipt.";
   }
-  return "Live mode is not available for the current draft yet.";
+  return "Testnet proof is not available for the current draft yet.";
 }
 
 // Frozen scope: four BTC-collateralised allocators get the full integration
@@ -723,7 +806,7 @@ const STRATEGY_PRESETS = {
     },
   },
   drift: {
-    label: "Future mode",
+    label: "Drift",
     fields: {
       strategyPreset: "drift",
       mode: UserMode.Income,
@@ -923,6 +1006,7 @@ const appState = {
   // that this environment does not have.
   oracleReadback: null,
   oracleReadbackStatus: "idle",
+  latestProofReceipt: null,
   opsHealth: {
     status: "idle",
     payload: null,
@@ -1037,6 +1121,10 @@ function buildConfiguredMissingPythReadback(message = "") {
   });
 }
 
+function isPythOracleReadbackRequired(runtime = getRuntimeConfig()) {
+  return Boolean(getPythOracleRuntimeConfig(runtime).priceInfoObjectId);
+}
+
 async function refreshPythOracleReadback({ silent = false } = {}) {
   appState.oracleReadbackStatus = "loading";
   const cfg = getPythOracleRuntimeConfig();
@@ -1073,6 +1161,52 @@ async function ensurePythOracleReadbackLoaded() {
   return _pythOracleWarmPromise;
 }
 
+function isPythOracleReadbackReadyForReceipt(readback, now = Date.now()) {
+  if (!readback || typeof readback !== "object") return false;
+  const source = String(readback.source || "").trim();
+  if (!source || source === "missing" || source === "fixture") return false;
+  if (readback.stale === true) return false;
+  return !isReadbackStale(readback, now);
+}
+
+async function ensurePythOracleReadbackReadyForReceipt(runtime = getRuntimeConfig()) {
+  if (!isPythOracleReadbackRequired(runtime)) return appState.oracleReadback || null;
+  let readback = appState.oracleReadback || null;
+  if (!isPythOracleReadbackReadyForReceipt(readback)) {
+    readback = await refreshPythOracleReadback({ silent: true });
+  }
+  if (!isPythOracleReadbackReadyForReceipt(readback)) {
+    const error = new Error("Pyth BTC/USD read-back is required but unavailable or stale. Refresh oracle read-back before minting a receipt.");
+    error.code = "pyth-readback-unavailable";
+    throw error;
+  }
+  return readback;
+}
+
+function getReceiptMintReadinessBlocker(runtime = getRuntimeConfig()) {
+  if (runtime?.executionProof?.allowSigning === true && !runtime?.walrus?.publisherUrl) {
+    return {
+      code: "walrus-publisher-missing",
+      message: "Proof storage is not available in this build. Use the configured testnet build before minting a receipt.",
+    };
+  }
+  if (!isPythOracleReadbackRequired(runtime)) return null;
+  if (isPythOracleReadbackReadyForReceipt(appState.oracleReadback)) return null;
+  if (appState.oracleReadbackStatus === "idle" || appState.oracleReadbackStatus === "loading") {
+    return {
+      code: "pyth-loading",
+      message: "Waiting for a fresh BTC price check before minting a receipt.",
+    };
+  }
+  const stale = appState.oracleReadback?.stale === true || isReadbackStale(appState.oracleReadback);
+  return {
+    code: stale ? "pyth-stale" : "pyth-unavailable",
+    message: stale
+      ? "The BTC price check is stale. Refresh evidence before minting a receipt."
+      : "The BTC price check is unavailable. Refresh evidence before minting a receipt.",
+  };
+}
+
 function rerenderScenarioChecksForCurrentPage() {
   if (currentPage === "setup" && form) {
     const host = document.getElementById("setup-scenario-workbench");
@@ -1100,6 +1234,34 @@ function queueScenarioChecksRerender(delay = 180) {
   }, delay);
 }
 
+let _proofEvidenceRefreshPromise = null;
+async function refreshProofEvidence({ silent = false, rerun = true } = {}) {
+  if (_proofEvidenceRefreshPromise) return _proofEvidenceRefreshPromise;
+  _proofEvidenceRefreshPromise = Promise.allSettled([
+    refreshPythOracleReadback({ silent }),
+    maybeLoadConfiguredRailPack({ rerun, silent }),
+    refreshLatestProofReceipt({ silent: true }),
+  ])
+    .then((results) => {
+      const failures = results
+        .filter((result) => result.status === "rejected")
+        .map((result) => result.reason);
+      if (failures.length > 0 && !silent) {
+        setStatus("Some proof evidence could not be refreshed. Check the evidence panel before minting.", true);
+      } else if (!silent) {
+        setStatus("Proof evidence refreshed.");
+      }
+      syncPolicyActionButtons();
+      syncMintReceiptButton();
+      renderCurrentPage();
+      return results;
+    })
+    .finally(() => {
+      _proofEvidenceRefreshPromise = null;
+    });
+  return _proofEvidenceRefreshPromise;
+}
+
 const protocolIndex = new Map();
 for (const protocol of SUI_BTCFI_PROTOCOLS) {
   protocolIndex.set(normalizeEntityKey(protocol.id), protocol);
@@ -1112,6 +1274,23 @@ function $(selector) {
 
 function getRuntimeConfig() {
   return window.TIDE_CONFIG || {};
+}
+
+function getLatestProofReceiptLink(config = getRuntimeConfig()) {
+  const receiptMint = appState.latestProofReceipt || config?.proof?.receiptMint || null;
+  const objectId = typeof receiptMint?.objectId === "string" ? receiptMint.objectId.trim() : "";
+  if (!/^0x[0-9a-fA-F]{64}$/.test(objectId)) return null;
+  const href = buildReceiptReadOnlyUrl({ id: objectId }, {
+    config,
+    network: "testnet",
+  });
+  if (!href) return null;
+  return {
+    href,
+    id: objectId,
+    decisionType: typeof receiptMint?.decisionType === "string" ? receiptMint.decisionType : "",
+    selectedRail: typeof receiptMint?.selectedRail === "string" ? receiptMint.selectedRail : "",
+  };
 }
 
 function getCreateScopeProofContext(config = getRuntimeConfig()) {
@@ -1170,6 +1349,24 @@ function getLiveRailPackCandidateUrls(config = getLiveRailPackConfig()) {
     .filter(Boolean);
 
   return [...new Set(urls)];
+}
+
+function isSameOriginRuntimeUrl(url) {
+  if (!isRemoteUrl(url)) {
+    return true;
+  }
+  if (typeof window === "undefined" || !window.location?.origin) {
+    return false;
+  }
+  try {
+    return new URL(String(url), window.location.href).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+function requiresRailPackSignature(url) {
+  return isRemoteUrl(url) && !isSameOriginRuntimeUrl(url);
 }
 
 const escapeHtml = sharedEscapeHtml;
@@ -1256,6 +1453,49 @@ function persistLiveControlState(address = getWalletState().address) {
 function persistLiveUnwindProgress(address = getWalletState().address) {
   appState.liveUnwindProgress = normalizeLiveUnwindProgressStore(appState.liveUnwindProgress);
   saveStorage(STORAGE_LIVE_UNWIND_PROGRESS_KEY, appState.liveUnwindProgress, { address });
+}
+
+function normalizeLiveMainnetEvidenceEntry(raw = {}, policyId = "") {
+  const pinnedPolicyId = normalizeLiveHistoryText(policyId || raw?.policyId);
+  const status = String(raw?.status || "").trim() === "verified" ? "verified" : raw?.status === "error" ? "error" : "pending";
+  const preReadback = normalizeMainnetReadbackForBundle(raw?.preReadback);
+  const postReadback = normalizeMainnetReadbackForBundle(raw?.postReadback);
+  return {
+    policyId: pinnedPolicyId,
+    digest: normalizeLiveHistoryText(raw?.digest),
+    sender: normalizeWalletAddress(raw?.sender).toLowerCase(),
+    obligationId: normalizeLiveHistoryText(raw?.obligationId).toLowerCase(),
+    checkpoint: normalizeLiveHistoryText(raw?.checkpoint),
+    timestampMs: Number(raw?.timestampMs) || 0,
+    objectChangeCount: Number(raw?.objectChangeCount) || 0,
+    verifiedAt: Number(raw?.verifiedAt) || 0,
+    status,
+    error: status === "error" ? normalizeLiveHistoryText(raw?.error) : "",
+    ...(preReadback ? { preReadback } : {}),
+    ...(postReadback ? { postReadback } : {}),
+  };
+}
+
+function getPolicyLiveMainnetEvidence(policyId = "") {
+  const pinned = normalizeLiveHistoryText(policyId);
+  if (!pinned) return normalizeLiveMainnetEvidenceEntry({}, "");
+  const progress = getPolicyLiveUnwindProgress(appState.liveUnwindProgress, pinned);
+  return normalizeLiveMainnetEvidenceEntry(progress?.mainnetEvidence || {}, pinned);
+}
+
+function setPolicyLiveMainnetEvidence(policyId = "", evidence = {}) {
+  const pinned = normalizeLiveHistoryText(policyId);
+  if (!pinned) return;
+  const current = getPolicyLiveUnwindProgress(appState.liveUnwindProgress, pinned);
+  appState.liveUnwindProgress = normalizeLiveUnwindProgressStore({
+    ...appState.liveUnwindProgress,
+    [pinned]: {
+      ...current,
+      policyId: pinned,
+      mainnetEvidence: normalizeLiveMainnetEvidenceEntry(evidence, pinned),
+      updatedAt: Date.now(),
+    },
+  });
 }
 
 function persistCurrentState() {
@@ -1398,21 +1638,21 @@ function renderPolicyStatusCopy() {
   const policy = appState.current?.onChainPolicy || null;
 
   if (policy?.id) {
-    return `On-chain policy ${formatPolicyObjectId(policy.id)} · rail ${policy.selectedRail || "pending"}`;
+    return `Testnet policy ${formatPolicyObjectId(policy.id)} · rail ${policy.selectedRail || "pending"}`;
   }
 
   if (!isPolicyRegistryConfigured(getRuntimeConfig())) {
-    return "On-chain policy registry is not configured yet.";
+    return "Testnet proof package is not configured yet.";
   }
 
   if (!getWalletState().connected) {
-    return "Connect wallet to anchor this policy on-chain.";
+    return "Connect wallet to save this policy on Sui testnet.";
   }
 
-  return "Policy is local only until you save it on-chain.";
+  return "Policy is local until you save it to Sui testnet.";
 }
 
-// On-chain rail resolver for the Anchor / Mint CTAs. Returns {canonical, message} so
+// On-chain rail resolver for the Save / Mint CTAs. Returns {canonical, message} so
 // callers can gate on whether the currently-selected rail is on the on-chain
 // allowlist BEFORE the user clicks and eats a derivePolicySnapshot throw.
 function resolveCurrentRailForOnChain() {
@@ -1450,6 +1690,53 @@ function getForecastStaleRefusal(current = appState.current) {
   };
 }
 
+const READOUT_HEADER_ACTION_SELECTOR =
+  'body[data-page="results"] #readout-actions, body[data-page="live"] .page-header--product .action-cluster';
+
+function isReadoutHeaderActionButton(button) {
+  return Boolean(button?.closest?.(READOUT_HEADER_ACTION_SELECTOR));
+}
+
+function isCompactActionSurface(button) {
+  return Boolean(isReadoutHeaderActionButton(button) || button?.closest?.("[data-setup-footer]"));
+}
+
+function syncActionDisabledHint(button, reason = "", key = "") {
+  if (!button?.parentElement) return;
+  const reasonKey = key || button.id || "action";
+  const existing = button.parentElement.querySelector(`[data-disabled-reason-for="${reasonKey}"]`);
+  if (existing) existing.remove();
+
+  if (isCompactActionSurface(button)) {
+    if (button.disabled && reason) {
+      const hint = document.createElement("span");
+      hint.id = `${reasonKey}-reason`;
+      hint.className = "sr-only";
+      hint.dataset.disabledReasonFor = reasonKey;
+      hint.textContent = reason;
+      button.insertAdjacentElement("afterend", hint);
+      button.setAttribute("aria-describedby", hint.id);
+      button.dataset.disabledReason = reason;
+    } else {
+      delete button.dataset.disabledReason;
+      button.removeAttribute("aria-describedby");
+    }
+    return;
+  }
+
+  if (button.disabled && reason) {
+    const hint = document.createElement("p");
+    hint.id = `${reasonKey}-reason`;
+    hint.className = "action-disabled-hint";
+    hint.dataset.disabledReasonFor = reasonKey;
+    hint.textContent = reason;
+    button.insertAdjacentElement("afterend", hint);
+    button.setAttribute("aria-describedby", hint.id);
+  } else {
+    button.removeAttribute("aria-describedby");
+  }
+}
+
 function syncPolicyActionButtons() {
   const buttons = [$("#save-policy-toolbar"), $("#save-policy-current")].filter(Boolean);
   if (!buttons.length) {
@@ -1462,17 +1749,21 @@ function syncPolicyActionButtons() {
   const hasDraft = Boolean(railCheck.draft);
   const hasPolicy = Boolean(appState.current?.onChainPolicy?.id);
   const staleRefusal = getForecastStaleRefusal(appState.current);
-  const label = _policySaveInProgress ? (hasPolicy ? "Updating…" : "Anchoring…") : (hasPolicy ? "Update policy object" : "Anchor policy object");
+  const label = _policySaveInProgress ? (hasPolicy ? "Updating…" : "Saving…") : (hasPolicy ? "Update testnet policy" : "Save on testnet");
   const selectedScope = form?.querySelector?.('input[name="createScope"]:checked')?.value;
   const scope = getCreateScopeKey(selectedScope || railCheck.draft?.createScope);
 
   // Surface the CTA only when it matches the user's current intent.
-  // Simulation is explicitly "no wallet touched", so an on-chain anchor
+  // Simulation is explicitly local, so an on-chain save
   // button in that footer reads as a broken promise even when disabled.
   // Existing on-chain policies may still expose Update regardless of legacy
-  // draft scope metadata; new anchors require Live scope.
+  // draft scope metadata; new saves require Testnet proof scope.
   const readoutShell = currentPage === "results" || currentPage === "live";
-  const shouldShow = readoutShell || ((configured || hasPolicy) && (hasPolicy || scope === "live"));
+  const headerReadoutButtons = new Set(
+    buttons.filter((button) => isReadoutHeaderActionButton(button)),
+  );
+  const shouldShow = (readoutShell && (configured || hasPolicy))
+    || ((configured || hasPolicy) && (hasPolicy || scope === "live"));
 
   let title = "";
   let disabled = false;
@@ -1482,53 +1773,52 @@ function syncPolicyActionButtons() {
     title = "On-chain policy save is already in progress.";
   } else if (!configured) {
     disabled = true;
-    title = "This build is not wired to a testnet policy package. Open testnet.tidesui.pro to publish on-chain policies.";
+    title = "This build is not wired to a testnet policy package. Open testnet.tidesui.pro to save on-chain policies.";
   } else if (scope !== "live" && !hasPolicy) {
     disabled = true;
-    title = "Switch to Live scope on this scenario to anchor the policy on-chain (testnet, no real BTC).";
+    title = "Switch to Testnet proof before saving this policy to Sui testnet.";
   } else if (!wallet.connected) {
     disabled = true;
-    title = "Connect wallet to save the policy on-chain.";
+    title = "Connect wallet to save the policy on Sui testnet.";
   } else if (!hasDraft) {
     disabled = true;
     title = "Create a scenario first.";
   } else if (staleRefusal) {
     disabled = true;
     title = staleRefusal.message;
+  } else if (scope === "live") {
+    const scopeState = getCreateScopeState({
+      draft: railCheck.draft || appState.current?.draft || {},
+      walletState: wallet,
+      proofContext: getCreateScopeProofContext(),
+    });
+    if (scopeState.mockCollateral || !scopeState.walletBacked) {
+      disabled = true;
+      title = "Save on testnet requires wallet-backed collateral; mock collateral can only run a local rehearsal.";
+    }
   } else if (!railCheck.canonical) {
     disabled = true;
     title = railCheck.message;
   } else if (hasPolicy) {
-    title = "Update the current on-chain policy object.";
+    title = "Update the current testnet policy.";
   } else {
-    title = "Save the current scenario as an on-chain policy object.";
+    title = "Save the current policy on Sui testnet.";
   }
 
   for (const button of buttons) {
-    button.hidden = !shouldShow;
+    const isReadoutHeaderButton = readoutShell && headerReadoutButtons.has(button);
+    button.hidden = isReadoutHeaderButton || !shouldShow;
     button.disabled = disabled;
     button.textContent = label;
     button.title = title;
     button.setAttribute("aria-disabled", String(disabled));
-    const existingHint = button.parentElement?.querySelector?.(`[data-disabled-reason-for="${button.id}"]`);
-    if (existingHint) existingHint.remove();
-    if (disabled && title && button.parentElement && !button.hidden) {
-      const hint = document.createElement("p");
-      hint.id = `${button.id || "policy-action"}-reason`;
-      hint.className = "sr-only action-disabled-hint";
-      hint.dataset.disabledReasonFor = button.id || "policy-action";
-      hint.textContent = title;
-      button.insertAdjacentElement("afterend", hint);
-      button.setAttribute("aria-describedby", hint.id);
-    } else {
-      button.removeAttribute("aria-describedby");
-    }
+    syncActionDisabledHint(button, disabled && !button.hidden ? title : "", button.id || "policy-action");
   }
 }
 
-// Refresh the Policy object currently bound to appState.current from
+// Refresh the policy currently bound to appState.current from
 // on-chain state. The binding is *explicit*: either the user opened
-// Setup with ?policy=<id> (readBoundPolicyIdFromUrl), or they anchored
+// Setup with ?policy=<id> (readBoundPolicyIdFromUrl), or they saved
 // a new policy and we stored the id at mint time. We intentionally do
 // NOT auto-bind "the latest owned policy" — a wallet can own many, and
 // silent auto-binding made the UI feel like 1-policy-per-wallet.
@@ -1567,8 +1857,8 @@ async function hydrateCurrentPolicyFromChain({
   }
 
   if (!policy) {
-    // Policy object is not on-chain (or no longer accessible). Drop the
-    // stale binding so the Create CTA stops claiming "Update policy object"
+    // Policy is not on-chain (or no longer accessible). Drop the
+    // stale binding so the Create CTA stops claiming "Update testnet policy"
     // for a policy the wallet can't actually touch.
     if (bindCurrent && appState.current) {
       appState.current.onChainPolicy = null;
@@ -1735,6 +2025,21 @@ function normalizeImportedRailSnapshot(raw, index, importedAt) {
       Number(source.availableDebtUsd ?? source.debtDepthUsd ?? source.capacityUsd ?? 0) || 0
     ),
     referencePriceUsd: Math.max(0, Number(source.referencePriceUsd ?? source.btcPriceUsd ?? 0) || 0),
+    priceReferences: Array.isArray(source.priceReferences)
+      ? source.priceReferences
+          .map((item) => ({
+            wrapper: String(item?.wrapper || item?.symbol || item?.collateralAsset || "").trim(),
+            referencePriceUsd: Math.max(0, Number(item?.referencePriceUsd ?? item?.btcPriceUsd ?? item?.priceUsd ?? 0) || 0),
+            source: typeof item?.source === "string" ? item.source.trim() : "",
+            quoteKind: typeof item?.quoteKind === "string" ? item.quoteKind.trim() : "",
+            proxyOf: typeof item?.proxyOf === "string" ? item.proxyOf.trim() : "",
+            disclosure: typeof item?.disclosure === "string" ? item.disclosure.trim() : "",
+            updatedAt: isIsoDateString(item?.updatedAt || item?.timestamp)
+              ? String(item.updatedAt || item.timestamp)
+              : importedAt,
+          }))
+          .filter((item) => item.wrapper && item.referencePriceUsd > 1_000)
+      : [],
     rebalanceCostBps: Math.max(
       0,
       Math.round(Number(source.rebalanceCostBps ?? source.exitCostBps ?? source.costBps ?? 18) || 18)
@@ -1952,6 +2257,12 @@ function loadPersistedRailPack() {
       parsed.importedAt = stored.importedAt.trim();
     }
 
+    if (typeof stored.trustMode === "string" && stored.trustMode.trim()) {
+      parsed.trustMode = stored.trustMode.trim();
+    } else if (parsed.remoteUrl && isSameOriginRuntimeUrl(parsed.remoteUrl)) {
+      parsed.trustMode = "same-origin-build";
+    }
+
     // Signature verification is a property of the exact network response
     // that was verified in this browser session. Do not rehydrate it from
     // localStorage; a persisted rail pack must be fetched and verified again
@@ -1967,9 +2278,49 @@ function loadPersistedRailPack() {
 function inferRailPackWrapperPriceUsd(source, wrapperSymbol) {
   const wanted = String(wrapperSymbol || "").trim().toLowerCase();
   if (!wanted) return 0;
+  const normalizedWanted = normalizeTokenSymbol(wanted).toLowerCase();
+  const wantedAliases = new Set([normalizedWanted]);
+
+  // UI users think in canonical wallet wrappers ("wBTC"), while protocol
+  // rail-packs may quote the market-specific token label ("sbwBTC" on
+  // Scallop). Keep this mapping small and explicit so a generic "BTC" manual
+  // simulation asset never swallows xBTC/LBTC prices by accident.
+  if (normalizedWanted === "wbtc") {
+    wantedAliases.add("sbwbtc");
+  }
+
   const rails = Array.isArray(source?.rails) ? source.rails : [];
-  const matches = rails
-    .filter((rail) => String(rail?.wrapper || "").trim().toLowerCase() === wanted)
+  const references = [];
+  for (const rail of rails) {
+    references.push({
+      wrapper: rail?.wrapper,
+      referencePriceUsd: rail?.referencePriceUsd,
+      source: rail?.id || rail?.source || "",
+    });
+    if (Array.isArray(rail?.priceReferences)) {
+      for (const reference of rail.priceReferences) {
+        references.push({
+          wrapper: reference?.wrapper,
+          referencePriceUsd: reference?.referencePriceUsd,
+          source: reference?.source || rail?.id || "",
+        });
+      }
+    }
+  }
+  const seenReferences = new Set();
+  const matches = references
+    .filter((rail) => wantedAliases.has(normalizeTokenSymbol(rail?.wrapper).toLowerCase()))
+    .filter((rail) => {
+      const price = Number(rail?.referencePriceUsd || 0);
+      const normalizedWrapper = normalizeTokenSymbol(rail?.wrapper).toLowerCase();
+      const keyWrapper = normalizedWanted === "wbtc" && wantedAliases.has(normalizedWrapper)
+        ? normalizedWanted
+        : normalizedWrapper;
+      const key = `${keyWrapper}:${price.toFixed(2)}:${String(rail?.source || "")}`;
+      if (seenReferences.has(key)) return false;
+      seenReferences.add(key);
+      return true;
+    })
     .map((rail) => Number(rail?.referencePriceUsd || 0))
     .filter((value) => Number.isFinite(value) && value > 1_000)
     .sort((a, b) => a - b);
@@ -1981,15 +2332,62 @@ function inferRailPackWrapperPriceUsd(source, wrapperSymbol) {
   return roundUsd(median);
 }
 
+function hasWrapperPriceReferences(pack) {
+  return (Array.isArray(pack?.rails) ? pack.rails : []).some((rail) => (
+    Array.isArray(rail?.priceReferences)
+      && rail.priceReferences.some((reference) => Number(reference?.referencePriceUsd || 0) > 1_000)
+  ));
+}
+
+function hasWrapperPriceCoverage(pack, wrapperSymbol) {
+  return inferRailPackWrapperPriceUsd(pack, wrapperSymbol) > 1_000;
+}
+
+const REQUIRED_LIVE_WRAPPER_PRICE_SYMBOLS = ["wBTC", "suiWBTC", "xBTC", "LBTC"];
+
+function getMissingWrapperPriceSymbols(pack) {
+  return REQUIRED_LIVE_WRAPPER_PRICE_SYMBOLS
+    .filter((symbol) => !hasWrapperPriceCoverage(pack, symbol));
+}
+
+function hasConfiguredWrapperPriceCoverage(pack) {
+  return getMissingWrapperPriceSymbols(pack).length === 0;
+}
+
+function shouldKeepActiveRailPackForConfig(activePack, config = getLiveRailPackConfig()) {
+  if (!activePack) return false;
+  if (config.preferRemote) return false;
+  if (isRailPackStaleForTrust(activePack)) return false;
+
+  const seedUpdatedAt = getTimestampValue(config.seedMarket?.updatedAt);
+  const activeUpdatedAt = getRailPackFreshnessTimestampMs(activePack);
+  if (seedUpdatedAt > 0 && (!activeUpdatedAt || seedUpdatedAt > activeUpdatedAt + 1_000)) {
+    return false;
+  }
+
+  // Older persisted packs did not retain per-wrapper price references, so
+  // wBTC/xBTC/LBTC collapsed back to the global BTC median. Refresh them once
+  // the configured same-origin pack can provide wrapper-specific quotes.
+  if (!hasWrapperPriceReferences(activePack) || !hasConfiguredWrapperPriceCoverage(activePack)) {
+    return false;
+  }
+
+  return true;
+}
+
 // Resolve live spot for a specific wrapper symbol. Prefer per-rail
 // referencePriceUsd (Navi for xBTC, Suilend/Alphalend for WBTC, etc.) so the
 // composer shows the price that the actual lending market would use instead
-// of a global BTC median. Falls back to the aggregated rail-pack price when
-// the wrapper has no matching rail.
+// of a global BTC median. Wrapper-specific misses fail closed instead of
+// falling back to the aggregate median.
 function getPreferredLiveWrapperPriceUsd(wrapperSymbol) {
   const activeRailPack = getActiveRailPack();
   const perWrapper = inferRailPackWrapperPriceUsd(activeRailPack, wrapperSymbol);
   if (perWrapper > 1_000) return perWrapper;
+  const normalized = normalizeTokenSymbol(wrapperSymbol);
+  if (["WBTC", "SUIWBTC", "XBTC", "LBTC", "SBWBTC", "STBTC", "MBTC", "NBTC"].includes(normalized)) {
+    return 0;
+  }
   return getPreferredLiveBtcPriceUsd();
 }
 
@@ -2031,6 +2429,15 @@ function getPreferredLiveBtcPriceUsd() {
 }
 
 function getEffectiveBtcPriceUsd(draft) {
+  const wrapperSymbol = draft ? getCollateralAssetSymbol(draft) : "";
+  const preferredWrapperPriceUsd = wrapperSymbol
+    ? getPreferredLiveWrapperPriceUsd(wrapperSymbol)
+    : 0;
+
+  if (preferredWrapperPriceUsd > 1_000) {
+    return preferredWrapperPriceUsd;
+  }
+
   const preferredLivePriceUsd = getPreferredLiveBtcPriceUsd();
 
   if (preferredLivePriceUsd > 1_000) {
@@ -2135,7 +2542,7 @@ function isCurrentRunFresh() {
 
 function isVerifiedLiveRailPack() {
   const pack = getActiveRailPack();
-  return Boolean(pack && pack.signatureVerified === true);
+  return Boolean(pack && pack.signatureVerified === true && !isRailPackStaleForTrust(pack));
 }
 
 function getLiveDataTrustState(current = appState.current) {
@@ -2165,16 +2572,17 @@ function syncMarketPriceIntoState() {
 
     const scope = getCreateScopeKey(draft.createScope);
     const currentPriceUsd = asNumber(draft.btcPriceUsd);
+    const preferredDraftPriceUsd = getCreateScopeLivePriceUsd(draft);
 
     if (scope !== "live" && currentPriceUsd > 0) {
       return false;
     }
 
-    if (Math.abs(currentPriceUsd - preferredBtcPriceUsd) < 0.01) {
+    if (preferredDraftPriceUsd <= 1_000 || Math.abs(currentPriceUsd - preferredDraftPriceUsd) < 0.01) {
       return false;
     }
 
-    draft.btcPriceUsd = preferredBtcPriceUsd;
+    draft.btcPriceUsd = preferredDraftPriceUsd;
     return true;
   };
 
@@ -2189,14 +2597,15 @@ function syncMarketPriceIntoState() {
   }
 
   if (changed && form) {
-    setFieldValue(form.elements.namedItem("btcPriceUsd"), preferredBtcPriceUsd);
+    setFieldValue(form.elements.namedItem("btcPriceUsd"), getCreateScopeLivePriceUsd(readDraftFromForm()));
   }
 
   if (preferredBtcPriceUsd > 0) {
     appState.btcPriceUpdatedAt = Date.now();
-    createScopeFieldState.live.btcPriceUsd = preferredBtcPriceUsd;
+    const draftPriceUsd = getCreateScopeLivePriceUsd(appState.draft || DEFAULT_DRAFT);
+    createScopeFieldState.live.btcPriceUsd = draftPriceUsd;
     if (!(createScopeFieldState.shadow.btcPriceUsd > 0)) {
-      createScopeFieldState.shadow.btcPriceUsd = preferredBtcPriceUsd;
+      createScopeFieldState.shadow.btcPriceUsd = draftPriceUsd;
     }
   }
 
@@ -2229,7 +2638,7 @@ function buildLivePositionFacts(draft, report) {
       copy: "Stable liabilities in the latest modeled run",
     },
     {
-      label: "Effective LTV",
+      label: "Debt pressure",
       value: formatPercentDecimal(ltv),
       copy: summary ? `Modeled summary ${formatPercentDecimal(summary.currentLtv)}` : "Derived from modeled collateral and debt",
     },
@@ -2267,7 +2676,7 @@ async function maybeLoadConfiguredRailPack({ rerun = true, silent = true } = {})
     return false;
   }
 
-  if (getActiveRailPack() && !config.preferRemote) {
+  if (shouldKeepActiveRailPackForConfig(getActiveRailPack(), config)) {
     return false;
   }
 
@@ -2301,10 +2710,11 @@ async function maybeLoadConfiguredRailPack({ rerun = true, silent = true } = {})
       // signature in the `x-tide-signature` header when a verify key is
       // configured. This prevents a compromised origin or MITM from
       // swapping the rail list (which drives Sui signAndExecute calls).
-      if (isRemoteUrl(railPackUrl) && !verifyKeyB64) {
+      const requiresSignature = requiresRailPackSignature(railPackUrl);
+      if (requiresSignature && !verifyKeyB64) {
         throw new Error("Configured live rail pack requires liveRailPack.verifyKey.");
       }
-      if (isRemoteUrl(railPackUrl) && verifyKeyB64) {
+      if (requiresSignature && verifyKeyB64) {
         const sigHeader = response.headers.get("x-tide-signature") || "";
         const verdict = await verifyPackResponse({
           bodyText,
@@ -2317,9 +2727,14 @@ async function maybeLoadConfiguredRailPack({ rerun = true, silent = true } = {})
       }
       const payload = JSON.parse(bodyText);
       const parsedPack = parseRailPackPayload(payload);
+      const missingWrapperPrices = getMissingWrapperPriceSymbols(parsedPack);
+      if (missingWrapperPrices.length > 0) {
+        throw new Error(`Configured live rail pack is missing wrapper prices for ${missingWrapperPrices.join(", ")}.`);
+      }
       parsedPack.label = parsedPack.label || "Configured live rail pack";
       parsedPack.remoteUrl = railPackUrl;
-      parsedPack.signatureVerified = isRemoteUrl(railPackUrl) ? verifyKeyB64.length > 0 : false;
+      parsedPack.signatureVerified = requiresSignature ? verifyKeyB64.length > 0 : false;
+      parsedPack.trustMode = requiresSignature ? "signed-remote" : "same-origin-build";
       appState.railPack = parsedPack;
 
       if (config.persist) {
@@ -2711,7 +3126,7 @@ function appendCopyReceiptLinkButton(receipt, config = getRuntimeConfig()) {
     await copyReceiptLinkToClipboard(receipt, { config, button });
   });
   if (button) {
-    button.title = "Copy receipt decision, rail, read-only receipt URL, and SuiVision links.";
+    button.title = "Copy receipt decision, rail, TIDE verifier URL, and SuiVision links.";
   }
 }
 
@@ -2765,18 +3180,37 @@ function buildReceiptEvidencePosture({
 } = {}) {
   const railDataMode = String(current?.report?.summary?.railDataMode || "unknown");
   const walrusSource = String(publishResult?.source || "unknown");
-  const pythSource = String(oracleReadback?.source || "missing");
+  const pythSource = buildPythProofSummary(oracleReadback).pythSource;
   const executionMode = limitations === "testnet-rehearsal"
     ? "testnet-rehearsal"
     : "shadow-only";
   return {
     railDataMode,
     walrusSource,
+    walrusFetchBackVerified: publishResult?.fetchBackVerified === true,
     pythSource,
     executionMode,
     claimBoundary: executionMode === "testnet-rehearsal"
       ? "testnet receipt + local proof digest; no mainnet capital movement"
       : "read-only modeled receipt evidence",
+  };
+}
+
+function buildPythProofSummary(readback) {
+  const source = String(readback?.source || "missing");
+  const pythSource = source === "live"
+    ? (isReadbackStale(readback) ? "stale" : "live")
+    : source === "fixture"
+    ? "fixture"
+    : "missing";
+  return {
+    pythSource,
+    pythFeedSymbol: String(readback?.feedSymbol || "BTC/USD"),
+    pythPriceInfoObjectId: String(readback?.priceInfoObjectId || ""),
+    pythPriceUsd: Number.isFinite(readback?.priceUsd) ? readback.priceUsd : 0,
+    pythPublishTimeMs: Number.isFinite(readback?.publishTimeMs) ? readback.publishTimeMs : 0,
+    pythAgeMs: Number.isFinite(readback?.ageMs) ? readback.ageMs : null,
+    pythConfidenceBps: Number.isFinite(readback?.confidenceBps) ? readback.confidenceBps : null,
   };
 }
 
@@ -2833,8 +3267,12 @@ function formatRailDataMode(value) {
   const pack = getActiveRailPack();
   const remote = Boolean(pack?.remoteUrl);
   const verified = pack?.signatureVerified === true;
+  const sameOriginBuild = pack?.trustMode === "same-origin-build";
 
   if (value === "live") {
+    if (sameOriginBuild) {
+      return "Live rail pack · bundled";
+    }
     if (remote && !verified) {
       return "Live rail pack · unverified";
     }
@@ -3230,7 +3668,7 @@ function syncPositionSupportFields(draft) {
   const runwayCopyNode = document.querySelector("[data-runway-copy]");
   if (runwayCopyNode) {
     const metrics = deriveDraftMetrics(nextDraft);
-    runwayCopyNode.textContent = `At the payout above, your buffer lasts about ${metrics.runwayMonths.toFixed(metrics.runwayMonths >= 10 ? 0 : 1)} months before it needs a refill. Floor should stay above ${formatCompactUsd(metrics.requiredBufferUsd)} ${stableAssetSymbol}.`;
+    runwayCopyNode.textContent = `Runway = starting buffer / monthly draw. This setup lasts about ${metrics.runwayMonths.toFixed(metrics.runwayMonths >= 10 ? 0 : 1)} months and keeps the floor above ${formatCompactUsd(metrics.requiredBufferUsd)} ${stableAssetSymbol}.`;
   }
 
   appState.draft = clone(nextDraft);
@@ -3272,7 +3710,7 @@ function syncStrategyPresetField(form, presetKey) {
 const PRESET_DEFAULT_NAMES = {
   starter: "Harbor Base Case",
   safety: "Breakwater Base Case",
-  drift: "Future Mode Preview",
+  drift: "Drift Base Case",
 };
 
 function isPresetDefaultName(name) {
@@ -3905,6 +4343,9 @@ function applyRouteRunSelection(routeRunId = readRouteRunIdFromUrl()) {
         attachPolicyToSavedScenario(pinned, appState.current.onChainPolicy, appState.current.onChainReceipt || null);
       }
       persistCurrentState();
+      if (currentPage === "results" || currentPage === "live") {
+        scheduleRender();
+      }
       return { requested: true, applied: true, missing: false, id: pinned, source: "current" };
     }
   }
@@ -3922,33 +4363,55 @@ function applyRouteRunSelection(routeRunId = readRouteRunIdFromUrl()) {
 
 function applyRouteSetupSelection(routeId = readRouteScenarioIdFromUrl()) {
   const pinned = normalizeLiveHistoryText(routeId);
+  const proofArm = readRouteProofArmFromUrl();
+  const handoffDraft = readRouteDraftHandoffFromUrl();
+  const applyDraftToSetup = (draft, { id = "", type = "handoff", activeDraftId = "" } = {}) => {
+    appState.draft = proofArm ? armDraftForTestnetProof(draft) : normalizeDraftForAlpha(draft);
+    appState.activeDraftId = activeDraftId;
+    saveStorage(STORAGE_DRAFT_KEY, appState.draft);
+    saveStorage(STORAGE_ACTIVE_DRAFT_KEY, appState.activeDraftId);
+    return { requested: true, applied: true, missing: false, id, type };
+  };
   if (!pinned || currentPage !== "setup") {
+    if (currentPage === "setup" && handoffDraft) {
+      return applyDraftToSetup(handoffDraft, { type: "handoff" });
+    }
     return { requested: Boolean(pinned), applied: false, missing: false };
   }
 
   const draftRecord = (Array.isArray(appState.drafts) ? appState.drafts : [])
     .find((record) => record?.id === pinned);
   if (draftRecord?.draft) {
-    appState.draft = clone(draftRecord.draft);
-    appState.activeDraftId = draftRecord.id;
-    saveStorage(STORAGE_DRAFT_KEY, appState.draft);
-    saveStorage(STORAGE_ACTIVE_DRAFT_KEY, appState.activeDraftId);
-    return { requested: true, applied: true, missing: false, id: pinned, type: "draft" };
+    return applyDraftToSetup(draftRecord.draft, {
+      id: pinned,
+      type: "draft",
+      activeDraftId: proofArm ? "" : draftRecord.id,
+    });
   }
 
   const savedScenario = (Array.isArray(appState.saved) ? appState.saved : [])
     .find((scenario) => scenario?.id === pinned);
   if (savedScenario?.draft) {
     setCurrentFromSaved(savedScenario, { adoptDraft: true });
+    if (proofArm) {
+      appState.draft = armDraftForTestnetProof(appState.draft);
+      appState.activeDraftId = "";
+      saveStorage(STORAGE_DRAFT_KEY, appState.draft);
+      saveStorage(STORAGE_ACTIVE_DRAFT_KEY, "");
+    }
     return { requested: true, applied: true, missing: false, id: pinned, type: "run" };
   }
 
   if (appState.current?.sourceScenarioId === pinned && appState.current?.draft) {
-    appState.draft = clone(appState.current.draft);
+    appState.draft = proofArm ? armDraftForTestnetProof(appState.current.draft) : clone(appState.current.draft);
     appState.activeDraftId = "";
     saveStorage(STORAGE_DRAFT_KEY, appState.draft);
     saveStorage(STORAGE_ACTIVE_DRAFT_KEY, "");
     return { requested: true, applied: true, missing: false, id: pinned, type: "current" };
+  }
+
+  if (handoffDraft) {
+    return applyDraftToSetup(handoffDraft, { id: pinned, type: "handoff" });
   }
 
   return { requested: true, applied: false, missing: true, id: pinned };
@@ -4232,13 +4695,15 @@ function renderInlineSpark(values, opts = {}) {
   if (!arr) return "";
   const w = Number.isFinite(opts.width) ? opts.width : 48;
   const h = Number.isFinite(opts.height) ? opts.height : 12;
+  const pad = Math.max(1, Math.min(Number.isFinite(opts.padding) ? opts.padding : 2, h / 3));
   const min = Math.min(...arr);
   const max = Math.max(...arr);
-  const span = max - min || 1;
+  const span = max - min;
   const stepX = arr.length > 1 ? w / (arr.length - 1) : w;
   const points = arr.map((v, i) => {
     const x = i * stepX;
-    const y = h - ((v - min) / span) * h;
+    const ratio = span > 0 ? (v - min) / span : 0.5;
+    const y = (h - pad) - ratio * (h - pad * 2);
     return `${x.toFixed(2)},${y.toFixed(2)}`;
   });
   const d = `M${points[0]} L${points.slice(1).join(" L")}`;
@@ -4528,8 +4993,8 @@ function renderPriceScale({
   const footerHtml = `
     <p class="price-scale__headroom">
       ${headroomPct > 0
-        ? `<strong>${headroomPct.toFixed(0)}% modeled headroom</strong> — at the current modeled debt/collateral assumptions, BTC reaches the liquidation threshold near ${fmtUsd(priceAtMaxLtv)} (from ${fmtUsd(price)}).`
-        : `<strong class="price-scale__headroom--danger">Below liquidation threshold</strong> — BTC at ${fmtUsd(price)} vs liq ${fmtUsd(priceAtMaxLtv)}.`}
+        ? `<strong>${headroomPct.toFixed(0)}% modeled headroom</strong> — at the current modeled debt/collateral assumptions, BTC reaches max pressure near ${fmtUsd(priceAtMaxLtv)} (from ${fmtUsd(price)}).`
+        : `<strong class="price-scale__headroom--danger">Inside danger zone</strong> — BTC at ${fmtUsd(price)} vs max pressure ${fmtUsd(priceAtMaxLtv)}.`}
     </p>
   `;
   return renderScaleShell({
@@ -4537,7 +5002,7 @@ function renderPriceScale({
     tone,
     label: options.label || "BTC price · drawdown sensitivity",
     currentLabel: fmtUsd(price),
-    ariaLabel: `BTC price ${fmtUsd(price)}, liquidation at ${fmtUsd(priceAtMaxLtv)}`,
+    ariaLabel: `BTC price ${fmtUsd(price)}, max pressure at ${fmtUsd(priceAtMaxLtv)}`,
     legendHtml,
     bandsHtml,
     needlePct: currentPct,
@@ -4581,7 +5046,7 @@ function renderPositionScale(currentLtv, targetLow, targetHigh, maxLtv, options 
         ? "ok"
         : "low";
   const toneLabel = tone === "danger"
-    ? "above max, liquidation zone"
+    ? "above max, danger zone"
     : tone === "warn"
       ? "above target, warning corridor"
       : tone === "ok"
@@ -4599,7 +5064,7 @@ function renderPositionScale(currentLtv, targetLow, targetHigh, maxLtv, options 
   const legendHtml = `
     <span class="legend-chip legend-chip--mint">${fmt(lo)}–${fmt(hi)} target</span>
     <span class="legend-chip legend-chip--amber">${fmt(safeMax)} max</span>
-    <span class="legend-chip legend-chip--rose">liq</span>
+    <span class="legend-chip legend-chip--rose">danger</span>
   `;
   const ticksHtml = `
     <span style="left:0%">0%</span>
@@ -4610,9 +5075,9 @@ function renderPositionScale(currentLtv, targetLow, targetHigh, maxLtv, options 
   return renderScaleShell({
     kind: "position",
     tone,
-    label: options.label || "Position · LTV",
+    label: options.label || "Position · debt pressure",
     currentLabel: ltvFmt,
-    ariaLabel: `LTV positioning ${ltvFmt}, ${toneLabel}, target ${fmt(lo)}–${fmt(hi)}, max ${fmt(safeMax)}`,
+    ariaLabel: `Debt pressure ${ltvFmt}, ${toneLabel}, target ${fmt(lo)}–${fmt(hi)}, max ${fmt(safeMax)}`,
     legendHtml,
     bandsHtml,
     needlePct: ltvPct,
@@ -4730,7 +5195,7 @@ function bindSparkBarClicks(container, scenarios) {
           <div><span>Health</span><strong>${o.health.score}/100</strong></div>
           <div><span>Action</span><strong>${escapeHtml(formatActionTypeLabel(o.result.decision.chosen.type))}</strong></div>
           <div><span>Payout</span><strong>${formatUsdRange(o.payoutBandLowUsd, o.payoutBandHighUsd)}</strong></div>
-          <div><span>LTV</span><strong>${formatPercentDecimal(o.result.decision.risk.ltv)}</strong></div>
+          <div><span>Debt pressure</span><strong>${formatPercentDecimal(o.result.decision.risk.ltv)}</strong></div>
           <div><span>Buffer</span><strong>${Math.round(o.bufferCoverageDays)}d</strong></div>
           <div><span>Regime</span><strong>${escapeHtml(o.result.decision.regime)}</strong></div>
         </div>
@@ -5016,7 +5481,7 @@ function collectUniqueNotes(report) {
 
     let copy = `Baseline ${Math.max(1, Number(summary.baselineHorizonDays) || 30)}-day run includes ${modelBits.join(" and ") || "modeled drag"}.`;
     if (Number(summary.worstCaseLiquidationPenaltyUsd) > 0) {
-      copy += ` Worst-case liquidation penalty is ${formatUsd(summary.worstCaseLiquidationPenaltyUsd)}`;
+      copy += ` Worst-case danger-zone penalty is ${formatUsd(summary.worstCaseLiquidationPenaltyUsd)}`;
       if (summary.liquidationScenarioLabel) {
         copy += ` in ${summary.liquidationScenarioLabel}`;
       }
@@ -5187,8 +5652,8 @@ function formatOperatingStateLabel(state) {
 }
 
 const PROOF_LIMITATION_LABELS = {
-  "shadow-only": "Shadow Mode — no wallet",
-  "testnet-rehearsal": "Testnet rehearsal — no live execution",
+  "shadow-only": "Rehearsal — local only",
+  "testnet-rehearsal": "Testnet proof — no mainnet funds move",
 };
 
 function formatProofLimitationLabel(limitations) {
@@ -5209,13 +5674,13 @@ const RECEIPT_ACTION_LABELS = {
   harbor_rebalance_preview: "Harbor rebalance preview",
   breakwater_drill: "Breakwater drill",
   drift_accumulate_preview: "Drift accumulation preview",
-  "mainnet.event_observed": "Mainnet event observed",
-  "receipt.mint": "Mint action receipt",
-  "mint-receipt": "Mint action receipt",
-  "policy.anchor": "Anchor policy",
+  "mainnet.event_observed": "Manual Suilend repayment observed",
+  "receipt.mint": "Mint receipt",
+  "mint-receipt": "Mint receipt",
+  "policy.anchor": "Save policy",
   "policy.update": "Update policy",
-  "save-policy-on-chain": "Anchor or update policy",
-  "execute-live-action": "Rail action preview",
+  "save-policy-on-chain": "Save or update policy",
+  "execute-live-action": "Receipt preview",
 };
 
 function formatReceiptActionLabel(action) {
@@ -5302,17 +5767,17 @@ function renderExecutionPanel(rootSelector = "#results-execution") {
   const wallet = getWalletState();
   const current = appState.current;
   const currentRunHref = buildRunReadoutHref(current?.sourceScenarioId || "");
-  const isAnchoredLiveReadout = Boolean(current?.onChainPolicy?.id);
-  if (currentPage === "live" && !isAnchoredLiveReadout) {
+  const isSavedLiveReadout = Boolean(current?.onChainPolicy?.id);
+  if (currentPage === "live" && !isSavedLiveReadout) {
     _executionConfirmArmed = false;
     safeReplaceChildren(root, `
       <div class="section-head">
         <div>
-          <p class="section-label">Live scope</p>
-          <h2>Select an anchored policy</h2>
+          <p class="section-label">Proof path</p>
+          <h2>Select a saved policy</h2>
         </div>
       </div>
-      <p class="surface-copy">This surface monitors an on-chain policy family. Open Workspace, pick a live policy, then return here for operator actions and receipts.</p>
+      <p class="surface-copy">This surface monitors a saved policy family. Open Workspace, pick a policy, then return here for receipts and operator review.</p>
       <div class="action-cluster action-cluster-compact">
         <a class="button button-primary" href="/">Open Workspace</a>
         ${current?.report ? `<a class="button button-secondary" href="${escapeHtml(currentRunHref)}">Review simulation</a>` : ""}
@@ -5346,11 +5811,11 @@ function renderExecutionPanel(rootSelector = "#results-execution") {
     safeReplaceChildren(root, `
       <div class="section-head">
         <div>
-          <p class="section-label">Rail action</p>
+          <p class="section-label">Proof path</p>
           <h2>Create and simulate first</h2>
         </div>
       </div>
-      <p class="surface-copy">Live is downstream from Create and Readout. Produce a policy decision first, then this surface can prepare the execution path.</p>
+      <p class="surface-copy">The receipt flow starts after Create and Readout. Produce a policy decision first, then this surface can prepare the proof path.</p>
       <div class="action-cluster action-cluster-compact">
         <a class="button button-primary" href="/setup">Open Create</a>
         ${!isVerdictHost && current?.report ? `<a class="button button-secondary" href="${escapeHtml(currentRunHref)}">Open Readout</a>` : ""}
@@ -5363,11 +5828,11 @@ function renderExecutionPanel(rootSelector = "#results-execution") {
     safeReplaceChildren(root, `
       <div class="section-head">
         <div>
-          <p class="section-label">Rail action</p>
+          <p class="section-label">Proof path</p>
           <h2>Re-run the draft before signing</h2>
         </div>
       </div>
-      <p class="surface-copy">The Create draft changed after the last simulation. Live stays blocked until Readout reflects the current form, not an older run.</p>
+      <p class="surface-copy">The Create draft changed after the last simulation. Testnet proof stays blocked until Readout reflects the current form, not an older run.</p>
       <div class="action-cluster action-cluster-compact">
         <a class="button button-primary" href="/setup">Open Create</a>
         ${!isVerdictHost ? `<a class="button button-secondary" href="${escapeHtml(currentRunHref)}">Open Readout</a>` : ""}
@@ -5378,21 +5843,21 @@ function renderExecutionPanel(rootSelector = "#results-execution") {
 
   if (executionState.state === "fixture-data" || executionState.state === "unverified-data") {
     const title = executionState.state === "fixture-data"
-      ? "Verified live feed required"
-      : "Unsigned live data cannot sign";
+      ? "Verified market data required"
+      : "Unsigned market data cannot mint";
     const copy = executionState.state === "fixture-data"
-      ? "This run is still backed by fixtures or starter scope. Load a signed live rail pack in Create, re-run the draft, then return here."
-      : "Live monitoring can read this pack, but signing stays blocked until the rail feed is signature-verified end to end.";
+      ? "This run is still backed by fixtures or starter scope. Load a verified market snapshot in Create, re-run the draft, then return here."
+      : "The app can read this market snapshot, but receipt minting stays blocked until the snapshot is signature-verified end to end.";
     safeReplaceChildren(root, `
       <div class="section-head">
         <div>
-          <p class="section-label">Rail action</p>
+          <p class="section-label">Proof path</p>
           <h2>${escapeHtml(title)}</h2>
         </div>
       </div>
       <p class="surface-copy">${escapeHtml(copy)}</p>
       <div class="action-cluster action-cluster-compact">
-        <a class="button button-primary" href="${blockerHref}">Load in Create</a>
+        <a class="button button-primary" href="${blockerHref}">Load market data in Create</a>
         ${!isVerdictHost ? `<a class="button button-secondary" href="${blockerSecondaryHref}">Review Readout</a>` : ""}
       </div>
     `);
@@ -5403,8 +5868,8 @@ function renderExecutionPanel(rootSelector = "#results-execution") {
     safeReplaceChildren(root, `
       <div class="section-head">
         <div>
-          <p class="section-label">Rail action</p>
-          <h2>Connect wallet to review</h2>
+          <p class="section-label">Proof path</p>
+          <h2>Connect wallet to mint receipt</h2>
         </div>
       </div>
       <p class="surface-copy">The route is ready for review, but wallet-specific checks require an active wallet session.</p>
@@ -5435,21 +5900,21 @@ function renderExecutionPanel(rootSelector = "#results-execution") {
       ? "Manual collateral is fine for simulation, but signing needs a real BTC wrapper selected in Create. Pick the wrapper in the collateral control, run the simulation again, then return here."
       : isPreviewOnly
         ? executionState.reason === "protocol-execution-gated"
-          ? "Overflow rehearsal mode keeps protocol borrow, repay, and swap adapters in preview. Anchor the policy and mint an action receipt for testnet evidence; no live rail transaction is sent here."
+          ? "Receipt flow keeps borrow, repay, and swap adapters preview-only. Save the policy and mint a receipt for evidence; no live rail transaction is sent here."
           : (executionCapability?.message || txPreview?.tx?.warning || "This rail is connected in read-only mode for now.")
         : executionState.state === "unsupported-rail"
-          ? "This rail is visible in Live, but no execution adapter is attached yet."
+          ? "This rail is visible, but no signed adapter is attached yet."
         : "";
 
   const confirmPanelHidden = !(canExecute && _executionConfirmArmed);
   const confirmPanel = `
       <div class="exec-confirm-panel" role="status" aria-live="polite" aria-atomic="true" ${confirmPanelHidden ? "hidden" : ""}>
-        <strong>Confirm this action in place</strong>
+        <strong>Confirm wallet signing</strong>
         <p>You are about to sign <b>${escapeHtml(actionLabel)}</b> on <b>${escapeHtml(executionCapability?.protocol || railName || "this rail")}</b> for ${chosen.amountUsd ? escapeHtml(`$${formatCompactUsd(chosen.amountUsd)}`) : "the current amount"}.</p>
         <div class="action-cluster action-cluster-compact">
           <button type="button" class="button button-secondary" id="exec-cancel-confirm" ${confirmPanelHidden ? "disabled" : ""}>Cancel</button>
           <button type="button" class="button button-primary exec-sign-btn" id="exec-sign-btn" ${_executionInProgress || confirmPanelHidden ? "disabled" : ""}>
-            ${_executionInProgress ? '<span class="btn-spinner"></span> Signing…' : "Sign gated action"}
+            ${_executionInProgress ? '<span class="btn-spinner"></span> Signing…' : "Sign with wallet"}
           </button>
         </div>
       </div>
@@ -5473,13 +5938,13 @@ function renderExecutionPanel(rootSelector = "#results-execution") {
   safeReplaceChildren(root, `
     <div class="section-head">
       <div>
-        <p class="section-label">Rail action</p>
-        <h2>Protocol action preview</h2>
+        <p class="section-label">Proof path</p>
+        <h2>Receipt readiness</h2>
       </div>
       <div class="exec-header-actions">
         <button type="button" class="button button-ghost button-sm" id="exec-refresh-portfolio">
           ${icon("refresh-cw", "sm")}
-          Refresh portfolio
+          Refresh wallet data
         </button>
       </div>
     </div>
@@ -5495,7 +5960,7 @@ function renderExecutionPanel(rootSelector = "#results-execution") {
 
       ${isExecutable && railName ? `
         <div class="exec-action-route">
-          <span>Protocol</span>
+          <span>Selected rail</span>
           <strong>${escapeHtml(executionCapability?.protocol || railName)}</strong>
         </div>
       ` : ""}
@@ -5505,7 +5970,7 @@ function renderExecutionPanel(rootSelector = "#results-execution") {
 
       ${txPreview?.tx ? `
         <div class="exec-action-meta">
-          <span>Transaction: ${escapeHtml(txPreview.tx.description)}</span>
+          <span>Action preview: ${escapeHtml(txPreview.tx.description)}</span>
           <span>Est. gas: ${(txPreview.tx.estimatedGas / 1e6).toFixed(1)} MIST</span>
         </div>
       ` : ""}
@@ -5513,7 +5978,7 @@ function renderExecutionPanel(rootSelector = "#results-execution") {
       ${canExecute ? `
         <div class="exec-action-cta">
           <button type="button" class="button button-primary exec-sign-btn" id="exec-review-btn" ${_executionInProgress ? "disabled" : ""}>
-            ${_executionConfirmArmed ? "Ready to sign below" : "Review & confirm"}
+            ${_executionConfirmArmed ? "Ready to sign below" : "Review signing details"}
           </button>
         </div>
       ` : executionNote ? `
@@ -5526,7 +5991,7 @@ function renderExecutionPanel(rootSelector = "#results-execution") {
           ${decision.risk.needsEmergencyDeRisk ? "Emergency conditions active" : "No emergency conditions"}
         </span>
         <span class="exec-check ${decision.risk.ltv > 0.6 ? "exec-check-warn" : "exec-check-ok"}">
-          LTV ${(decision.risk.ltv * 100).toFixed(1)}%
+          Debt pressure ${(decision.risk.ltv * 100).toFixed(1)}%
         </span>
         <span class="exec-check exec-check-ok">
           Regime: ${escapeHtml(decision.regime)}
@@ -5782,7 +6247,7 @@ async function handleSignAndExecute() {
 }
 
 async function handleSavePolicyOnChain(options = {}) {
-  const { navigateToLive = false } = options;
+  const { navigateToReadout = false } = options;
   const wallet = getWalletState();
   if (!wallet.connected || _policySaveInProgress) {
     return;
@@ -5799,8 +6264,8 @@ async function handleSavePolicyOnChain(options = {}) {
     flagScenarioNameCollision();
     setStatus(
       namePolicyProblem === "empty"
-        ? "Pick a scenario name before publishing on-chain."
-        : "Pick a unique scenario name before publishing on-chain.",
+        ? "Pick a scenario name before saving on-chain."
+        : "Pick a unique scenario name before saving on-chain.",
       true,
     );
     return;
@@ -5819,8 +6284,19 @@ async function handleSavePolicyOnChain(options = {}) {
 
   const latestScope = getCreateScopeKey(latestDraft.createScope);
   if (latestScope !== "live" && !appState.current?.onChainPolicy?.id) {
-    setStatus("Switch Create to Live before anchoring a policy on-chain.", true);
+    setStatus("Switch Create to Testnet proof before saving a policy on-chain.", true);
     return;
+  }
+  if (latestScope === "live") {
+    const scopeState = getCreateScopeState({
+      draft: latestDraft,
+      walletState: wallet,
+      proofContext: getCreateScopeProofContext(),
+    });
+    if (scopeState.mockCollateral || !scopeState.walletBacked) {
+      setStatus("Save on testnet requires wallet-backed collateral. Run the mock rehearsal locally, then connect an owned wBTC/xBTC balance before saving.", true);
+      return;
+    }
   }
 
   const currentDraftJson = JSON.stringify(appState.current?.draft || null);
@@ -5909,7 +6385,7 @@ async function handleSavePolicyOnChain(options = {}) {
         }
         renderCurrentPage();
         setStatus(
-          "This policy object belongs to an older testnet package. Review the draft in Live mode, then anchor a fresh policy object explicitly.",
+          "This policy belongs to an older testnet package. Review the draft in Testnet proof, then save a fresh policy explicitly.",
           true,
         );
         return;
@@ -5941,9 +6417,9 @@ async function handleSavePolicyOnChain(options = {}) {
     if (railWillChange) moveCalls.push(`${pkg}::${mod}::select_rail`);
 
     startSigningTimeline({
-      title: isUpdate ? "Update policy on-chain" : "Anchor policy on-chain",
+      title: isUpdate ? "Update policy on-chain" : "Save policy on-chain",
       subtitle: describeSigningNetwork(),
-      finalLabel: isUpdate ? "Policy update linked" : "Policy object linked",
+      finalLabel: isUpdate ? "Policy update linked" : "Policy linked",
       precheck: "policy snapshot + wallet checks OK",
     });
     updateSigningTimeline("wallet", {
@@ -5953,7 +6429,7 @@ async function handleSavePolicyOnChain(options = {}) {
     });
 
     const confirmed = await confirmPreSign({
-      title: isUpdate ? "Update policy on-chain" : "Anchor new policy on-chain",
+      title: isUpdate ? "Update policy on-chain" : "Save new policy on-chain",
       subtitle: describeSigningNetwork(),
       moveCalls,
       fields: buildPolicyPreSignFields(builder.policy),
@@ -6005,7 +6481,7 @@ async function handleSavePolicyOnChain(options = {}) {
     const confirmedResult = requireConfirmedTransaction(
       confirmation,
       digest,
-      isUpdate ? "Policy update" : "Policy anchor",
+      isUpdate ? "Policy update" : "Policy save",
     );
 
     const policyRef = resolvePolicyObjectReference({
@@ -6017,7 +6493,7 @@ async function handleSavePolicyOnChain(options = {}) {
     const policyId = policyRef.objectId;
 
     if (!policyId) {
-      throw new Error(`Policy transaction confirmed but no policy object id was returned (${policyRef.reason || "unknown"}).`);
+      throw new Error(`Policy transaction confirmed but no policy id was returned (${policyRef.reason || "unknown"}).`);
     }
     updateSigningTimeline("final", {
       subByStep: {
@@ -6045,7 +6521,7 @@ async function handleSavePolicyOnChain(options = {}) {
       ok: true,
       txId: digest,
       action: builder.mode === "update" ? "policy.update" : "policy.anchor",
-      description: builder.mode === "update" ? "Update policy on-chain" : "Anchor new policy on-chain",
+      description: builder.mode === "update" ? "Update policy on-chain" : "Save new policy on-chain",
       protocol: "Policy registry",
       policyId: appState.current.onChainPolicy.id || policyId,
       sourceScenarioId: appState.current.sourceScenarioId || "",
@@ -6054,7 +6530,7 @@ async function handleSavePolicyOnChain(options = {}) {
 
     setStatus(
       appState.current.onChainPolicy.id
-        ? `Policy anchored on Sui testnet: ${formatPolicyObjectId(appState.current.onChainPolicy.id)}.`
+        ? `Policy saved on Sui testnet: ${formatPolicyObjectId(appState.current.onChainPolicy.id)}.`
         : "Policy submitted on-chain."
     );
     trackEvent("policy_sync_completed", {
@@ -6071,9 +6547,10 @@ async function handleSavePolicyOnChain(options = {}) {
         final: `${formatPolicyObjectId(appState.current.onChainPolicy.id || policyId)} · ${digest ? shortenMiddle(digest, 8, 6) : "confirmed"}`,
       },
     });
-    if (navigateToLive) {
-      window.location.assign(buildLivePolicyHref(appState.current.onChainPolicy.id || policyId, {
-        id: appState.current.sourceScenarioId || "",
+    if (navigateToReadout) {
+      window.location.assign(buildRunReadoutHref(appState.current.sourceScenarioId || "", {
+        policy: appState.current.onChainPolicy?.id || policyId,
+        hash: "readout-actions",
       }));
     }
   } catch (error) {
@@ -6088,7 +6565,7 @@ async function handleSavePolicyOnChain(options = {}) {
         ok: false,
         txId: null,
         action: policyAction,
-        description: policyAction === "policy.update" ? "Update policy on-chain" : "Anchor new policy on-chain",
+        description: policyAction === "policy.update" ? "Update policy on-chain" : "Save new policy on-chain",
         protocol: "Policy registry",
         error: signingFailure.classified.developerMessage,
         policyId: appState.current?.onChainPolicy?.id || "",
@@ -6109,7 +6586,7 @@ async function handleSavePolicyOnChain(options = {}) {
 }
 
 // Render a sequenced proof-timeline card so an operator (and reviewers)
-// can follow the on-chain trail of a mint end-to-end: policy anchored →
+// can follow the on-chain trail of a mint end-to-end: policy saved →
 // signing tx → receipt object → Walrus evidence. Each step that has data
 // renders a SuiVision link; steps with no data show as inactive so the
 // shape stays consistent while the flow is in-progress.
@@ -6158,13 +6635,19 @@ function getWalrusEvidenceLabel(blobId) {
   const value = typeof blobId === "string" ? blobId.trim() : "";
   if (!value) return "Walrus evidence";
   if (/^tide-stub:\/\//i.test(value) || /^(?:testnet|mainnet|devnet)-proof:/i.test(value)) {
-    return "Walrus stub";
+    return "Local digest";
   }
   return "Walrus blob";
 }
 
 function renderProofTimelineCard({ receipt, policy }) {
   const cfg = getRuntimeConfig();
+  const receiptVerifierUrl = receipt?.id
+    ? buildReceiptReadOnlyUrl(receipt, {
+        config: cfg,
+        network: receipt?.limitations === "testnet-rehearsal" ? "testnet" : "",
+      })
+    : "";
   const receiptUrl = receipt?.id ? buildSuiExplorerUrl("object", receipt.id, cfg) : "";
   const mintTxUrl = receipt?.txDigest ? buildSuiExplorerUrl("tx", receipt.txDigest, cfg) : "";
   const policyUrl = policy?.id ? buildSuiExplorerUrl("object", policy.id, cfg) : "";
@@ -6179,7 +6662,7 @@ function renderProofTimelineCard({ receipt, policy }) {
   const steps = [
     {
       n: 1,
-      label: "Policy anchored",
+      label: "Policy saved",
       value: policy?.id ? formatPolicyObjectId(policy.id) : "—",
       rawValue: policy?.id || "",
       kind: "object",
@@ -6204,7 +6687,10 @@ function renderProofTimelineCard({ receipt, policy }) {
       value: receipt?.id ? formatPolicyObjectId(receipt.id) : "—",
       rawValue: receipt?.id || "",
       kind: "object",
-      hrefs: receiptUrl ? [{ url: receiptUrl, text: "SuiVision" }] : [],
+      hrefs: [
+        receiptVerifierUrl ? { url: receiptVerifierUrl, text: "verifier" } : null,
+        receiptUrl ? { url: receiptUrl, text: "SuiVision" } : null,
+      ].filter(Boolean),
       done: Boolean(receipt?.id),
     },
     {
@@ -6222,25 +6708,26 @@ function renderProofTimelineCard({ receipt, policy }) {
     <article class="log-card proof-timeline" data-state="on-chain-receipt" data-verified="${verification?.ok === true ? "true" : "false"}">
       <div class="log-card-head">
         <div>
-          <span>Action receipt • ${escapeHtml(formatReceiptActionLabel(receipt.action || "shadow_run_completed"))}</span>
+          <span>Receipt • ${escapeHtml(formatReceiptActionLabel(receipt.action || "shadow_run_completed"))}</span>
           <strong>${escapeHtml(formatPolicyObjectId(receipt.id))}</strong>
         </div>
         <div class="proof-timeline__actions">
           <span class="state-badge">Receipt</span>
-          ${receiptUrl ? `<a class="button button-secondary button-sm" href="${escapeHtml(receiptUrl)}" target="_blank" rel="noopener noreferrer">Open receipt on SuiVision</a>` : ""}
+          ${receiptVerifierUrl ? `<a class="button button-primary button-sm" href="${escapeHtml(receiptVerifierUrl)}">Open verifier</a>` : ""}
+          ${receiptUrl ? `<a class="button button-secondary button-sm" href="${escapeHtml(receiptUrl)}" target="_blank" rel="noopener noreferrer">SuiVision</a>` : ""}
         </div>
       </div>
       <p>Rail <strong>${escapeHtml(receipt.selectedRail || "unknown")}</strong> · policy v${escapeHtml(String(receipt.policyVersion || 1))} · minted ${escapeHtml(mintedLabel)}.</p>
       <p class="section-footnote">
         Decision: <strong>${escapeHtml(receipt.decisionType ? formatActionTypeLabel(receipt.decisionType) : "legacy schema v1")}</strong>
         ${receipt.limitations ? `· ${escapeHtml(formatProofLimitationLabel(receipt.limitations))}` : ""}
-        ${receipt.stateBeforeDigestHex ? `· Engine decision hash ${renderProofTimelineHash({ kind: "digest", value: formatPolicyObjectId(receipt.stateBeforeDigestHex), rawValue: receipt.stateBeforeDigestHex })}` : ""}
+        ${receipt.stateBeforeDigestHex ? `· Pre-action state digest ${renderProofTimelineHash({ kind: "digest", value: formatPolicyObjectId(receipt.stateBeforeDigestHex), rawValue: receipt.stateBeforeDigestHex })}` : ""}
       </p>
       ${verification
-        ? `<p class="section-footnote"><strong>Verification:</strong> ${verification.ok ? "digest + freshness verified" : escapeHtml(verification.digestReason || verification.freshnessReason || "pending")} ${verificationSource ? `· source ${escapeHtml(verificationSource)}` : ""}</p>`
+        ? `<p class="section-footnote"><strong>Verification:</strong> ${verification.ok ? "receipt bundle verified" : escapeHtml(verification.digestReason || verification.freshnessReason || "pending")} ${verificationSource ? `· source ${escapeHtml(verificationSource)}` : ""}</p>`
         : ""}
 
-      <ol class="status-timeline" aria-label="On-chain action receipt timeline">
+      <ol class="status-timeline" aria-label="On-chain receipt timeline">
         ${steps.map((step) => `
           <li class="status-timeline__step ${step.done ? "status-timeline__step--done" : "status-timeline__step--pending"}">
             <span class="status-timeline__dot" aria-hidden="true">${step.n}</span>
@@ -6287,7 +6774,7 @@ function renderReceiptEvidencePanel({ current = appState.current, policy = curre
   const steps = [
     {
       n: 1,
-      label: "Policy anchored",
+      label: "Policy saved",
       value: formatPolicyObjectId(policy.id),
       rawValue: policy.id,
       kind: "object",
@@ -6307,7 +6794,7 @@ function renderReceiptEvidencePanel({ current = appState.current, policy = curre
       <article class="log-card proof-timeline proof-timeline--pending" data-state="receipt-pending" data-verified="false">
         <div class="log-card-head">
           <div>
-            <span>Action receipt</span>
+            <span>Receipt</span>
             <strong>Awaiting mint</strong>
           </div>
           <span class="state-badge state-badge--amber">Pending</span>
@@ -6315,7 +6802,7 @@ function renderReceiptEvidencePanel({ current = appState.current, policy = curre
         <p>Rail <strong>${escapeHtml(rail)}</strong> · policy v${escapeHtml(String(policyVersion))} · receipt not minted yet.</p>
         <p class="section-footnote"><strong>Verification:</strong> waiting for receipt object + digest check.</p>
 
-        <ol class="status-timeline" aria-label="Action receipt timeline">
+        <ol class="status-timeline" aria-label="Receipt timeline">
           ${steps.map((step) => `
             <li class="status-timeline__step ${step.done ? "status-timeline__step--done" : "status-timeline__step--pending"}">
               <span class="status-timeline__dot" aria-hidden="true">${step.n}</span>
@@ -6352,11 +6839,11 @@ function renderDecisionAtlas({ receipt, policy }) {
   const verificationLabel = verificationOk ? "Digest + freshness verified" : "Digest pinned";
   const verificationCopy = verificationOk
     ? "The local verifier matched the receipt digest and the proof-bundle freshness window."
-    : "The receipt pins the content digest; the action-receipt timeline carries the current verifier status.";
-  const shortReadOnlyPath = receipt.id ? `SuiVision ${formatPolicyObjectId(receipt.id)}` : "SuiVision";
+    : "The receipt pins the content digest; the receipt timeline carries the current verifier status.";
+  const shortReadOnlyPath = receipt.id ? `TIDE verifier ${formatPolicyObjectId(receipt.id)}` : "TIDE verifier";
 
   return `
-    <article class="decision-atlas" aria-label="Action receipt verification summary">
+    <article class="decision-atlas" aria-label="Receipt verification summary">
       <div class="decision-atlas__item">
         <span>What changed</span>
         <strong>${escapeHtml(decisionLabel)}</strong>
@@ -6371,9 +6858,11 @@ function renderDecisionAtlas({ receipt, policy }) {
         <span>Where to verify</span>
         <strong>${escapeHtml(describeSuiNetworkLabel())}</strong>
         <p>
+          ${readOnlyUrl ? `<a href="${escapeHtml(readOnlyUrl)}" target="_blank" rel="noopener noreferrer">TIDE verifier</a>` : ""}
+          ${readOnlyUrl && receiptUrl ? " · " : ""}
           ${receiptUrl ? `<a href="${escapeHtml(receiptUrl)}" target="_blank" rel="noopener noreferrer">Receipt object</a>` : ""}
           ${txUrl ? ` · <a href="${escapeHtml(txUrl)}" target="_blank" rel="noopener noreferrer">Mint tx</a>` : ""}
-          ${policyUrl ? ` · <a href="${escapeHtml(policyUrl)}" target="_blank" rel="noopener noreferrer">Policy object</a>` : ""}
+          ${policyUrl ? ` · <a href="${escapeHtml(policyUrl)}" target="_blank" rel="noopener noreferrer">Policy</a>` : ""}
         </p>
       </div>
       <div class="decision-atlas__item">
@@ -6385,8 +6874,8 @@ function renderDecisionAtlas({ receipt, policy }) {
             type="button"
             data-action="copy-receipt-link"
             data-receipt-id="${escapeHtml(receipt.id)}"
-            aria-label="Copy read-only receipt link"
-            title="${escapeHtml(readOnlyUrl || "Copy receipt decision, rail, read-only receipt URL, and SuiVision links.")}"
+            aria-label="Copy TIDE verifier receipt link"
+            title="${escapeHtml(readOnlyUrl || "Copy receipt decision, rail, TIDE verifier URL, and SuiVision links.")}"
           >Copy receipt link</button>
         </p>
       </div>
@@ -6422,10 +6911,10 @@ function renderJudgeDemoFrame(mode, runContext = null) {
       </article>
       <article class="judge-compare-card judge-compare-card--tide">
         <span>TIDE</span>
-        <h3>Policy → decision → action receipt</h3>
+        <h3>Policy → decision → receipt</h3>
         <ul>
           <li>Decision state and reason are explicit.</li>
-          <li>Policy object and rail digest are pinned.</li>
+          <li>Policy and rail digest are pinned.</li>
           <li>SuiVision anchors the receipt object and mint transaction.</li>
           ${fixture?.trustLabel ? `<li>${escapeHtml(fixture.trustLabel)} fixture is loaded for this judge route.</li>` : ""}
           <li>Expected decision: ${escapeHtml(decisionCopy)}. Guard: ${escapeHtml(guardCopy)}.</li>
@@ -6603,7 +7092,7 @@ function computeTrustLabels() {
   if (network === "testnet" && allowSigning && receiptsConfigured) {
     fullLabels.push({
       kind: "testnet",
-      text: hasReceipt ? "Action receipt minted" : "Testnet rehearsal",
+      text: hasReceipt ? "Receipt minted" : "Testnet rehearsal",
     });
     fullLabels.push({ kind: "safe", text: "Alpha allowlist active" });
   } else if (network === "devnet" && allowSigning && receiptsConfigured) {
@@ -6631,7 +7120,29 @@ function computeTrustLabels() {
   fullLabels.push({ kind: "safe", text: "No live execution" });
 
   if (currentPage === "workspace") {
-    return fullLabels;
+    const primary = network === "testnet" && allowSigning && receiptsConfigured
+      ? { kind: "testnet", text: hasReceipt ? "Receipt minted" : "Testnet proof" }
+      : network === "mainnet" && !allowSigning
+        ? { kind: "readonly", text: "Mainnet read-only" }
+        : !allowSigning
+          ? { kind: "readonly", text: "Read-only" }
+          : { kind: "shadow", text: "Simulation" };
+    const review = forecastStale
+      ? { kind: "readonly", text: "Forecast review" }
+      : railPackStale
+        ? { kind: "readonly", text: "Rail data review" }
+        : oracleConfidenceLow
+          ? { kind: "readonly", text: "Oracle review" }
+          : unsignedForecast
+            ? { kind: "readonly", text: "Unsigned feed" }
+            : null;
+    const visibleLabels = [
+      primary,
+      ...(review ? [review] : []),
+      { kind: "safe", text: "No live execution" },
+    ];
+    const fullText = fullLabels.map((l) => l.text).join(" · ");
+    return visibleLabels.map((label) => ({ ...label, ariaDescription: fullText }));
   }
 
   // Inner-page condensed: pick the most-operationally-relevant label
@@ -6660,9 +7171,9 @@ function computeTrustLabels() {
   } else if (currentPage === "results") {
     // Phase D.30 round-E fix: was branching on `network === mainnet`,
     // which answers "what network?" — but the dominant /results question
-    // is "is this anchored or still a draft sim?". Re-keyed on the
-    // anchoring dimension so an operator landing on /results in Journey
-    // A reads "Simulation only · not anchored" instead of generic
+    // is "is this saved or still a draft sim?". Re-keyed on the
+    // saved-policy dimension so an operator landing on /results in Journey
+    // A reads "Simulation only · not saved" instead of generic
     // "Read-only preview".
     if (onChainPolicy) {
       condensedText = unsignedForecast
@@ -6671,9 +7182,9 @@ function computeTrustLabels() {
         ? "On-chain policy · testnet rehearsal"
         : `On-chain policy · ${network || "read-only"}`;
     } else if (allowSigning && receiptsConfigured) {
-      condensedText = "Action receipt ready";
+      condensedText = "Simulation ready · save before receipt";
     } else {
-      condensedText = "Simulation only · not anchored";
+      condensedText = "Simulation only · not saved";
     }
   } else if (currentPage === "live") {
     condensedText = onChainPolicy
@@ -6862,12 +7373,12 @@ function buildPolicyPreSignFields(snapshot) {
     { label: "Priority", value: snapshot.priority || "—" },
     { label: "Rail (canonical)", value: snapshot.selectedRail || "—" },
     { label: "Collateral", value: snapshot.collateralSymbol || "BTC" },
-    { label: "Payout target / mo", value: formatUsdAmount(snapshot.payoutTargetUsd) },
+    { label: "Monthly draw / mo", value: formatUsdAmount(snapshot.payoutTargetUsd) },
     { label: "Min stable buffer", value: formatUsdAmount(snapshot.minBufferUsd) },
-    { label: "Max LTV", value: formatBpsAsPct(snapshot.maxLtvBps) },
-    { label: "Target LTV", value: `${formatBpsAsPct(snapshot.targetLtvLowBps)} → ${formatBpsAsPct(snapshot.targetLtvHighBps)}` },
-    { label: "Managed repay LTV", value: formatBpsAsPct(snapshot.repayLtvBps) },
-    { label: "Emergency LTV", value: formatBpsAsPct(snapshot.emergencyLtvBps) },
+    { label: "Max debt pressure", value: formatBpsAsPct(snapshot.maxLtvBps) },
+    { label: "Target debt pressure", value: `${formatBpsAsPct(snapshot.targetLtvLowBps)} → ${formatBpsAsPct(snapshot.targetLtvHighBps)}` },
+    { label: "Managed repay pressure", value: formatBpsAsPct(snapshot.repayLtvBps) },
+    { label: "Emergency pressure", value: formatBpsAsPct(snapshot.emergencyLtvBps) },
   ];
 }
 
@@ -6908,7 +7419,7 @@ function getWalletChainForPreSign(wallet = {}, expectedChain = null) {
 function getWalletNetworkWarning(wallet = getWalletState()) {
   const status = getWalletNetworkStatus(wallet, getRuntimeConfig());
   if (status.ok) return "";
-  return `${status.message} Autopilot Rehearsal checks remain read-only until signing.`;
+  return `${status.message} Rehearsals remain read-only until testnet proof signing is available.`;
 }
 
 function buildPreSigningOptions(wallet = {}, action = "unknown") {
@@ -6934,13 +7445,10 @@ function buildPreSigningOptions(wallet = {}, action = "unknown") {
   };
 }
 
-// Renders the trust-label pills into every `.trust-labels` container on
-// the page. Today there's exactly one container per page — the chrome
-// strip just below the topbar — so the user sees "No mainnet capital /
-// No live execution" at every step of the flow. The `visible` argument
-// is accepted for backward compatibility but ignored — the safety
-// posture is never hidden. Unknown page? The querySelectorAll just
-// returns empty, no-op.
+// Renders the trust-label pills into every `.trust-labels` container.
+// The visual label set is intentionally condensed; the complete posture
+// stays on each chip as aria-description so the UI does not become a
+// diagnostic log that breaks the first-screen layout.
 function syncTrustLabels(_opts = {}) {
   const targets = document.querySelectorAll(".trust-labels");
   if (!targets.length) return;
@@ -7014,7 +7522,7 @@ function syncEnvBadge() {
   if (network === "testnet") {
     setBadge(
       allowSigning ? "Testnet · proof signing" : "Testnet · read-only",
-      "Sui testnet — wallet signatures mint policy objects and action receipts only. No mainnet capital moves.",
+      "Sui testnet — wallet signatures save policies and mint receipts only. No mainnet capital moves.",
       "network-badge--testnet",
       allowSigning ? "live" : "read-only",
     );
@@ -7036,19 +7544,21 @@ function syncMintReceiptButton() {
 
   const wallet = getWalletState();
   const configured = isExecutionReceiptsConfigured(getRuntimeConfig());
+  const mintReadinessBlocker = getReceiptMintReadinessBlocker();
   const policy = appState.current?.onChainPolicy || null;
   const hasPolicy = Boolean(policy?.id);
   const hasReport = Boolean(appState.current?.report);
   const staleRefusal = getForecastStaleRefusal(appState.current);
 
   const readoutShell = currentPage === "results" || currentPage === "live";
-  const shouldShow = readoutShell || configured || hasPolicy;
-  button.hidden = !shouldShow;
+  const readoutHeaderButton = readoutShell && isReadoutHeaderActionButton(button);
+  const shouldShow = (readoutShell && (configured || hasPolicy)) || configured || hasPolicy;
+  button.hidden = Boolean(readoutHeaderButton) || !shouldShow;
 
   if (!shouldShow) return;
 
   let disabled = false;
-  let title = "Mint an on-chain testnet action receipt anchored by a content digest.";
+  let title = "Mint a testnet receipt pinned by a content digest.";
 
   const railCheck = resolveCurrentRailForOnChain();
 
@@ -7057,20 +7567,35 @@ function syncMintReceiptButton() {
     title = "Mint already in progress…";
   } else if (!configured) {
     disabled = true;
-    title = "This build is not wired to a testnet receipts module. Open testnet.tidesui.pro to mint action receipts.";
+    title = "This build is not wired to a testnet receipts module. Open testnet.tidesui.pro to mint receipts.";
   } else if (!wallet.connected) {
     disabled = true;
-    title = "Connect wallet to mint a testnet action receipt.";
+    title = "Connect wallet to mint a testnet receipt.";
   } else if (!hasPolicy) {
     disabled = true;
-    title = "Anchor the policy object first.";
+    title = "Save the policy on testnet first.";
   } else if (!hasReport) {
     disabled = true;
     title = "Run a simulation first.";
+  } else if (mintReadinessBlocker) {
+    disabled = true;
+    title = mintReadinessBlocker.message;
   } else if (staleRefusal) {
     disabled = true;
     title = staleRefusal.message;
-  } else if (!railCheck.canonical) {
+  } else {
+    const scopeState = getCreateScopeState({
+      draft: appState.current?.draft || {},
+      walletState: wallet,
+      proofContext: getCreateScopeProofContext(),
+    });
+    if (scopeState.mockCollateral || (scopeState.scope === "live" && !scopeState.walletBacked)) {
+      disabled = true;
+      title = "Mint receipt requires wallet-backed collateral; mock collateral can only run a local rehearsal.";
+    }
+  }
+
+  if (!disabled && !railCheck.canonical) {
     disabled = true;
     title = railCheck.message;
   }
@@ -7081,51 +7606,32 @@ function syncMintReceiptButton() {
   button.textContent = _mintReceiptInProgress
     ? "Minting…"
     : appState.current?.onChainReceipt?.id
-      ? "Mint another action receipt"
-      : "Mint action receipt";
+      ? "Mint another receipt"
+      : "Mint receipt";
 
-  const existingHint = button.parentElement?.querySelector?.(".mint-receipt-disabled-hint");
-  if (existingHint) existingHint.remove();
-  if (disabled && title && button.parentElement) {
-    const hint = document.createElement("p");
-    hint.id = "mint-receipt-disabled-reason";
-    hint.className = "sr-only mint-receipt-disabled-hint";
-    hint.textContent = title;
-    button.insertAdjacentElement("afterend", hint);
-    button.setAttribute("aria-describedby", hint.id);
-  } else {
-    button.removeAttribute("aria-describedby");
-  }
+  syncActionDisabledHint(button, disabled && !button.hidden ? title : "", "mint-receipt");
 }
 
 function buildProofRailPackFromState() {
   const pack = appState.railPack && typeof appState.railPack === "object" ? appState.railPack : {};
+  const generatedAtMs = Number(pack.generatedAtMs)
+    || Number(pack.updatedAtMs)
+    || Date.parse(pack.generatedAt || pack.updatedAt || "")
+    || 0;
   return {
     digest: pack.digest && Array.isArray(pack.digest) ? pack.digest : null,
     signedBy: typeof pack.signedBy === "string" ? pack.signedBy : "",
     signatureAlg: typeof pack.signatureAlg === "string" ? pack.signatureAlg : "ed25519",
-    generatedAtMs: Number(pack.generatedAtMs) || Number(pack.updatedAtMs) || 0,
+    generatedAtMs,
     source: typeof pack.label === "string" ? pack.label : "",
     signatureVerified: pack.signatureVerified === true,
+    snapshot: pack,
   };
 }
 
 async function computeRailPackDigestBytes() {
   const pack = appState.railPack && typeof appState.railPack === "object" ? appState.railPack : null;
-  const canonicalInput = {
-    label: typeof pack?.label === "string" ? pack.label : "",
-    generatedAtMs: Number(pack?.generatedAtMs) || Number(pack?.updatedAtMs) || 0,
-    signedBy: typeof pack?.signedBy === "string" ? pack.signedBy : "",
-    rails: Array.isArray(pack?.rails)
-      ? pack.rails.map((rail) => ({
-          id: typeof rail?.id === "string" ? rail.id : "",
-          venue: typeof rail?.venue === "string" ? rail.venue : "",
-          asset: typeof rail?.asset === "string" ? rail.asset : "",
-          referencePriceUsd: Number(rail?.referencePriceUsd) || 0,
-        }))
-      : [],
-  };
-  return digestBundle(canonicalInput);
+  return digestBundle(canonicalizeRailPackForProof(pack || {}));
 }
 
 function buildReceiptDecisionAttestation(current, runtime = getRuntimeConfig()) {
@@ -7169,14 +7675,204 @@ function buildReceiptDecisionAttestation(current, runtime = getRuntimeConfig()) 
   };
 }
 
-async function handleMintReceipt() {
+function normalizeMainnetReadbackForBundle(readback = null) {
+  if (!readback || typeof readback !== "object" || Array.isArray(readback)) return null;
+  const observedAt = normalizeLiveHistoryText(readback.observedAt || readback.fetchedAt || "");
+  const collateralUsd = Number(readback.collateralUsd);
+  const debtUsd = Number(readback.debtUsd);
+  const ltvBps = Number(readback.ltvBps);
+  if (!observedAt || !Number.isFinite(collateralUsd) || !Number.isFinite(debtUsd) || !Number.isFinite(ltvBps)) {
+    return null;
+  }
+  return {
+    schemaVersion: Number(readback.schemaVersion) || 1,
+    railId: resolveCanonicalRailId({
+      selectedRail: readback.railId || "suilend-sui",
+      railId: readback.railId || "suilend-sui",
+    }) || normalizeLiveHistoryText(readback.railId, "suilend-sui"),
+    walletAddress: normalizeWalletAddress(readback.walletAddress || "").toLowerCase(),
+    obligationId: normalizeLiveHistoryText(readback.obligationId || "").toLowerCase(),
+    objectOwnerAddress: normalizeWalletAddress(readback.objectOwnerAddress || "").toLowerCase(),
+    ownerBinding: normalizeLiveHistoryText(readback.ownerBinding || ""),
+    source: normalizeLiveHistoryText(readback.source || "live-mainnet-readonly"),
+    network: normalizeLiveHistoryText(readback.network || "mainnet-readonly"),
+    observedAt,
+    stale: readback.stale === true,
+    staleMaxMs: Number(readback.staleMaxMs) || 0,
+    collateralUsd: Math.max(0, collateralUsd),
+    debtUsd: Math.max(0, debtUsd),
+    ltvBps: Math.max(0, Math.round(ltvBps)),
+    trustLabel: normalizeLiveHistoryText(readback.trustLabel || "Live mainnet read-only read-back from Sui RPC. Not execution."),
+  };
+}
+
+function observedAtMs(readback = null) {
+  const ms = Date.parse(readback?.observedAt || "");
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function getLiveMainnetReceiptReadiness(policyId = "") {
+  const pinned = normalizeLiveHistoryText(policyId);
+  const evidence = getPolicyLiveMainnetEvidence(pinned);
+  if (evidence.status !== "verified") {
+    return {
+      ok: false,
+      message: "Verify the mainnet action digest first.",
+      evidence,
+      pre: null,
+      post: null,
+    };
+  }
+  const pre = normalizeMainnetReadbackForBundle(evidence.preReadback);
+  if (!pre) {
+    return {
+      ok: false,
+      message: "Refresh Suilend read-back before the manual action, then verify the tx digest.",
+      evidence,
+      pre: null,
+      post: null,
+    };
+  }
+  const txMs = Number(evidence.timestampMs) || 0;
+  if (!txMs || observedAtMs(pre) >= txMs) {
+    return {
+      ok: false,
+      message: "Refresh Suilend read-back before the manual action, then verify the tx digest again.",
+      evidence,
+      pre,
+      post: null,
+    };
+  }
+  const post = normalizeMainnetReadbackForBundle(getCachedLiveProtocolReadback(pinned)?.balanceReadback);
+  if (!post) {
+    return {
+      ok: false,
+      message: "Refresh Suilend read-back after the mainnet action before minting the final receipt.",
+      evidence,
+      pre,
+      post: null,
+    };
+  }
+  if (observedAtMs(post) < txMs) {
+    return {
+      ok: false,
+      message: "Refresh Suilend read-back after the verified mainnet tx, then mint the final receipt.",
+      evidence,
+      pre,
+      post,
+    };
+  }
+  if (post.debtUsd >= pre.debtUsd && post.ltvBps >= pre.ltvBps) {
+    return {
+      ok: false,
+      message: "Post-action read-back does not show lower debt or lower debt pressure yet.",
+      evidence,
+      pre,
+      post,
+    };
+  }
+  return { ok: true, message: "", evidence, pre, post };
+}
+
+function railVenueForMainnetAttestation(railId = "") {
+  const canonical = resolveCanonicalRailId({ selectedRail: railId, railId });
+  return canonical.endsWith("-sui") ? canonical.slice(0, -4) : "";
+}
+
+function isMainnetAttestedDecisionType(decisionType = "") {
+  return MAINNET_READONLY_DECISION_TYPES.has(decisionType);
+}
+
+async function buildMainnetReadOnlyReceiptProof({
+  policy,
+  current,
+  expectedReceiptRail,
+  decisionAttestation,
+}) {
+  const readiness = getLiveMainnetReceiptReadiness(policy?.id);
+  if (!readiness.ok) {
+    const error = new Error(readiness.message);
+    error.code = "mainnet-evidence-not-ready";
+    throw error;
+  }
+  const railId = resolveCanonicalRailId({ selectedRail: expectedReceiptRail, railId: expectedReceiptRail });
+  const rail = railVenueForMainnetAttestation(railId);
+  if (rail !== "suilend") {
+    throw new Error("Mainnet-read-only receipt minting is enabled for Suilend first.");
+  }
+  const decisionType = decisionAttestation.decisionType;
+  if (!isMainnetAttestedDecisionType(decisionType)) {
+    throw new Error(`Mainnet-read-only bundle does not support decision type ${decisionType || "(empty)"}.`);
+  }
+  const mainnetEvidence = {
+    digest: readiness.evidence.digest,
+    sender: readiness.evidence.sender,
+    obligationId: readiness.evidence.obligationId,
+    checkpoint: readiness.evidence.checkpoint,
+    timestampMs: readiness.evidence.timestampMs,
+    objectChangeCount: readiness.evidence.objectChangeCount,
+    protocolAction: "repay",
+    source: "live-mainnet-readonly",
+  };
+  const observedAt = new Date().toISOString();
+  const bundle = {
+    schemaVersion: 1,
+    kind: "tide-mainnet-attested-demo/v1",
+    rail,
+    railId,
+    observedAt,
+    network: {
+      mainnetReadback: "mainnet",
+      receiptMint: "testnet",
+    },
+    claimBoundary: "founder-manual-mainnet-execution / TIDE-readonly-observation / testnet-decision-attestation",
+    ownerAddress: readiness.evidence.sender,
+    obligationId: readiness.evidence.obligationId,
+    pre: readiness.pre,
+    post: readiness.post,
+    mainnetEvidence,
+    action: receiptActionForDecision(decisionType),
+    decisionType,
+    limitations: "testnet-rehearsal",
+    selectedRail: railId,
+    policy: {
+      id: policy.id,
+      version: Number(policy.version) || 1,
+      owner: policy.owner || readiness.evidence.sender,
+      selectedRail: railId,
+    },
+    report: {
+      summary: current?.report?.summary || {},
+      schemaVersion: Number(current?.report?.schemaVersion) || 1,
+    },
+  };
+  const contentDigest = await digestBundle(bundle);
+  const stateBeforeDigest = await digestBundle({
+    collateralUsd: Number(readiness.pre.collateralUsd) || 0,
+    debtUsd: Number(readiness.pre.debtUsd) || 0,
+    ltvBps: Number(readiness.pre.ltvBps) || 0,
+  });
+  return {
+    bundle,
+    canonical: canonicalizeBundle(bundle),
+    stateBeforeDigest,
+    stateBeforeDigestHex: toHexDigest(stateBeforeDigest),
+    contentDigest,
+    contentDigestHex: toHexDigest(contentDigest),
+    railPackDigest: contentDigest.slice(),
+    railPackDigestHex: toHexDigest(contentDigest),
+    mainnetReadOnlyAttested: true,
+  };
+}
+
+async function handleMintReceipt({ receiptMode = "testnet" } = {}) {
   if (_mintReceiptInProgress) return;
   _mintReceiptInProgress = true;
   syncMintReceiptButton();
 
   const wallet = getWalletState();
   if (!wallet.connected) {
-    setStatus("Connect wallet before minting a testnet action receipt.", true);
+    setStatus("Connect wallet before minting a testnet receipt.", true);
     _mintReceiptInProgress = false;
     syncMintReceiptButton();
     return;
@@ -7186,7 +7882,7 @@ async function handleMintReceipt() {
   try {
     preCheck = await preSigningCheck(buildPreSigningOptions(wallet, "mint-receipt"));
   } catch (error) {
-    const signingFailure = recordSigningFailure(error, {
+    const signingFailure = recordSigningFailure("receiptMint", error, {
       action: "receipt.mint.precheck",
       policyId: appState.current?.onChainPolicy?.id || "",
     });
@@ -7203,7 +7899,7 @@ async function handleMintReceipt() {
   }
 
   if (!isExecutionReceiptsConfigured(getRuntimeConfig())) {
-    setStatus("Testnet action receipts aren't available on this network yet.", true);
+    setStatus("Testnet receipts aren't available on this network yet.", true);
     _mintReceiptInProgress = false;
     syncMintReceiptButton();
     return;
@@ -7212,13 +7908,25 @@ async function handleMintReceipt() {
   const current = appState.current;
   let policy = current?.onChainPolicy || null;
   if (!policy?.id) {
-    setStatus("Anchor the policy on-chain before minting a testnet action receipt.", true);
+    setStatus("Save the policy on-chain before minting a testnet receipt.", true);
     _mintReceiptInProgress = false;
     syncMintReceiptButton();
     return;
   }
   if (!current?.report) {
     setStatus("Run a simulation first to produce an execution snapshot.", true);
+    _mintReceiptInProgress = false;
+    syncMintReceiptButton();
+    return;
+  }
+
+  const receiptScopeState = getCreateScopeState({
+    draft: current.draft || {},
+    walletState: wallet,
+    proofContext: getCreateScopeProofContext(),
+  });
+  if (receiptScopeState.mockCollateral || (receiptScopeState.scope === "live" && !receiptScopeState.walletBacked)) {
+    setStatus("Mint receipt requires wallet-backed collateral. Mock collateral can only run a local rehearsal.", true);
     _mintReceiptInProgress = false;
     syncMintReceiptButton();
     return;
@@ -7237,7 +7945,7 @@ async function handleMintReceipt() {
   if (!isPolicyObjectTypeCompatible(policy, cfg)) {
     const expectedType = getExpectedPolicyObjectType(cfg);
     setStatus(
-      `This policy object was anchored with an older testnet package. Anchor a fresh policy object, then mint the action receipt. Expected ${expectedType || "current package"}; got ${policy.objectType || "unknown type"}.`,
+      `This policy was saved with an older testnet package. Save a fresh policy, then mint the receipt. Expected ${expectedType || "current package"}; got ${policy.objectType || "unknown type"}.`,
       true,
     );
     trackEvent("receipt_policy_package_mismatch", {
@@ -7262,7 +7970,22 @@ async function handleMintReceipt() {
     return;
   }
 
-  setStatus("Preparing action receipt proof bundle…");
+  let pythReadbackForReceipt = null;
+  try {
+    pythReadbackForReceipt = await ensurePythOracleReadbackReadyForReceipt(cfg);
+  } catch (error) {
+    setStatus(error?.message || "Pyth BTC/USD read-back is not ready. Refresh oracle read-back before minting a receipt.", true);
+    trackEvent("pyth_readback_receipt_refused", {
+      policyId: policy.id || "",
+      rail: policy.selectedRail || current?.draft?.selectedRail || "",
+      reason: error?.code || error?.message || "unknown",
+    });
+    _mintReceiptInProgress = false;
+    syncMintReceiptButton();
+    return;
+  }
+
+  setStatus("Preparing receipt proof bundle…");
   let receiptMintObservation = null;
 
   try {
@@ -7276,36 +7999,56 @@ async function handleMintReceipt() {
     const railWillChange = Boolean(desiredRail) && desiredRail !== currentOnChainRail;
     const expectedReceiptRail = railWillChange ? desiredRail : currentOnChainRail;
     if (!expectedReceiptRail) {
-      throw new Error("Cannot mint action receipt without a selected rail.");
+      throw new Error("Cannot mint receipt without a selected rail.");
     }
 
-    const proof = await buildProofBundleWithDigest({
-      policy: {
-        id: policy.id,
-        version: Number(policy.version) || 1,
-        owner: policy.owner || wallet.address,
-        selectedRail: expectedReceiptRail,
-        mode: policy.mode || current.draft?.mode || "",
-        priority: policy.priority || current.draft?.priority || "",
-        collateralSymbol: policy.collateralSymbol || current.draft?.collateralAssetSymbol || "",
-        collateralCoinType: policy.collateralCoinType || current.draft?.collateralCoinType || "",
-        payoutTargetUsd: Number(policy.payoutTargetUsd) || 0,
-        minBufferUsd: Number(policy.minBufferUsd) || 0,
-        maxLtvBps: Number(policy.maxLtvBps) || 0,
-        targetLtvLowBps: Number(policy.targetLtvLowBps) || 0,
-        targetLtvHighBps: Number(policy.targetLtvHighBps) || 0,
-        repayLtvBps: Number(policy.repayLtvBps) || 0,
-        emergencyLtvBps: Number(policy.emergencyLtvBps) || 0,
-      },
-      report: {
-        summary: current.report.summary || {},
-        schemaVersion: Number(current.report.schemaVersion) || 1,
-      },
-      railPack: { ...railPackInfo, digest: railPackDigest },
-      ...decisionAttestation,
-      action: receiptActionForDecision(decisionAttestation.decisionType),
-      createdAtMs: Date.now(),
-    });
+    const useMainnetReadOnlyBundle = receiptMode === "mainnet-readonly";
+    const proof = useMainnetReadOnlyBundle
+      ? await buildMainnetReadOnlyReceiptProof({
+          policy,
+          current: {
+            ...current,
+            report: {
+              ...(current.report || {}),
+              summary: {
+                ...(current.report.summary || {}),
+                ...buildPythProofSummary(pythReadbackForReceipt),
+              },
+            },
+          },
+          expectedReceiptRail,
+          decisionAttestation,
+        })
+      : await buildProofBundleWithDigest({
+          policy: {
+            id: policy.id,
+            version: Number(policy.version) || 1,
+            owner: policy.owner || wallet.address,
+            selectedRail: expectedReceiptRail,
+            mode: policy.mode || current.draft?.mode || "",
+            priority: policy.priority || current.draft?.priority || "",
+            collateralSymbol: policy.collateralSymbol || current.draft?.collateralAssetSymbol || "",
+            collateralCoinType: policy.collateralCoinType || current.draft?.collateralCoinType || "",
+            payoutTargetUsd: Number(policy.payoutTargetUsd) || 0,
+            minBufferUsd: Number(policy.minBufferUsd) || 0,
+            maxLtvBps: Number(policy.maxLtvBps) || 0,
+            targetLtvLowBps: Number(policy.targetLtvLowBps) || 0,
+            targetLtvHighBps: Number(policy.targetLtvHighBps) || 0,
+            repayLtvBps: Number(policy.repayLtvBps) || 0,
+            emergencyLtvBps: Number(policy.emergencyLtvBps) || 0,
+          },
+          report: {
+            summary: {
+              ...(current.report.summary || {}),
+              ...buildPythProofSummary(pythReadbackForReceipt),
+            },
+            schemaVersion: Number(current.report.schemaVersion) || 1,
+          },
+          railPack: { ...railPackInfo, digest: railPackDigest },
+          ...decisionAttestation,
+          action: receiptActionForDecision(decisionAttestation.decisionType),
+          createdAtMs: Date.now(),
+        });
     const receiptAction = proof.bundle.action || receiptActionForDecision(proof.bundle.decisionType);
     receiptMintObservation = {
       action: receiptAction,
@@ -7320,28 +8063,37 @@ async function handleMintReceipt() {
 
     const network = cfg?.sui?.network || "testnet";
     const publisherUrl = cfg?.walrus?.publisherUrl || "";
+    const aggregatorUrl = cfg?.walrus?.aggregatorUrl || "";
     const walrusEpochs = Number(cfg?.walrus?.epochs) || 5;
+    if (cfg?.executionProof?.allowSigning === true && !publisherUrl) {
+      const error = new Error("Walrus proof storage is not configured for this signing build. Set a publisher URL before minting receipts.");
+      error.code = "walrus-proof-unverified";
+      throw error;
+    }
     const publishResult = await publishProofBundle({
       contentDigest: proof.contentDigest,
       canonicalBody: canonicalizeBundle(proof.bundle),
       network,
       publisherUrl,
+      aggregatorUrl,
       epochs: walrusEpochs,
+      verifyFetchBack: Boolean(publisherUrl),
     });
     const walrusBlobId = publishResult.blobId;
-    if (publishResult.source === "stub" && publishResult.fallbackError) {
-      // Non-fatal; mint continues with the deterministic stub id. Log
-      // only — no user-facing toast, the readout already shows
-      // "Walrus stub" as the source label when this path hits.
-      reportClientError(new Error(publishResult.fallbackError), {
+    if (publisherUrl && (publishResult.source !== "walrus" || publishResult.fetchBackVerified !== true)) {
+      const reason = publishResult.fallbackError || "Walrus fetch-back did not verify the canonical proof bundle.";
+      reportClientError(new Error(reason), {
         action: "publishProofBundle.fallback",
       });
+      const error = new Error(`Walrus proof storage is not verified yet: ${reason}`);
+      error.code = "walrus-proof-unverified";
+      throw error;
     }
 
     setStatus(
       railWillChange
-        ? "Minting action receipt with rail change (one atomic tx)…"
-        : "Minting action receipt on-chain…"
+        ? "Minting receipt with rail change (one atomic tx)…"
+        : "Minting receipt on-chain…"
     );
 
     const builder = railWillChange
@@ -7364,7 +8116,8 @@ async function handleMintReceipt() {
           contentDigest: proof.contentDigest,
           forecast: isPlainObject(current.marketBand) ? current.marketBand : null,
           marketBand: isPlainObject(current.marketBand) ? current.marketBand : null,
-          pythReadback: appState.oracleReadback || null,
+          pythReadback: pythReadbackForReceipt,
+          requirePythReadback: isPythOracleReadbackRequired(cfg),
           config: getRuntimeConfig(),
         })
       : await buildMintReceiptTransaction({
@@ -7385,7 +8138,8 @@ async function handleMintReceipt() {
           expectedRail: currentOnChainRail,
           forecast: isPlainObject(current.marketBand) ? current.marketBand : null,
           marketBand: isPlainObject(current.marketBand) ? current.marketBand : null,
-          pythReadback: appState.oracleReadback || null,
+          pythReadback: pythReadbackForReceipt,
+          requirePythReadback: isPythOracleReadbackRequired(cfg),
           config: getRuntimeConfig(),
         });
 
@@ -7399,7 +8153,7 @@ async function handleMintReceipt() {
     mintMoveCalls.push(`${mintReceiptsPkg}::${mintReceiptsModule}::mint_receipt`);
 
     startSigningTimeline({
-      title: railWillChange ? "Rail update + mint receipt" : "Mint action receipt",
+      title: railWillChange ? "Rail update + mint receipt" : "Mint receipt",
       subtitle: describeSigningNetwork(),
       finalLabel: "Receipt minted",
       precheck: "receipt bytes + wallet checks OK",
@@ -7411,7 +8165,7 @@ async function handleMintReceipt() {
     });
 
     const mintConfirmed = await confirmPreSign({
-      title: railWillChange ? "Rail update + mint action receipt" : "Mint action receipt",
+      title: railWillChange ? "Rail update + mint receipt" : "Mint receipt",
       subtitle: describeSigningNetwork(),
       moveCalls: mintMoveCalls,
       fields: [
@@ -7421,11 +8175,11 @@ async function handleMintReceipt() {
         { label: "Policy version", value: String(policy.version || 1) },
         { label: "Decision", value: formatActionTypeLabel(proof.bundle.decisionType) },
         { label: "Limitations", value: formatProofLimitationLabel(proof.bundle.limitations) },
-        { label: "Engine decision hash", value: builder.stateBeforeDigestHex || `0x${proof.stateBeforeDigestHex}` },
+        { label: "Pre-action state digest", value: builder.stateBeforeDigestHex || `0x${proof.stateBeforeDigestHex}` },
         { label: "Content digest", value: builder.contentDigestHex || `0x${proof.contentDigestHex}` },
         { label: "Rail-pack digest", value: builder.railPackDigestHex || `0x${proof.railPackDigestHex}` },
         {
-          label: publishResult.source === "walrus" ? "Walrus blob id" : "Walrus stub",
+          label: publishResult.source === "walrus" ? "Walrus blob id" : "Local digest",
           value: walrusBlobId,
         },
       ],
@@ -7524,10 +8278,31 @@ async function handleMintReceipt() {
     // future indexer) can gate trust on it; telemetry classifies the
     // failure bucket so funnels can separate wallet rejects from proof
     // integrity issues.
+    const receiptObjectVerified = Boolean(
+      fetched?.id
+      && fetched?.contentDigestHex
+      && fetched?.railPackDigestHex
+      && fetched?.stateBeforeDigestHex
+      && fetched?.walrusBlobId
+    );
+    const receiptObjectReason = receiptObjectVerified
+      ? ""
+      : (!fetched?.id ? "receipt-object-missing" : "receipt-object-digests-missing");
     const onChainContentDigestHex =
       fetched?.contentDigestHex || minted?.contentDigestHex || `0x${proof.contentDigestHex}`;
-    const freshness = checkFreshness(proof.bundle, { now: Date.now() });
-    const digestVerdict = await verifyBundleDigest(proof.bundle, onChainContentDigestHex);
+    const expectedContentDigestHex = `0x${proof.contentDigestHex}`;
+    const mainnetReadOnlyAttested = proof.mainnetReadOnlyAttested === true;
+    const freshness = mainnetReadOnlyAttested
+      ? { ok: true, reason: "handled-by-mainnet-evidence", ageMs: 0, maxAgeMs: 0 }
+      : checkFreshness(proof.bundle, { now: Date.now() });
+    const digestVerdict = mainnetReadOnlyAttested
+      ? {
+          ok: onChainContentDigestHex.toLowerCase() === expectedContentDigestHex.toLowerCase(),
+          reason: onChainContentDigestHex.toLowerCase() === expectedContentDigestHex.toLowerCase() ? "match" : "digest-mismatch",
+          expectedHex: expectedContentDigestHex,
+          actualHex: onChainContentDigestHex,
+        }
+      : await verifyBundleDigest(proof.bundle, onChainContentDigestHex);
     const storedBase = {
       id: fetched?.id || receiptId,
       policyId: fetched?.policyId || minted?.policyId || policy.id,
@@ -7544,7 +8319,7 @@ async function handleMintReceipt() {
       createdAtMs: fetched?.createdAtMs || minted?.createdAtMs || Date.now(),
       txDigest: txDigest || "",
       proofCanonical: proof.canonical,
-      proofBundleVersion: proof.bundle.version,
+      proofBundleVersion: proof.bundle.version || proof.bundle.kind || "",
       decisionType: fetched?.decisionType || minted?.decisionType || proof.bundle.decisionType,
       limitations: fetched?.limitations || minted?.limitations || proof.bundle.limitations,
       stateBeforeDigest: fetched?.stateBeforeDigest || minted?.stateBeforeDigest || proof.stateBeforeDigest,
@@ -7566,12 +8341,20 @@ async function handleMintReceipt() {
         mismatches: [],
       };
     }
-    const proofVerified = Boolean(digestVerdict.ok && freshness.ok && semanticVerdict?.ok);
+    const proofVerified = Boolean(receiptObjectVerified && digestVerdict.ok && freshness.ok && semanticVerdict?.ok);
     const verificationFailure = !proofVerified
-      ? (!digestVerdict.ok ? digestVerdict.reason : !freshness.ok ? freshness.reason : semanticVerdict?.reason)
+      ? (!receiptObjectVerified
+          ? receiptObjectReason
+          : !digestVerdict.ok
+            ? digestVerdict.reason
+            : !freshness.ok
+              ? freshness.reason
+              : semanticVerdict?.reason)
       : "";
     const proofVerification = {
       ok: proofVerified,
+      receiptObjectOk: receiptObjectVerified,
+      receiptObjectReason,
       digestOk: Boolean(digestVerdict.ok),
       digestReason: digestVerdict.reason || "",
       bundleFreshnessOk: Boolean(freshness.ok),
@@ -7623,7 +8406,7 @@ async function handleMintReceipt() {
       ok: true,
       txId: txDigest,
       action: stored.action || receiptAction,
-      description: builder.railChanged ? "Select rail + mint action receipt" : "Mint action receipt",
+      description: builder.railChanged ? "Select rail + mint receipt" : "Mint receipt",
       protocol: "Execution receipts",
       policyId: stored.policyId || policy.id,
       sourceScenarioId: current?.sourceScenarioId || "",
@@ -7641,10 +8424,10 @@ async function handleMintReceipt() {
         ? { href: receiptObjUrl, label: "View receipt on SuiVision" }
         : null;
     if (proofVerified) {
-      setStatus(`Action receipt minted${idSuffix} — digest + freshness verified.`, false, explorerLink);
+      setStatus(`Receipt minted${idSuffix} — receipt bundle verified.`, false, explorerLink);
     } else {
       setStatus(
-        `Action receipt minted${idSuffix}, but local verification failed (${verificationFailure}). Keep the receipt and inspect developer diagnostics before using it as evidence.`,
+        `Receipt minted${idSuffix}, but local verification failed (${verificationFailure}). Keep the receipt and inspect developer diagnostics before using it as evidence.`,
         true,
         explorerLink,
       );
@@ -7663,7 +8446,7 @@ async function handleMintReceipt() {
     });
     completeSigningTimeline({
       subByStep: {
-        final: `${formatPolicyObjectId(stored.id || receiptId)} · ${proofVerified ? "proof verified" : "proof needs review"}`,
+        final: `${formatPolicyObjectId(stored.id || receiptId)} · ${proofVerified ? "receipt verified" : "receipt needs review"}`,
       },
     });
   } catch (error) {
@@ -7679,7 +8462,7 @@ async function handleMintReceipt() {
         ok: false,
         txId: null,
         action: receiptMintObservation?.action || receiptActionForDecision(current?.report?.baseline?.result?.decision?.chosen?.type),
-        description: "Mint action receipt",
+        description: "Mint receipt",
         protocol: "Execution receipts",
         error: signingFailure.classified.developerMessage,
         policyId: current?.onChainPolicy?.id || "",
@@ -7961,7 +8744,7 @@ function renderWorkspaceIdentity() {
       </div>
       <div class="workspace-head__visual">
         <div class="ds-hero__chart">${sparkline}</div>
-        <p id="status-note" class="status-line" hidden></p>
+        <p id="status-note" class="status-line" role="status" aria-live="polite" aria-atomic="true" hidden></p>
       </div>
     </div>
 
@@ -8027,17 +8810,38 @@ function buildSetupHref(id = "", options = {}) {
   const policy = normalizeLiveHistoryText(options.policy);
   if (pinned) params.set("id", pinned);
   if (policy) params.set("policy", policy);
+  if (options.proof === true) params.set("proof", "1");
+  if (isPlainObject(options.draft)) {
+    const encodedDraft = encodeRouteDraftHandoff(options.draft);
+    if (encodedDraft) params.set("draft", encodedDraft);
+  }
   const query = params.toString();
   return `/setup${query ? `?${query}` : ""}`;
+}
+
+function appendHashToHref(href = "", hash = "") {
+  const cleanHash = String(hash || "").trim().replace(/^#/, "");
+  if (!cleanHash) return href;
+  const base = String(href || "").split("#")[0] || "";
+  return `${base || ""}#${cleanHash}`;
 }
 
 function buildRunReadoutHref(runId, options = {}) {
   const page = normalizeLiveHistoryText(options.page, "results");
   const pinned = normalizeLiveHistoryText(runId);
+  const policy = normalizeLiveHistoryText(options.policy);
   const hash = normalizeLiveHistoryText(options.hash);
   const hashSuffix = hash ? (hash.startsWith("#") ? hash : `#${hash}`) : "";
-  const query = pinned ? `?id=${encodeURIComponent(pinned)}` : "";
+  const params = new URLSearchParams();
+  if (pinned) params.set("id", pinned);
+  if (policy) params.set("policy", policy);
+  const serialized = params.toString();
+  const query = serialized ? `?${serialized}` : "";
   return `/${page}${query}${hashSuffix}`;
+}
+
+function buildTestnetSetupHref(id = "", options = {}) {
+  return new URL(buildSetupHref(id, options), "https://testnet.tidesui.pro").href;
 }
 
 function buildLivePolicyHref(policyId = "", options = {}) {
@@ -8057,8 +8861,8 @@ function syncReadoutEditCreateLinks(current = appState.current) {
   const scenarioId = normalizeLiveHistoryText(current?.sourceScenarioId || readRouteScenarioIdFromUrl());
   const policyId = normalizeLiveHistoryText(current?.onChainPolicy?.id || readRoutePolicyIdFromUrl());
   const href = buildSetupHref(scenarioId, { policy: policyId });
-  document.querySelectorAll(".page-actions a.button").forEach((link) => {
-    if (!/edit in create/i.test(String(link.textContent || ""))) return;
+  document.querySelectorAll('[data-action="edit-in-create"], .page-actions a.button').forEach((link) => {
+    if (!link.matches?.('[data-action="edit-in-create"]') && !/edit in create/i.test(String(link.textContent || ""))) return;
     link.setAttribute("href", href);
     link.setAttribute("title", scenarioId
       ? "Reopen this exact position id in Create."
@@ -8202,6 +9006,341 @@ function toggleLiveUnwindStep(policyId, stepId, completed, source = "workspace")
 function getCachedLiveProtocolReadback(policyId, address = normalizeWalletAddress()) {
   const key = buildLiveProtocolCacheKey(policyId, address);
   return key ? _liveProtocolReadbacks[key] || null : null;
+}
+
+function getLiveMainnetEvidenceContext(policyId = "") {
+  const pinned = normalizeLiveHistoryText(policyId);
+  const policy = getLivePolicyRecord(pinned)
+    || (normalizeLiveHistoryText(appState.current?.onChainPolicy?.id) === pinned
+      ? appState.current?.onChainPolicy
+      : null);
+  const readback = getCachedLiveProtocolReadback(pinned);
+  const balanceReadback = readback?.balanceReadback || null;
+  const selectedRail = policy?.selectedRail || readback?.railId || balanceReadback?.railId || "";
+  return {
+    policy,
+    readback,
+    balanceReadback,
+    railId: resolveCanonicalRailId({ selectedRail, railId: selectedRail }),
+    ownerAddress: normalizeWalletAddress(getWalletState().address || policy?.owner || "").toLowerCase(),
+    obligationId: normalizeLiveHistoryText(
+      readback?.obligationId ||
+      balanceReadback?.obligationId ||
+      ""
+    ).toLowerCase(),
+  };
+}
+
+function isValidMainnetTxDigest(value = "") {
+  const digest = normalizeLiveHistoryText(value);
+  return digest.length >= 32 && digest.length <= 96 && !/\s/.test(digest);
+}
+
+async function postReadonlyMainnetRpc(body) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), MAINNET_READONLY_RPC_TIMEOUT_MS);
+  try {
+    const response = await fetch(MAINNET_READONLY_RPC_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Sui mainnet RPC returned HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    if (payload?.error) {
+      throw new Error(payload.error.message || "Sui mainnet RPC returned an error");
+    }
+    return payload?.result || null;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Sui mainnet RPC timed out. Try again or refresh the Suilend position first.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+function collectMainnetMoveCalls(value, calls = []) {
+  if (!value || typeof value !== "object") return calls;
+  if (Array.isArray(value)) {
+    for (const item of value) collectMainnetMoveCalls(item, calls);
+    return calls;
+  }
+  const moveCall = value.MoveCall || value.moveCall || null;
+  if (moveCall && typeof moveCall === "object") {
+    calls.push({
+      package: normalizeLiveHistoryText(moveCall.package || moveCall.packageId || "").toLowerCase(),
+      module: normalizeLiveHistoryText(moveCall.module || "").toLowerCase(),
+      function: normalizeLiveHistoryText(moveCall.function || "").toLowerCase(),
+      arguments: Array.isArray(moveCall.arguments) ? moveCall.arguments : [],
+      typeArguments: (moveCall.type_arguments || moveCall.typeArguments || []).map((arg) =>
+        normalizeLiveHistoryText(arg || "").toLowerCase()
+      ),
+    });
+  }
+  for (const item of Object.values(value)) collectMainnetMoveCalls(item, calls);
+  return calls;
+}
+
+function collectMainnetObjectIds(value, objects = new Set()) {
+  const stack = [value];
+  while (stack.length > 0) {
+    const item = stack.pop();
+    if (typeof item === "string" && /^0x[0-9a-fA-F]{64}$/.test(item)) {
+      objects.add(item.toLowerCase());
+      continue;
+    }
+    if (!item || typeof item !== "object") continue;
+    for (const [key, child] of Object.entries(item)) {
+      if (
+        ["objectid", "object_id", "id"].includes(String(key).toLowerCase())
+        && typeof child === "string"
+        && /^0x[0-9a-fA-F]{64}$/.test(child)
+      ) {
+        objects.add(child.toLowerCase());
+      }
+      stack.push(child);
+    }
+  }
+  return objects;
+}
+
+function collectMainnetMoveCallObjectArgs(call, transactionInputs = []) {
+  const objects = new Set();
+  let sawStructuredArgs = false;
+  const stack = Array.isArray(call?.arguments) ? [...call.arguments] : [];
+  while (stack.length > 0) {
+    const item = stack.pop();
+    if (typeof item === "string" && /^0x[0-9a-fA-F]{64}$/.test(item)) {
+      objects.add(item.toLowerCase());
+      sawStructuredArgs = true;
+      continue;
+    }
+    if (!item || typeof item !== "object") continue;
+    for (const [key, value] of Object.entries(item)) {
+      if (String(key).toLowerCase() === "input" && Number.isInteger(Number(value))) {
+        sawStructuredArgs = true;
+        collectMainnetObjectIds(transactionInputs[Number(value)], objects);
+        continue;
+      }
+      if (
+        ["objectid", "object_id", "id"].includes(String(key).toLowerCase())
+        && typeof value === "string"
+        && /^0x[0-9a-fA-F]{64}$/.test(value)
+      ) {
+        objects.add(value.toLowerCase());
+        sawStructuredArgs = true;
+      }
+      stack.push(value);
+    }
+  }
+  return { objects, sawStructuredArgs };
+}
+
+function mainnetMoveCallTouchesObject(call, objectId = "", transactionInputs = []) {
+  const expected = normalizeLiveHistoryText(objectId).toLowerCase();
+  if (!expected) return true;
+  const args = Array.isArray(call?.arguments) ? call.arguments : null;
+  if (!args || args.length === 0) return true;
+  const { objects, sawStructuredArgs } = collectMainnetMoveCallObjectArgs(call, transactionInputs);
+  return sawStructuredArgs && objects.has(expected);
+}
+
+function assertSuilendMainnetRepayMoveCall(tx, { digest = "", obligationId = "" } = {}) {
+  const txProgrammable = tx?.transaction?.data?.transaction;
+  const calls = collectMainnetMoveCalls(txProgrammable);
+  const transactionInputs = Array.isArray(txProgrammable?.inputs) ? txProgrammable.inputs : [];
+  const mainPoolTypeArg = `${SUILEND_MAINNET_PACKAGE_ID}::suilend::main_pool`;
+  const matched = calls.some((call) =>
+    SUILEND_MAINNET_REPAY_PACKAGE_IDS.has(call.package)
+    && call.module.includes("lending")
+    && call.function.includes("repay")
+    && (
+      call.package === SUILEND_MAINNET_PACKAGE_ID
+      || call.typeArguments.some((arg) => arg.includes(mainPoolTypeArg))
+    )
+    && mainnetMoveCallTouchesObject(call, obligationId, transactionInputs)
+  );
+  if (!matched) {
+    throw new Error(`Mainnet tx ${digest || "(unknown)"} touched the obligation but did not include an expected Suilend repay MoveCall bound to that obligation.`);
+  }
+  return true;
+}
+
+async function verifyLiveMainnetTxDigest(policyId = "", digest = "") {
+  const pinned = normalizeLiveHistoryText(policyId);
+  const normalizedDigest = normalizeLiveHistoryText(digest);
+  if (!pinned) {
+    throw new Error("Load an on-chain policy before verifying a mainnet action.");
+  }
+  if (!isValidMainnetTxDigest(normalizedDigest)) {
+    throw new Error("Paste the full mainnet transaction digest from SuiVision or the rail UI.");
+  }
+  const context = getLiveMainnetEvidenceContext(pinned);
+  if (context.railId !== "suilend-sui") {
+    throw new Error("Mainnet action verification is enabled for Suilend read-back first.");
+  }
+  if (!context.ownerAddress) {
+    throw new Error("Connect the wallet that performed the mainnet action.");
+  }
+  if (!context.obligationId) {
+    throw new Error("Refresh Suilend read-back first so TIDE knows which obligation to verify.");
+  }
+  const storedEvidence = getPolicyLiveMainnetEvidence(pinned);
+  const preReadback = normalizeMainnetReadbackForBundle(storedEvidence.preReadback)
+    || normalizeMainnetReadbackForBundle(context.balanceReadback);
+
+  const tx = await postReadonlyMainnetRpc({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "sui_getTransactionBlock",
+    params: [
+      normalizedDigest,
+      {
+        showInput: true,
+        showEffects: true,
+        showEvents: true,
+        showObjectChanges: true,
+        showBalanceChanges: true,
+      },
+    ],
+  });
+  if (!tx || typeof tx !== "object") {
+    throw new Error("Sui mainnet RPC did not return this transaction block.");
+  }
+  const status = String(tx?.effects?.status?.status || "").trim().toLowerCase();
+  if (status !== "success") {
+    throw new Error(`Mainnet transaction is not successful (${status || "missing status"}).`);
+  }
+  const sender = normalizeWalletAddress(tx?.transaction?.data?.sender || tx?.input?.sender || "").toLowerCase();
+  if (!sender) {
+    throw new Error("Mainnet transaction returned no sender.");
+  }
+  if (sender !== context.ownerAddress) {
+    throw new Error(`Mainnet sender ${shortenMiddle(sender, 6, 4)} does not match connected wallet ${shortenMiddle(context.ownerAddress, 6, 4)}.`);
+  }
+  const objectChanges = Array.isArray(tx?.objectChanges) ? tx.objectChanges : [];
+  const touched = objectChanges.some((change) => {
+    const objectId = normalizeLiveHistoryText(change?.objectId || change?.outputObjectId || "").toLowerCase();
+    return objectId && objectId === context.obligationId;
+  });
+  if (!touched) {
+    throw new Error(`Mainnet transaction did not touch Suilend obligation ${shortenMiddle(context.obligationId, 6, 4)}.`);
+  }
+  assertSuilendMainnetRepayMoveCall(tx, {
+    digest: normalizedDigest,
+    obligationId: context.obligationId,
+  });
+  return normalizeLiveMainnetEvidenceEntry({
+    policyId: pinned,
+    digest: normalizedDigest,
+    sender,
+    obligationId: context.obligationId,
+    checkpoint: normalizeLiveHistoryText(tx?.checkpoint),
+    timestampMs: Number(tx?.timestampMs) || 0,
+    objectChangeCount: objectChanges.length,
+    protocolAction: "repay",
+    verifiedAt: Date.now(),
+    status: "verified",
+    error: "",
+    preReadback,
+  }, pinned);
+}
+
+function captureLiveMainnetPreActionSnapshot(policyId = "") {
+  const pinned = normalizeLiveHistoryText(policyId);
+  if (!pinned) {
+    throw new Error("Load an on-chain policy before saving a pre-action snapshot.");
+  }
+  const context = getLiveMainnetEvidenceContext(pinned);
+  if (context.railId !== "suilend-sui") {
+    throw new Error("Pre-action snapshot capture is enabled for Suilend read-back first.");
+  }
+  const preReadback = normalizeMainnetReadbackForBundle(context.balanceReadback);
+  if (!preReadback) {
+    throw new Error("Refresh Suilend read-back before saving the pre-action snapshot.");
+  }
+  const existing = getPolicyLiveMainnetEvidence(pinned);
+  return normalizeLiveMainnetEvidenceEntry({
+    ...existing,
+    policyId: pinned,
+    preReadback,
+    status: existing.status === "verified" ? "verified" : "pending",
+    error: "",
+  }, pinned);
+}
+
+function handleCaptureLiveMainnetPreActionSnapshot(button) {
+  const pinned = normalizeLiveHistoryText(
+    button?.dataset?.policyId || appState.current?.onChainPolicy?.id || ""
+  );
+  try {
+    const evidence = captureLiveMainnetPreActionSnapshot(pinned);
+    setPolicyLiveMainnetEvidence(pinned, evidence);
+    persistLiveUnwindProgress();
+    renderCurrentPage();
+    setStatus(`Pre-action Suilend snapshot saved for ${shortenMiddle(pinned, 8, 6)}.`);
+    trackEvent("live_mainnet_pre_snapshot_saved", {
+      policyId: pinned,
+      railId: getLiveMainnetEvidenceContext(pinned).railId,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err || "Pre-action snapshot could not be saved.");
+    setStatus(message, true);
+    trackEvent("live_mainnet_pre_snapshot_failed", {
+      policyId: pinned,
+      reason: message,
+    });
+  }
+}
+
+async function handleVerifyLiveMainnetTx(button) {
+  const pinned = normalizeLiveHistoryText(
+    button?.dataset?.policyId || appState.current?.onChainPolicy?.id || ""
+  );
+  const host = button?.closest?.(".ws-exit-mainnet-evidence") || document;
+  const input = host.querySelector?.("[data-live-mainnet-digest]");
+  const digest = normalizeLiveHistoryText(input?.value || "");
+  if (!pinned) {
+    setStatus("Load an on-chain policy before verifying a mainnet action.", true);
+    return;
+  }
+  if (button instanceof HTMLButtonElement) {
+    button.disabled = true;
+    button.textContent = "Verifying…";
+  }
+  try {
+    const evidence = await verifyLiveMainnetTxDigest(pinned, digest);
+    setPolicyLiveMainnetEvidence(pinned, evidence);
+    persistLiveUnwindProgress();
+    renderCurrentPage();
+    setStatus(`Suilend repayment verified for ${shortenMiddle(pinned, 8, 6)}. Refresh Suilend position to unlock the final receipt.`);
+    trackEvent("live_mainnet_tx_verified", {
+      policyId: pinned,
+      railId: getLiveMainnetEvidenceContext(pinned).railId,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err || "Mainnet action verification failed.");
+    const existing = getPolicyLiveMainnetEvidence(pinned);
+    setPolicyLiveMainnetEvidence(pinned, {
+      ...existing,
+      policyId: pinned,
+      digest,
+      status: "error",
+      error: message,
+    });
+    persistLiveUnwindProgress();
+    renderCurrentPage();
+    setStatus(message, true);
+    trackEvent("live_mainnet_tx_verify_failed", {
+      policyId: pinned,
+      reason: message,
+    });
+  }
 }
 
 function setCachedLiveProtocolReadback(policyId, next, address = normalizeWalletAddress()) {
@@ -8533,8 +9672,45 @@ function getCurrentReadoutScenarioId(current = appState.current) {
 
 
 function getOpsHealthUrl() {
+  return getOpsApiUrl("/v1/healthz");
+}
+
+function getOpsApiUrl(pathname) {
   const base = resolveOpsBaseUrl(getRuntimeConfig(), window.location.origin).replace(/\/+$/, "");
-  return /^https?:\/\//i.test(base) ? `${base}/v1/healthz` : "/v1/healthz";
+  return /^https?:\/\//i.test(base) ? `${base}${pathname}` : pathname;
+}
+
+async function refreshLatestProofReceipt({ silent = false } = {}) {
+  const url = getOpsApiUrl("/v1/onchain/last-receipt");
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+    if (!response.ok) {
+      throw new Error(`${url} returned ${response.status}`);
+    }
+    const payload = await response.json();
+    const objectId = String(payload?.lastReceiptId || payload?.receiptId || payload?.objectId || "").trim();
+    if (payload?.configured === true && payload?.ok === true && /^0x[0-9a-fA-F]{64}$/.test(objectId)) {
+      appState.latestProofReceipt = {
+        objectId,
+        decisionType: typeof payload.lastDecisionType === "string" ? payload.lastDecisionType : "",
+        selectedRail: typeof payload.selectedRail === "string" ? payload.selectedRail : "",
+        createdAtMs: Number(payload.lastReceiptCreatedAtMs) || 0,
+        source: "ops-last-receipt",
+      };
+      return appState.latestProofReceipt;
+    }
+    appState.latestProofReceipt = null;
+  } catch (error) {
+    if (!silent) {
+      setStatus("Latest receipt lookup failed.", true);
+      reportClientError(error, { action: "refreshLatestProofReceipt" });
+    }
+  }
+  return null;
 }
 
 async function refreshOpsHealth({ silent = false } = {}) {
@@ -8605,9 +9781,9 @@ function buildLiveActivityEvents(policy, receipts = [], txHistory = [], controlS
     events.push({
       kind: "policy",
       tone: "wallet",
-      title: "Policy anchored on-chain",
+      title: "Policy saved on-chain",
       badge: "Policy",
-      meta: ["On-chain policy object", selectedPolicyRail, createdAt ? dateTimeFormatter.format(new Date(createdAt)) : ""].filter(Boolean).join(" · "),
+      meta: ["On-chain policy", selectedPolicyRail, createdAt ? dateTimeFormatter.format(new Date(createdAt)) : ""].filter(Boolean).join(" · "),
       href: policyTxDigest
         ? buildSuiExplorerUrl("tx", policyTxDigest, cfg)
         : buildSuiExplorerUrl("object", policyId, cfg),
@@ -8806,12 +9982,12 @@ function renderLiveControlPanel(policy, { includeReadoutLink = false } = {}) {
     <section class="ws-live-panel ws-live-panel--compact">
       <div class="ws-live-panel__head">
         <div>
-          <span>Operator control</span>
+          <span>Review mode</span>
           <strong>${escapeHtml(meta.label)}</strong>
         </div>
         ${renderIconBadge(meta.badge, { tone: controlBadgeTone, iconName: controlBadgeIcon, title: meta.status })}
       </div>
-      <p class="ws-live-panel__copy">${escapeHtml(meta.copy)} Local state only; the exit checklist below is the owner for manual close progress and final receipt evidence.</p>
+      <p class="ws-live-panel__copy">${escapeHtml(meta.copy)} Manual actions stay in the rail UI; TIDE records review state and verifies proof evidence without signing mainnet transactions.</p>
       <div class="ws-live-control-group">
         <span class="ws-live-control-label">Review state</span>
         <div class="ws-live-control-actions" role="group" aria-label="Local live control state">
@@ -8829,7 +10005,7 @@ function renderLiveControlPanel(policy, { includeReadoutLink = false } = {}) {
         <div class="ws-live-actions" role="group" aria-label="Exit handoff actions">
           <a class="button button-secondary" href="/setup${policyId ? `?policy=${policyId}` : ""}">Open in Create</a>
           ${includeReadoutLink ? `<a class="button button-secondary" href="${escapeHtml(buildLivePolicyHref(policy?.id || ""))}">Review readout</a>` : ""}
-          <button class="button button-secondary" type="button" data-action="mint-live-receipt" data-policy-id="${escapeHtml(policy?.id || "")}"${hasPolicyId ? "" : " disabled aria-describedby=\"mint-live-receipt-reason\""}>Mint final receipt</button>${hasPolicyId ? "" : `<span id="mint-live-receipt-reason" class="sr-only">Load an on-chain policy before minting a final receipt.</span>`}
+          <button class="button button-secondary" type="button" data-action="mint-live-receipt" data-receipt-mode="testnet" data-policy-id="${escapeHtml(policy?.id || "")}"${hasPolicyId ? "" : " disabled aria-describedby=\"mint-live-receipt-reason\""}>Mint testnet receipt</button>${hasPolicyId ? "" : `<span id="mint-live-receipt-reason" class="sr-only">Load an on-chain policy before minting a receipt.</span>`}
         </div>
       </div>
     </section>
@@ -8852,6 +10028,30 @@ function renderLiveUnwindPanel(policy, snapshot = null, receipts = [], txHistory
     exitEvidence,
   });
   const policyId = normalizeLiveHistoryText(policy?.id);
+  const mainnetEvidence = getPolicyLiveMainnetEvidence(policyId);
+  const mainnetEvidenceVerified = mainnetEvidence.status === "verified";
+  const mainnetEvidenceDigest = normalizeLiveHistoryText(mainnetEvidence.digest);
+  const mainnetPreReadback = normalizeMainnetReadbackForBundle(mainnetEvidence.preReadback);
+  const mainnetPreSnapshotCopy = mainnetPreReadback
+    ? `Pre-action snapshot saved at ${dateTimeFormatter.format(new Date(mainnetPreReadback.observedAt))}`
+    : "Save a Suilend snapshot before taking the manual action.";
+  const mainnetEvidenceLink = mainnetEvidenceDigest
+    ? buildSuiExplorerUrl("tx", mainnetEvidenceDigest, { sui: { network: "mainnet" } })
+    : "";
+  const mainnetEvidenceStatus = mainnetEvidenceVerified
+    ? `Verified Suilend repayment${mainnetEvidence.checkpoint ? ` at checkpoint ${mainnetEvidence.checkpoint}` : ""}`
+    : mainnetEvidence.status === "error" && mainnetEvidence.error
+      ? mainnetEvidence.error
+      : "Waiting for the mainnet action digest";
+  const mainnetEvidenceTone = mainnetEvidenceVerified
+    ? "success"
+    : mainnetEvidence.status === "error"
+      ? "error"
+      : "neutral";
+  const mainnetReceiptReadiness = getLiveMainnetReceiptReadiness(policyId);
+  const finalReceiptUnlocked = mainnetReceiptReadiness.ok;
+  const finalReceiptBlocker = policyId ? mainnetReceiptReadiness.message : "Load an on-chain policy before minting a final receipt.";
+  const finalReceiptReasonId = `live-final-receipt-reason-${policyId || "policy"}`;
   const progressSummary = getLiveUnwindProgressSummary(unwindProgress);
   const completedSteps = brief.unwindProgress?.completed && typeof brief.unwindProgress.completed === "object"
     ? brief.unwindProgress.completed
@@ -8877,9 +10077,9 @@ function renderLiveUnwindPanel(policy, snapshot = null, receipts = [], txHistory
     <section id="live-monitor" class="ws-live-panel">
       <div class="ws-exit-brief-head">
         <div>
-          <span>Exit package</span>
-          <strong>Manual exit brief</strong>
-          <p>Manual close happens in the rail UI. Workspace only records intent, checklist progress, and action receipts.</p>
+          <span>Proof package</span>
+          <strong>Suilend evidence flow</strong>
+          <p>Save a before snapshot, act in Suilend, paste the transaction digest, then refresh the position before minting the final receipt.</p>
         </div>
         ${renderIconBadge("Guided", { tone: "violet", iconName: "settings" })}
       </div>
@@ -8911,6 +10111,39 @@ function renderLiveUnwindPanel(policy, snapshot = null, receipts = [], txHistory
         ${renderIconBadge("Manual rail close", { tone: "cyan", iconName: "anchor" })}
         <p>${escapeHtml(brief.warnings.join(" "))}</p>
       </div>
+      <div class="ws-exit-mainnet-evidence" data-state="${escapeHtml(mainnetEvidenceTone)}">
+        <div class="ws-exit-mainnet-evidence__copy">
+          <span>Mainnet action evidence</span>
+          <strong>${escapeHtml(mainnetEvidenceVerified ? "Verified Suilend repayment" : "Paste transaction digest")}</strong>
+          <p>1 save the before snapshot, 2 repay in Suilend, 3 paste the tx digest, 4 refresh the Suilend position, 5 mint the proof receipt.</p>
+        </div>
+        <div class="ws-exit-mainnet-evidence__form">
+          <button class="button button-secondary" type="button" data-action="capture-live-mainnet-pre" data-policy-id="${escapeHtml(policyId)}"${policyId ? "" : " disabled"}>1 Save before snapshot</button>
+          <label class="sr-only" for="live-mainnet-tx-${escapeHtml(policyId || "policy")}">Mainnet transaction digest</label>
+          <input
+            id="live-mainnet-tx-${escapeHtml(policyId || "policy")}"
+            class="input"
+            type="text"
+            inputmode="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Mainnet tx digest"
+            value="${escapeHtml(mainnetEvidenceDigest)}"
+            data-live-mainnet-digest
+            data-policy-id="${escapeHtml(policyId)}"
+            ${policyId ? "" : "disabled"}
+          />
+          <button class="button button-secondary" type="button" data-action="verify-live-mainnet-tx" data-policy-id="${escapeHtml(policyId)}"${policyId ? "" : " disabled"}>3 Verify tx</button>
+          <button class="button button-secondary" type="button" data-action="refresh-live-protocol" data-policy-id="${escapeHtml(policyId)}"${policyId ? "" : " disabled"}>4 Refresh after snapshot</button>
+        </div>
+        <p class="ws-exit-mainnet-evidence__status">
+          <span>${escapeHtml(mainnetPreSnapshotCopy)}</span>
+          ${mainnetEvidenceVerified ? "✓ " : mainnetEvidence.status === "error" ? "Check failed: " : ""}
+          ${escapeHtml(mainnetEvidenceStatus)}
+          ${mainnetEvidenceVerified && !finalReceiptUnlocked ? `<span>${escapeHtml(finalReceiptBlocker)}</span>` : ""}
+          ${mainnetEvidenceLink ? `<a href="${escapeHtml(mainnetEvidenceLink)}" target="_blank" rel="noopener">Open tx ↗</a>` : ""}
+        </p>
+      </div>
       <div class="ws-exit-checklist-head">
         <div>
           <span>Exit checklist</span>
@@ -8940,7 +10173,8 @@ function renderLiveUnwindPanel(policy, snapshot = null, receipts = [], txHistory
       <div class="ws-exit-actions">
         <div class="ws-exit-actions__primary">
           ${policyId ? `<button class="button button-secondary" type="button" data-action="live-control" data-policy-id="${escapeHtml(policyId)}" data-control-mode="unwind-planned"${controlState?.mode === "unwind-planned" ? " disabled" : ""}>Set exit planned</button>` : ""}
-          <button class="button button-primary" type="button" data-action="mint-live-receipt" data-policy-id="${escapeHtml(policyId)}"${policyId ? "" : " disabled"}>Mint final receipt</button>
+          <button class="button button-primary" type="button" data-action="mint-live-receipt" data-receipt-mode="mainnet-readonly" data-policy-id="${escapeHtml(policyId)}"${finalReceiptUnlocked ? "" : ` disabled aria-describedby="${escapeHtml(finalReceiptReasonId)}"`} title="${escapeHtml(finalReceiptBlocker)}">5 Mint final receipt</button>
+          ${finalReceiptUnlocked ? "" : `<p class="ws-exit-actions__reason" id="${escapeHtml(finalReceiptReasonId)}">${escapeHtml(finalReceiptBlocker)}</p>`}
         </div>
         <div class="ws-exit-actions__secondary">
           <button class="button button-secondary" type="button" data-action="export-live-unwind" data-policy-id="${escapeHtml(policyId)}"${policyId ? "" : " disabled"}>Export brief</button>
@@ -9112,6 +10346,18 @@ function attachPolicyToSavedScenario(scenarioId, livePolicy, latestReceipt = nul
 
   if (changed) {
     saveStorage(STORAGE_SAVED_KEY, appState.saved);
+  }
+
+  if (normalizeLiveHistoryText(appState.current?.sourceScenarioId) === pinned) {
+    appState.current = {
+      ...appState.current,
+      onChainPolicy: clone(livePolicy),
+      onChainReceipt: latestReceipt ? clone(latestReceipt) : appState.current?.onChainReceipt || null,
+    };
+    persistCurrentState();
+    if (currentPage === "results" || currentPage === "live") {
+      scheduleRender();
+    }
   }
 }
 
@@ -9338,7 +10584,7 @@ function renderWorkspacePolicyCard(policy, receipts) {
             ${renderIconBadge("On-chain policy · testnet", {
               tone: "mint",
               iconName: "link",
-              title: "Policy object anchored on Sui testnet; values remain modeled unless marked as read-back.",
+              title: "Policy saved on Sui testnet; values remain modeled unless marked as read-back.",
             })}
             ${renderIconBadge(lifecycle.badge, {
               tone: "cyan",
@@ -9363,7 +10609,7 @@ function renderWorkspacePolicyCard(policy, receipts) {
               return renderIconBadge(ctrlMeta.badge, { tone, iconName, title: ctrlMeta.status });
             })()}
             ${shortId
-              ? `<a class="ws-id-chip ws-id-chip--muted" href="${escapeHtml(explorer)}" target="_blank" rel="noopener" title="Policy object on SuiVision">#${escapeHtml(shortenMiddle(policy.id || "", 4, 4))} ↗</a>`
+              ? `<a class="ws-id-chip ws-id-chip--muted" href="${escapeHtml(explorer)}" target="_blank" rel="noopener" title="Policy on SuiVision">#${escapeHtml(shortenMiddle(policy.id || "", 4, 4))} ↗</a>`
               : ""}
           </div>
           <strong>${escapeHtml(name)}</strong>
@@ -9391,11 +10637,11 @@ function renderWorkspacePolicyCard(policy, receipts) {
           ${hasSnapshotDebt ? renderTokenSubline(stableSymbol, stableSymbol) : ""}
         </div>
         <div>
-          <span class="ws-dash-label">LTV</span>
+          <span class="ws-dash-label">Debt pressure</span>
           ${hasSnapshotLtv
             ? `<strong class="ws-dash-strong--cyan">${(snapshotLtv * 100).toFixed(1)}%</strong>`
             : `<strong class="ws-dash-empty">—</strong>`}
-          <span class="ws-dash-sub">${targetLowPct}–${targetHighPct}% target</span>
+          <span class="ws-dash-sub">${targetLowPct}–${targetHighPct}% target band</span>
         </div>
         <div>
           <span class="ws-dash-label">Buffer</span>
@@ -9449,10 +10695,10 @@ function renderWorkspaceOrphanReceiptsCard(policyId, receipts) {
             ${renderIconBadge("Detached receipts · testnet", {
               tone: "mint",
               iconName: "link",
-              title: "Receipts whose parent policy object isn't visible from this wallet — policy may have been transferred or deleted.",
+              title: "Receipts whose parent policy is not visible from this wallet — policy may have been transferred or deleted.",
             })}
             ${policyExplorer
-              ? `<a class="ws-id-chip ws-id-chip--muted" href="${escapeHtml(policyExplorer)}" target="_blank" rel="noopener" title="Policy object on SuiVision">#${escapeHtml(shortPolicy)} ↗</a>`
+              ? `<a class="ws-id-chip ws-id-chip--muted" href="${escapeHtml(policyExplorer)}" target="_blank" rel="noopener" title="Policy on SuiVision">#${escapeHtml(shortPolicy)} ↗</a>`
               : ""}
           </div>
           <strong>Receipts without a local policy</strong>
@@ -9558,9 +10804,9 @@ function renderWorkspaceSimulationCard(entry) {
           ${renderTokenSubline(entry.stableSymbol || "USDC", entry.stableSymbol || "USDC")}
         </div>
         <div>
-          <span class="ws-dash-label">LTV</span>
+          <span class="ws-dash-label">Debt pressure</span>
           <strong class="ws-dash-strong--cyan">${ltvPct}%</strong>
-          <span class="ws-dash-sub">${entry.targetLow.toFixed(0)}–${entry.targetHigh.toFixed(0)}% target</span>
+          <span class="ws-dash-sub">${entry.targetLow.toFixed(0)}–${entry.targetHigh.toFixed(0)}% target band</span>
         </div>
         <div>
           <span class="ws-dash-label">Buffer</span>
@@ -9584,11 +10830,11 @@ function renderWorkspaceSimulationCard(entry) {
 
       <div class="ws-position-actions">
         ${entry.type === "draft" ? `
-          <button class="button button-primary" type="button" data-action="run-draft" title="Run an Autopilot Rehearsal check on this draft and open the readout.">Run check</button>
+          <button class="button button-primary" type="button" data-action="run-draft" title="Run a rehearsal on this draft and open the readout.">Run rehearsal</button>
           <a class="button button-secondary" href="${escapeHtml(buildSetupHref(""))}" title="Open Create to keep editing this draft">Edit</a>
           <button class="button button-ghost is-danger" type="button" data-action="discard" data-id="__draft__" title="Reset the form to defaults. Local only — nothing is sent anywhere.">Discard draft</button>
         ` : entry.type === "saved-draft" ? `
-          <button class="button button-primary" type="button" data-action="run-saved-draft" data-id="${escapeHtml(entry.id)}" title="Load this draft into Create and run an Autopilot Rehearsal check.">Run check</button>
+          <button class="button button-primary" type="button" data-action="run-saved-draft" data-id="${escapeHtml(entry.id)}" title="Load this draft into Create and run a rehearsal.">Run rehearsal</button>
           <a class="button button-secondary" href="${escapeHtml(buildSetupHref(entry.id))}" title="Load this template into Create as the working draft">Edit</a>
           <button class="button button-ghost is-danger" type="button" data-action="delete-draft" data-id="${escapeHtml(entry.id)}" title="Remove this saved draft template.">Remove</button>
         ` : entry.type === "current" ? `
@@ -9846,11 +11092,11 @@ function renderWorkspacePage() {
     const onchainBusy = _workspaceOnChain.status === "loading";
 
     safeReplaceChildren(filterBar, `
-      <div class="ws-filter-row">
-        <button class="ws-filter-btn ${wsFilter === "all" ? "is-active" : ""}" type="button" role="tab" aria-pressed="${wsFilter === "all"}" data-filter="all">All <span class="ws-filter-count">${counts.all}</span></button>
-        <button class="ws-filter-btn ${wsFilter === "draft" ? "is-active" : ""}" type="button" role="tab" aria-pressed="${wsFilter === "draft"}" data-filter="draft">Drafts <span class="ws-filter-count">${counts.draft}</span></button>
-        <button class="ws-filter-btn ${wsFilter === "simulation" ? "is-active" : ""}" type="button" role="tab" aria-pressed="${wsFilter === "simulation"}" data-filter="simulation">Simulations <span class="ws-filter-count">${counts.simulation}</span></button>
-        <button class="ws-filter-btn ${wsFilter === "live" ? "is-active" : ""}" type="button" role="tab" aria-pressed="${wsFilter === "live"}" data-filter="live">Live <span class="ws-filter-count">${counts.live}</span></button>
+      <div class="ws-filter-row" role="group" aria-label="Workspace filters">
+        <button class="ws-filter-btn ${wsFilter === "all" ? "is-active" : ""}" type="button" aria-pressed="${wsFilter === "all"}" data-filter="all">All <span class="ws-filter-count">${counts.all}</span></button>
+        <button class="ws-filter-btn ${wsFilter === "draft" ? "is-active" : ""}" type="button" aria-pressed="${wsFilter === "draft"}" data-filter="draft">Drafts <span class="ws-filter-count">${counts.draft}</span></button>
+        <button class="ws-filter-btn ${wsFilter === "simulation" ? "is-active" : ""}" type="button" aria-pressed="${wsFilter === "simulation"}" data-filter="simulation">Simulations <span class="ws-filter-count">${counts.simulation}</span></button>
+        <button class="ws-filter-btn ${wsFilter === "live" ? "is-active" : ""}" type="button" aria-pressed="${wsFilter === "live"}" data-filter="live">Live <span class="ws-filter-count">${counts.live}</span></button>
         <button class="button button-ghost button-sm ws-filter-refresh" type="button" data-action="ws-refresh-onchain" title="Refresh on-chain policies + receipts" ${onchainBusy ? "disabled" : ""}>
           ${icon("refresh-cw", "sm")}
           <span>${onchainBusy ? "Refreshing…" : "Refresh"}</span>
@@ -9894,12 +11140,12 @@ function renderWorkspacePage() {
 
     if (filtered.length === 0) {
       const emptyCopy = wsFilter === "live"
-        ? { title: "No live rehearsals yet", body: "Run an Autopilot Rehearsal check first, then anchor the policy on-chain from Setup. Receipts minted against it will show up here as execution history.", ctaLabel: "Run first rehearsal", ctaHref: "/setup" }
+        ? { title: "No live rehearsals yet", body: "Run a rehearsal first, then save the policy on-chain from Create. Receipts minted against it will show up here as history.", ctaLabel: "Run first rehearsal", ctaHref: "/setup" }
         : wsFilter === "draft"
           ? { title: "No drafts yet", body: "Open Create, set up the form, and hit Save as draft to keep it here as a named template. Edits you haven't saved live inside Create.", ctaLabel: "Open Create", ctaHref: "/setup" }
           : wsFilter === "simulation"
-            ? { title: "No autopilot rehearsals yet", body: "Open Create to run your first one. Shadow Mode is fully local — nothing touches your wallet until you anchor a policy on-chain.", ctaLabel: "Run first rehearsal", ctaHref: "/setup" }
-            : { title: "Your workspace is empty", body: "Run your first Autopilot Rehearsal in Shadow Mode — no wallet or capital needed. You can publish the policy on-chain once it looks right.", ctaLabel: "Run first rehearsal", ctaHref: "/setup" };
+            ? { title: "No autopilot rehearsals yet", body: "Open Create to run your first one. Rehearsal is fully local — nothing touches your wallet until you save a policy on-chain.", ctaLabel: "Run first rehearsal", ctaHref: "/setup" }
+            : { title: "Your workspace is empty", body: "Run your first rehearsal — no signing or capital needed. You can save the policy on-chain once it looks right.", ctaLabel: "Run first rehearsal", ctaHref: "/setup" };
       safeReplaceChildren(list, renderSectionEmpty(emptyCopy.title, emptyCopy.body, emptyCopy.ctaLabel, emptyCopy.ctaHref));
     } else {
       safeReplaceChildren(list, filtered.map(entry => {
@@ -9982,8 +11228,8 @@ function renderCreateScopeState() {
     // red warning next to the amount field on first wallet connect.
     if (createScopeState.scope === "live" && createScopeState.canRunSimulation && createScopeState.canOpenLive) {
       hint.textContent = createScopeState.walletBacked
-        ? `Live armed — ${formatBtcAmount(createScopeState.requested)} ${createScopeState.symbol || "BTC"} on wallet`
-        : `Testnet rehearsal armed — mock ${formatBtcAmount(createScopeState.requested)} ${createScopeState.symbol || "BTC"}`;
+        ? `Testnet proof armed — ${formatBtcAmount(createScopeState.requested)} ${createScopeState.symbol || "BTC"} on wallet`
+        : `Testnet proof armed — mock ${formatBtcAmount(createScopeState.requested)} ${createScopeState.symbol || "BTC"}`;
       hint.dataset.tone = "good";
       hint.hidden = false;
     } else {
@@ -9998,28 +11244,28 @@ function renderCreateScopeState() {
   }
 
   if (railTitle && railCopy && railChipPrimary && railChipSecondary && railChipTertiary) {
-    let title = "Simulation";
+    let title = "Rehearsal";
     let copy = "Manual or read-only wallet data. No signing.";
     let chips = ["Wallet optional", "Read-only inputs", "Run first"];
 
     if (createScopeState.scope === "live") {
       switch (createScopeState.reason) {
         case "live-ready":
-          title = "Live ready";
-          copy = `${formatBtcAmount(createScopeState.requested)} ${createScopeState.symbol || "BTC"} is covered by the connected wallet. Spot is pinned to live data.`;
-          chips = ["Wallet-bound", `${formatBtcAmount(createScopeState.available)} available`, "Executable"];
+        title = "Testnet proof ready";
+          copy = `${formatBtcAmount(createScopeState.requested)} ${createScopeState.symbol || "BTC"} is covered by the connected wallet. Reference price is pinned to verified data.`;
+          chips = ["Wallet-bound", `${formatBtcAmount(createScopeState.available)} available`, "Proof-ready"];
           break;
         case "proof-collateral-mock":
-          title = "Proof-only collateral";
+          title = "Testnet proof collateral";
           copy = createScopeState.available === null
             ? `Testnet rehearsal can arm ${createScopeState.symbol || "BTC"} before wallet balances finish syncing.`
-            : `Testnet rehearsal is using mock ${createScopeState.symbol || "BTC"} collateral for anchor + receipt only.`;
+            : `Mock ${createScopeState.symbol || "BTC"} collateral can run a local rehearsal only. Connect owned wBTC/xBTC before saving or minting.`;
           chips = ["Testnet rehearsal", "Mock collateral", "No live capital"];
           break;
         case "wallet-required":
           title = "Wallet required";
           copy = "Connect the wallet that owns the BTC wrapper and the stable buffer.";
-          chips = ["Connect wallet", "Owned wrapper", "Live locked"];
+          chips = ["Connect wallet", "Owned wrapper", "Proof locked"];
           break;
         case "balance-loading":
           title = "Syncing balances";
@@ -10028,32 +11274,32 @@ function renderCreateScopeState() {
           break;
         case "wrapper-required":
           title = "Pick a wrapper";
-          copy = "Live needs a wallet BTC wrapper, not a manual placeholder.";
-          chips = ["Select wrapper", "Wallet-owned", "Live blocked"];
+          copy = "Testnet proof needs a wallet BTC wrapper, not a manual placeholder.";
+          chips = ["Select wrapper", "Wallet-owned", "Proof blocked"];
           break;
         case "wrapper-not-owned":
           title = "Wrapper not owned";
           copy = `The connected wallet does not hold ${createScopeState.symbol || "the selected wrapper"}.`;
-          chips = ["Choose owned asset", "Simulation still works", "Live blocked"];
+          chips = ["Choose owned asset", "Rehearsal still works", "Proof blocked"];
           break;
         case "unsupported-wrapper":
           title = "Read-only wrapper";
-          copy = createScopeState.message || "This wallet asset is visible, but it is not supported by current Live rehearsal rails.";
-          chips = ["Observed only", "Choose wBTC/xBTC", "Live blocked"];
+          copy = createScopeState.message || "This wallet asset is visible, but it is not supported by current testnet-proof rehearsal rails.";
+          chips = ["Observed only", "Choose wBTC/xBTC", "Proof blocked"];
           break;
         case "amount-required":
           title = "Amount required";
-          copy = "Live validates the exact collateral amount against the wallet.";
-          chips = ["Enter amount", `${formatBtcAmount(createScopeState.available)} available`, "Live blocked"];
+          copy = "Testnet proof validates the exact collateral amount against the wallet.";
+          chips = ["Enter amount", `${formatBtcAmount(createScopeState.available)} available`, "Proof blocked"];
           break;
         case "insufficient-balance":
           title = "Balance too low";
           copy = `Requested ${formatBtcAmount(createScopeState.requested)} ${createScopeState.symbol || "BTC"}, wallet has ${formatBtcAmount(createScopeState.available)}.`;
-          chips = ["Lower amount", `${formatBtcAmount(createScopeState.available)} available`, "Live blocked"];
+          chips = ["Lower amount", `${formatBtcAmount(createScopeState.available)} available`, "Proof blocked"];
           break;
         default:
-          title = "Live validation";
-          copy = createScopeState.message || "Live constrains the draft to what the connected wallet can actually execute.";
+          title = "Testnet proof validation";
+          copy = createScopeState.message || "Testnet proof constrains the draft to what the connected wallet can actually execute.";
           chips = ["Wallet-bound", "Validated inputs", "Review first"];
           break;
       }
@@ -10071,16 +11317,16 @@ function renderCreateScopeState() {
     liveNav.classList.toggle("is-disabled", disabled);
     liveNav.setAttribute("aria-disabled", String(disabled));
     liveNav.title = createScopeState.scope === "shadow"
-      ? "Switch Create to Live to continue into testnet proof review."
+      ? "Switch Create to Testnet proof to continue into wallet-backed review."
       : createScopeState.canOpenLive
         ? createScopeState.mockCollateral
-          ? "Open the Live screen in testnet rehearsal mode. Capital movement stays disabled."
-          : "Open the Live screen with this wallet-backed draft."
+          ? "Open the proof screen in testnet rehearsal mode. Capital movement stays disabled."
+          : "Open the proof screen with this wallet-backed draft."
         : createScopeState.message;
   }
 
   const softLocked = isLiveSoftLockedFromSimulation(draft);
-  const softLockMsg = "Simulation draft uses manual numbers. To arm Live, start a new scenario from wallet data.";
+  const softLockMsg = "Rehearsal draft uses manual numbers. To arm testnet proof, start a new scenario from wallet data.";
   const liveRunBlocked = createScopeState.scope === "live" && !createScopeState.canRunSimulation;
 
   if (runButton) {
@@ -10093,12 +11339,13 @@ function renderCreateScopeState() {
         ? createScopeState.message
       : createScopeState.scope === "live"
         ? createScopeState.mockCollateral
-          ? "Rehearse the policy against testnet rehearsal collateral before publishing on-chain."
-          : "Rehearse the policy against real wallet balances before publishing on-chain."
+          ? "Rehearse the policy against testnet rehearsal collateral before saving on-chain."
+          : "Rehearse the policy against real wallet balances before saving on-chain."
         : "Run the simulation with the numbers entered above. No signing.";
     runButton.textContent = createScopeState.scope === "live"
-      ? (liveRunBlocked ? "Fix Live inputs" : "Rehearse against wallet")
-      : "Run rehearsal check";
+      ? (liveRunBlocked ? "Fix proof inputs" : "Run testnet proof")
+      : "Run rehearsal";
+    syncActionDisabledHint(runButton, disabled ? runButton.title : "", runButton.id || "run-sim-toolbar");
   }
 
   syncTrustLabels();
@@ -10168,26 +11415,26 @@ function renderCreatePreviewRail(draft, createScopeState = null) {
   const payoutNode = rail.querySelector("[data-create-preview-payout]");
   const debtNode = rail.querySelector("[data-create-preview-debt]");
 
-  let title = "Manual sandbox";
-  let copy = `${modeLabel} · ${priorityLabel}. ${formatCompactUsd(effCollateralUsd)} collateral modelled at ${(projectedLtv * 100).toFixed(1)}% LTV.`;
+  let title = "Rehearsal draft";
+  let copy = `${priorityLabel}. ${formatCompactUsd(effCollateralUsd)} BTC collateral at ${(projectedLtv * 100).toFixed(1)}% debt pressure.`;
   let next = isLiveEnabled()
-    ? "Simulation ignores wallet balances. Run it, open Readout for this run, then switch to Live when collateral is real."
-    : "Simulation stays public. Open Readout for the selected run; guided live rollout remains a gated roadmap path.";
-  let scopeLabel = "Simulation";
+    ? "Run rehearsal first. If it survives, open Readout to save the policy and mint a receipt."
+    : "Run rehearsal first. Receipt actions appear in Readout when a testnet wallet is available.";
+  let scopeLabel = "Rehearsal";
 
   if (isLiveEnabled() && state.scope === "live") {
-    scopeLabel = state.walletBacked ? "Collateral verified" : state.mockCollateral ? "Proof collateral" : "Live blocked";
+    scopeLabel = state.walletBacked ? "Wallet verified" : state.mockCollateral ? "Proof collateral" : "Proof blocked";
     if (state.walletBacked) {
       title = "Wallet-backed policy";
       copy = `${modeLabel} · ${priorityLabel}. ${formatBtcAmount(state.available)} ${state.symbol || symbol} is available for wallet-backed rehearsal.`;
-      next = "Wallet-backed draft is ready for proof review. Run one final simulation pass, then continue into Live.";
+      next = "Wallet-backed draft is ready for proof review. Run one final rehearsal pass, then continue to proof signing.";
     } else if (state.mockCollateral) {
-      title = "Proof-only live draft";
+      title = "Testnet proof draft";
       copy = `${modeLabel} · ${priorityLabel}. Connected wallet is real, but ${state.symbol || symbol} collateral is mocked for testnet rehearsal only.`;
-      next = "Run the draft, publish the policy on-chain (Sui testnet — no real BTC moves), then mint a testnet action receipt. Live capital remains disabled.";
+      next = "Use this for a local rehearsal only. Connect owned wBTC/xBTC before saving a testnet policy or minting a receipt.";
     } else {
-      title = "Fix Live inputs";
-      copy = `${modeLabel} · ${priorityLabel}. Live only works with owned BTC wrappers and wallet-backed balances.`;
+      title = "Fix proof inputs";
+      copy = `${priorityLabel}. Testnet proof only works with owned BTC wrappers and wallet-backed balances.`;
       next = state.message || "Connect wallet, choose an owned BTC wrapper, and keep the amount within wallet balance.";
     }
   }
@@ -10239,16 +11486,10 @@ function renderCreatePreviewRail(draft, createScopeState = null) {
   updatePresetStatBadges();
 }
 
-// Preset cards show "<payout>/mo · <runway> mo runway · LTV <low>-<high>%"
-// sourced from STRATEGY_PRESETS so the DOM can't drift from the preset the
-// card actually loads when clicked. When the user has entered collateral,
-// the payout slot swaps to the projected debt at the preset's mid-LTV so
-// different presets visibly differ on the same collateral.
+// Preset cards keep the user's primary choice visible:
+// monthly draw, runway, and debt-pressure band. Modeled debt is derived in
+// the footer preview instead of replacing the cashflow metric on the cards.
 function updatePresetStatBadges() {
-  const btcUnits = asNumber(form?.elements?.btcUnits?.value || 0);
-  const btcPriceUsd = asNumber(form?.elements?.btcPriceUsd?.value || 0);
-  const collateralUsd = btcUnits * btcPriceUsd;
-
   Object.entries(STRATEGY_PRESETS).forEach(([key, preset]) => {
     const fields = preset.fields || {};
     const payoutNode = document.querySelector(`[data-preset-stat="${key}-payout"]`);
@@ -10258,21 +11499,10 @@ function updatePresetStatBadges() {
     const ltvNode = document.querySelector(`[data-preset-stat="${key}-ltv"]`);
 
     if (payoutNode) {
-      if (collateralUsd > 0) {
-        const midLtv = ((asNumber(fields.targetLtvLowPct) + asNumber(fields.targetLtvHighPct)) / 2) / 100;
-        payoutNode.textContent = formatCompactUsd(collateralUsd * midLtv);
-        if (payoutLabel) payoutLabel.textContent = "Debt";
-        if (payoutSuffix) payoutSuffix.textContent = payoutLabel ? "" : " debt";
-        payoutNode.closest("span")?.setAttribute(
-          "title",
-          "Modeled debt at mid-LTV for your collateral"
-        );
-      } else {
-        payoutNode.textContent = formatCompactUsd(asNumber(fields.monthlyPayoutTargetUsd));
-        if (payoutLabel) payoutLabel.textContent = "Payout";
-        if (payoutSuffix) payoutSuffix.textContent = "/mo";
-        payoutNode.closest("span")?.removeAttribute("title");
-      }
+      payoutNode.textContent = formatCompactUsd(asNumber(fields.monthlyPayoutTargetUsd));
+      if (payoutLabel) payoutLabel.textContent = "Monthly draw";
+      if (payoutSuffix) payoutSuffix.textContent = "/mo";
+      payoutNode.closest("span")?.removeAttribute("title");
     }
     if (runwayNode) {
       runwayNode.textContent = String(asNumber(fields.desiredRunwayMonths));
@@ -10371,14 +11601,18 @@ function renderSetupPage() {
       if (!radio) return;
       const currentRadio = modeCard.querySelector('input[name="createScope"]:checked');
       const nextScopeKey = getCreateScopeKey(radio.value);
+      const currentDraft = form ? readDraftFromForm() : null;
       captureCreateScopeFieldState(currentRadio?.value || "shadow");
       if (currentRadio?.value !== radio.value) {
-        createScopeFieldState[nextScopeKey].btcUnits = 0;
+        const currentUnits = Math.max(0, asNumber(currentDraft?.btcUnits));
+        if (!(createScopeFieldState[nextScopeKey].btcUnits > 0) && currentUnits > 0) {
+          createScopeFieldState[nextScopeKey].btcUnits = currentUnits;
+        }
       }
       radio.checked = true;
       applyCreateScopeFieldState(radio.value);
       const originField = form?.elements?.namedItem("scenarioOrigin");
-      if (originField && !String(originField.value || "").trim()) {
+      if (originField) {
         originField.value = radio.value === "live" ? "live" : "simulation";
       }
       radio.dispatchEvent(new Event("change", { bubbles: true }));
@@ -10463,8 +11697,8 @@ function renderSetupPage() {
 // ---------------------------------------------------------------------------
 const GUARDRAILS_STATE = { overlay: "your-stress", period: "1M" };
 const GUARDRAILS_OVERLAYS = [
-  { key: "your-stress", label: "Your stress", sub: "Sliders" },
-  { key: "recent30d", label: "BTC path", sub: "30D" },
+  { key: "your-stress", label: "Custom stress", sub: "Manual" },
+  { key: "recent30d", label: "BTC replay", sub: "30D" },
   { key: "crash-2020-03", label: "Mar 2020", sub: "COVID −50%" },
   { key: "crash-2022-11", label: "Nov 2022", sub: "FTX −22%" },
   { key: "crash-2021-05", label: "May 2021", sub: "China −41%" },
@@ -10479,8 +11713,8 @@ const GUARDRAILS_PERIODS = [
 ];
 const KALSHI_FALLBACK_HORIZON_DAYS = 3;
 const GUARDRAILS_THRESHOLDS = [
-  { key: "targetLow", field: "targetLtvLowPct", label: "Target low", tone: "mint" },
-  { key: "targetHigh", field: "targetLtvHighPct", label: "De-risk", tone: "amber" },
+  { key: "targetLow", field: "targetLtvLowPct", label: "Target floor", tone: "mint" },
+  { key: "targetHigh", field: "targetLtvHighPct", label: "Target ceiling", tone: "amber" },
   { key: "autoRepay", field: "autoRepayLtvPct", label: "Managed repay", tone: "amber" },
   { key: "emergency", field: "emergencyLtvPct", label: "Freeze", tone: "rose" },
 ];
@@ -11127,7 +12361,7 @@ function renderGuardrailsChart(host, { draft, interactive = true } = {}) {
     const isDisabled = Boolean(it.disabled);
     const cls = `segmented__option guardrails-chart__chip${isActive ? " is-active" : ""}${isDisabled ? " is-disabled" : ""}`;
     const disabledAttr = isDisabled ? ' disabled aria-disabled="true"' : "";
-    return `<button type="button" role="radio" aria-checked="${isActive}" aria-pressed="${isActive}" data-guardrail-group="${group}" data-guardrail-value="${it.key}" class="${cls}"${disabledAttr}><span class="guardrails-chart__chip-label">${escapeHtml(it.label || it.key)}</span>${sub}</button>`;
+    return `<button type="button" role="radio" aria-checked="${isActive}" data-guardrail-group="${group}" data-guardrail-value="${it.key}" class="${cls}"${disabledAttr}><span class="guardrails-chart__chip-label">${escapeHtml(it.label || it.key)}</span>${sub}</button>`;
   }).join("");
   const periodItems = kalshiLockedPeriod
     ? [{ key: period.key, label: period.label || "Kalshi", sub: period.sub, disabled: true }]
@@ -11173,7 +12407,7 @@ function renderGuardrailsChart(host, { draft, interactive = true } = {}) {
   const stripRowCount = Math.max(1, ...thumbSpec.map((spec) => spec.row + 1));
   const stripThumbs = thumbSpec.map((spec) => {
     const { threshold: t, pct, x, short, row } = spec;
-    const valueText = `${t.label}: ${pct.toFixed(1)}% LTV`;
+    const valueText = `${t.label}: ${pct.toFixed(1)}% debt pressure`;
     return `<button type="button" role="slider" class="guardrails-chart__strip-thumb guardrails-chart__strip-thumb--${t.tone}" data-guardrail-strip="${t.field}" style="left:${x.toFixed(2)}%;--strip-row:${row}" title="${escapeHtml(valueText)}" aria-label="${escapeHtml(t.label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct.toFixed(1)}" aria-valuetext="${escapeHtml(valueText)}">
       <span class="guardrails-chart__strip-label">${short}</span>
       <span class="guardrails-chart__strip-pct">${pct.toFixed(1)}%</span>
@@ -11188,7 +12422,7 @@ function renderGuardrailsChart(host, { draft, interactive = true } = {}) {
       </div>`
     : "";
   const stripCurrent = currentLtv > 0
-    ? `<div class="guardrails-chart__strip-now" style="left:${pctToX(currentLtv).toFixed(2)}%" title="Current LTV ${currentLtv.toFixed(1)}%"></div>`
+    ? `<div class="guardrails-chart__strip-now" style="left:${pctToX(currentLtv).toFixed(2)}%" title="Current debt pressure ${currentLtv.toFixed(1)}%"></div>`
     : "";
   const seriesPrices = points
     .map((point) => Number(point?.price))
@@ -11197,6 +12431,9 @@ function renderGuardrailsChart(host, { draft, interactive = true } = {}) {
   const seriesMaxPrice = seriesPrices.length ? Math.max(...seriesPrices) : spot;
   const seriesStartPrice = seriesPrices.length ? seriesPrices[0] : spot;
   const seriesAnchorPrice = Math.max(1, Number(series.referencePriceUsd) || spot);
+  const focusedStripField = interactive && host.contains(document.activeElement)
+    ? document.activeElement?.getAttribute?.("data-guardrail-strip") || ""
+    : "";
 
   host.innerHTML = `
     <div class="guardrails-chart guardrails-chart--${interactive ? "edit" : "view"}" data-overlay="${escapeHtml(state.overlay)}" data-series-start-price-usd="${seriesStartPrice.toFixed(2)}" data-series-min-price-usd="${seriesMinPrice.toFixed(2)}" data-series-max-price-usd="${seriesMaxPrice.toFixed(2)}" data-series-reference-price-usd="${seriesAnchorPrice.toFixed(2)}">
@@ -11215,7 +12452,7 @@ function renderGuardrailsChart(host, { draft, interactive = true } = {}) {
       </svg>
       ${zoneLegend}
       ${interactive ? `
-      <div class="guardrails-chart__strip" aria-label="LTV scale — drag markers to adjust thresholds" style="--strip-rows:${stripRowCount}">
+      <div class="guardrails-chart__strip" aria-label="Debt pressure scale — drag markers to adjust thresholds" style="--strip-rows:${stripRowCount}">
         <div class="guardrails-chart__strip-track">${stripZones}</div>
         ${stripCurrent}
         ${stripThumbs}
@@ -11308,7 +12545,7 @@ function renderGuardrailsChart(host, { draft, interactive = true } = {}) {
         if (!el) return;
         const x = Math.min(100, Math.max(0, ((pctVal - stripLo) / stripSpan) * 100));
         el.style.left = `${x.toFixed(2)}%`;
-        const valueText = `${t.label}: ${pctVal.toFixed(1)}% LTV`;
+        const valueText = `${t.label}: ${pctVal.toFixed(1)}% debt pressure`;
         el.setAttribute("aria-valuenow", pctVal.toFixed(1));
         el.setAttribute("aria-valuetext", valueText);
         el.title = valueText;
@@ -11464,6 +12701,14 @@ function renderGuardrailsChart(host, { draft, interactive = true } = {}) {
         window.addEventListener("pointercancel", onUp);
       });
     });
+
+    if (focusedStripField) {
+      const nextFocusedStrip = Array.from(host.querySelectorAll("[data-guardrail-strip]"))
+        .find((node) => node.getAttribute("data-guardrail-strip") === focusedStripField);
+      if (nextFocusedStrip instanceof HTMLElement) {
+        requestAnimationFrame(() => nextFocusedStrip.focus({ preventScroll: true }));
+      }
+    }
   }
 }
 
@@ -11815,14 +13060,17 @@ function renderBtcPriceMeta(draft) {
   const reset = document.querySelector("[data-btc-price-reset]");
   const wrapperSymbol = getCollateralAssetSymbol(draft);
   const livePrice = getPreferredLiveWrapperPriceUsd(wrapperSymbol);
+  const globalLivePrice = getPreferredLiveBtcPriceUsd();
   const scope = String(draft?.createScope || "shadow").toLowerCase() === "live" ? "live" : "shadow";
 
   // On wrapper change drop any "user-edited" marker so the spot input snaps
   // back to the new wrapper's live price — a price manually set for xBTC
   // doesn't carry any meaning once the user switches to WBTC.
   const lastWrapper = String(input.dataset.wrapperSymbol || "");
-  if (lastWrapper && lastWrapper !== wrapperSymbol) {
+  const wrapperChanged = Boolean(lastWrapper && lastWrapper !== wrapperSymbol);
+  if (wrapperChanged) {
     delete input.dataset.liveAutoFilled;
+    delete input.dataset.userEditedPrice;
   }
   input.dataset.wrapperSymbol = wrapperSymbol;
 
@@ -11839,14 +13087,24 @@ function renderBtcPriceMeta(draft) {
       // Keep the spot input in sync with live as long as the user hasn't
       // manually edited it. We track the last auto-filled value in a dataset
       // marker; a real keystroke clears it (see input listener below), which
-      // pins the current value until the user hits "Reset to live".
+      // pins the current value until the user hits "Reset to reference".
       const cur = Number(input.value || 0);
       const lastAuto = Number(input.dataset.liveAutoFilled || 0);
-      const userEdited = cur > 0 && cur !== lastAuto;
+      const defaultPrice = asNumber(DEFAULT_DRAFT.btcPriceUsd);
+      const matchesAutoSeed = (value) => (
+        value > 0 && (
+          Math.abs(value - lastAuto) < 0.5
+          || Math.abs(value - defaultPrice) < 0.5
+          || (globalLivePrice > 1_000 && Math.abs(value - globalLivePrice) < 0.5)
+        )
+      );
+      const userEdited = input.dataset.userEditedPrice === "true"
+        || (cur > 0 && !wrapperChanged && !matchesAutoSeed(cur));
       const rounded = Math.round(livePrice);
-      if (!userEdited && cur !== rounded) {
+      if ((wrapperChanged || !userEdited) && cur !== rounded) {
         input.value = String(rounded);
         input.dataset.liveAutoFilled = String(rounded);
+        delete input.dataset.userEditedPrice;
       } else if (!userEdited && !input.dataset.liveAutoFilled) {
         input.dataset.liveAutoFilled = String(rounded);
       }
@@ -11856,7 +13114,7 @@ function renderBtcPriceMeta(draft) {
   if (meta) {
     if (livePrice > 0) {
       const ts = appState.btcPriceUpdatedAt ? Math.floor((Date.now() - appState.btcPriceUpdatedAt) / 1000) : 0;
-      meta.textContent = `Read-back · $${Math.round(livePrice).toLocaleString("en-US")} · updated ${ts}s ago`;
+      meta.textContent = `Verified price snapshot · $${Math.round(livePrice).toLocaleString("en-US")} · updated ${ts}s ago`;
     } else {
       meta.textContent = "";
     }
@@ -11874,7 +13132,10 @@ function renderBtcPriceMeta(draft) {
     input.dataset.priceBound = "1";
     input.addEventListener("input", (ev) => {
       if (input.dataset.liveLocked) return;
-      if (ev.isTrusted) delete input.dataset.liveAutoFilled;
+      if (ev.isTrusted) {
+        delete input.dataset.liveAutoFilled;
+        input.dataset.userEditedPrice = "true";
+      }
       renderBtcPriceMeta(readDraftFromForm());
     });
   }
@@ -11889,6 +13150,7 @@ function renderBtcPriceMeta(draft) {
       const rounded = Math.round(lp);
       input.value = String(rounded);
       input.dataset.liveAutoFilled = String(rounded);
+      delete input.dataset.userEditedPrice;
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
     });
@@ -11923,12 +13185,12 @@ function buildRecommendationSummary(draft, report) {
   // Modeled operator notes. Keep these non-advisory: the user still decides and signs.
   if (state === "StressLockdown") {
     const repayAmount = Math.round(debtUsd - collateral * (targetHigh / 100));
-    bullets.push({ tone: "rose", text: `Modeled lockdown gap: ~${formatUsd(Math.max(0, repayAmount))} debt reduction or added collateral would bring LTV back inside policy.` });
+    bullets.push({ tone: "rose", text: `Modeled lockdown gap: ~${formatUsd(Math.max(0, repayAmount))} debt reduction or added collateral would bring debt pressure back inside policy.` });
   } else if (state === "DeRisk") {
-    bullets.push({ tone: "amber", text: `Modeled LTV is above the ${targetHigh}% ceiling; operator review can compare debt reduction, added BTC, or wider thresholds.` });
+    bullets.push({ tone: "amber", text: `Modeled debt pressure is above the ${targetHigh}% ceiling; operator review can compare debt reduction, added BTC, or wider thresholds.` });
   } else if (state === "BuildBuffer") {
     const bufferNeeded = Math.round(asNumber(draft.minStableBufferUsd) - asNumber(draft.stableBufferUsd));
-    bullets.push({ tone: "amber", text: bufferNeeded > 0 ? `Modeled buffer gap: ~${formatUsd(bufferNeeded)} stable reserve before the minimum floor is restored.` : "The model keeps payouts paused until buffer returns above the safety floor." });
+    bullets.push({ tone: "amber", text: bufferNeeded > 0 ? `Modeled buffer gap: ~${formatUsd(bufferNeeded)} stable reserve before the minimum floor is restored.` : "The model keeps monthly draws paused until buffer returns above the safety floor." });
   }
 
   if (bufferDays < 30) {
@@ -11940,15 +13202,15 @@ function buildRecommendationSummary(draft, report) {
   }
 
   if (ltv >= emergency) {
-    bullets.push({ tone: "rose", text: `LTV is at or above the ${emergency}% emergency line; the model marks this as an operator-review boundary.` });
+    bullets.push({ tone: "rose", text: `Debt pressure is at or above the ${emergency}% emergency line; the model marks this as an operator-review boundary.` });
   } else if (ltv > targetHigh) {
-    bullets.push({ tone: "amber", text: `LTV is ${ltv.toFixed(1)}%, above the ${targetHigh}% ceiling; monitor the next price move before approval.` });
+    bullets.push({ tone: "amber", text: `Debt pressure is ${ltv.toFixed(1)}%, above the ${targetHigh}% ceiling; monitor the next price move before approval.` });
   }
 
   if (health >= 70 && bullets.length === 0) {
     bullets.push({ tone: "mint", text: "The model stays inside policy across the stress ladder." });
   } else if (health < 40) {
-    bullets.push({ tone: "rose", text: "The model is fragile across the ladder; review guardrails and LTV targets before approval." });
+    bullets.push({ tone: "rose", text: "The model is fragile across the ladder; review guardrails and debt-pressure targets before approval." });
   }
 
   return bullets;
@@ -11962,7 +13224,7 @@ function buildHeroVerdict({ healthScore, stressSurvived, bufferDays, breakwaterT
   if (!stressSurvived) {
     return {
       tone: "rose",
-      line: `Policy breaks in the 2020\u20132022 replay \u2014 buffer runs out before the drawdown is over. Raise the buffer floor or tighten LTV before going live.`,
+      line: `Policy breaks in the 2020\u20132022 replay \u2014 buffer runs out before the drawdown is over. Raise the buffer floor or tighten debt pressure before going live.`,
     };
   }
   // Phase D.8 \u2014 verdict copy now leads with the quantitative fact
@@ -11982,77 +13244,150 @@ function buildHeroVerdict({ healthScore, stressSurvived, bufferDays, breakwaterT
   }
   return {
     tone: "amber",
-    line: `Health ${score}/100 \u00b7 buffer covers only ${days} days. Replay survives marginally; ${triggerTxt.toLowerCase()}. Tighten thresholds before Live.`,
+    line: `Health ${score}/100 \u00b7 buffer covers only ${days} days. Replay survives marginally; ${triggerTxt.toLowerCase()}. Tighten thresholds before testnet proof.`,
   };
 }
 
 function buildResultsVerdict(resultsActionState, current) {
+  const latestReceiptLink = getLatestProofReceiptLink();
+  const latestReceiptSecondary = latestReceiptLink
+    ? {
+        secondaryCtaLabel: "Verify latest receipt",
+        secondaryCtaHref: latestReceiptLink.href,
+        secondaryCtaTitle: latestReceiptLink.selectedRail
+          ? `Open the latest testnet receipt verifier (${latestReceiptLink.selectedRail})`
+          : "Open the latest testnet receipt verifier",
+      }
+    : {};
+  const createHref = buildSetupHref(
+    current?.sourceScenarioId || readRouteScenarioIdFromUrl(),
+    { policy: current?.onChainPolicy?.id || readRoutePolicyIdFromUrl() },
+  );
+  const proofCreateHref = buildSetupHref(
+    current?.sourceScenarioId || readRouteScenarioIdFromUrl(),
+    {
+      policy: current?.onChainPolicy?.id || readRoutePolicyIdFromUrl(),
+      proof: true,
+      draft: current?.draft,
+    },
+  );
+  const testnetCreateHref = buildTestnetSetupHref(
+    "",
+    { proof: true, draft: current?.draft },
+  );
   if (!current?.report) {
     return {
       tone: "neutral",
       title: "No simulation run yet",
       // Phase D.32 → D.33 (G-4 + G-7) — operator-action voice with the
       // canonical verbs seeded before the operator must act on them.
-      // "Anchor" is the publish-on-chain verb introduced here so it is
+      // "Save" is the publish-on-chain verb introduced here so it is
       // not first encountered as a button label without context.
-      copy: "Author a policy in Create and run the simulation. The readout will show whether it survives the stress paths and what action to take. Anchor it on-chain when ready.",
+      copy: "Author a policy in Create and run the simulation. The readout will show whether it survives the stress paths and what action to take. Save it on-chain when ready.",
       ctaLabel: "Open Create",
-      ctaHref: "/setup",
+      ctaHref: createHref,
     };
   }
 
   if (resultsActionState.canExecuteLive) {
+    const hasPolicy = Boolean(current?.onChainPolicy?.id);
+    const hasReceipt = Boolean(current?.onChainReceipt?.id);
+    const mintReadinessBlocker = hasPolicy && !hasReceipt
+      ? getReceiptMintReadinessBlocker()
+      : null;
+    if (mintReadinessBlocker) {
       return {
-        tone: "mint",
-        title: "Ready for testnet proof review",
-        copy: "This run is fresh, wallet-backed, and using verified read-only rail data. Review the proof action before signing any testnet receipt.",
-        ctaLabel: "Review proof action",
-        ctaHref: "/results#results-execution",
+        tone: "amber",
+        title: "Refresh evidence before receipt",
+        copy: mintReadinessBlocker.message,
+        ctaLabel: "Refresh evidence",
+        ctaAction: "readout-refresh-evidence",
+        ctaHref: createHref,
+        ...latestReceiptSecondary,
       };
+    }
+    return {
+      tone: "mint",
+      title: hasReceipt
+        ? "Receipt is ready"
+        : hasPolicy
+          ? "Policy saved. Mint the receipt next"
+          : "Run is ready to save",
+      copy: hasReceipt
+        ? "The policy and receipt are saved on testnet. Open the verifier to check what was decided and what evidence was pinned."
+        : hasPolicy
+          ? "Mint a receipt to make this decision shareable and verifiable."
+          : "Save the policy on testnet first. After that, mint a receipt and open the verifier.",
+      ctaLabel: hasReceipt
+        ? "Open verifier"
+        : hasPolicy
+          ? "Mint receipt"
+          : "Save on testnet",
+      ctaAction: hasReceipt
+        ? ""
+        : hasPolicy
+          ? "readout-mint-receipt"
+          : "readout-save-policy",
+      ctaHref: hasReceipt
+        ? buildReceiptReadOnlyUrl(current.onChainReceipt, { config: getRuntimeConfig() })
+        : "/results#readout-actions",
+    };
   }
 
   switch (resultsActionState.liveReason) {
+    case "live-disabled":
+      return {
+        tone: "amber",
+        title: "Open this run on testnet",
+        copy: "This environment is read-only. Continue the same draft on testnet to save the policy and mint a receipt.",
+        ctaLabel: "Open testnet proof",
+        ctaHref: testnetCreateHref,
+        ...latestReceiptSecondary,
+      };
     case "rerun-required":
       return {
         tone: "amber",
         variant: "compact",
         kicker: "Draft state",
-        title: "Re-run before anchoring",
-        copy: "Create changed after the last simulation. Run the current draft again before anchoring or minting receipts.",
+        title: "Re-run before saving",
+        copy: "Create changed after the last simulation. Run the current draft again before saving or minting receipts.",
         ctaLabel: "Open Create",
-        ctaHref: "/setup",
+        ctaHref: createHref,
       };
     case "wallet-required":
       return {
         tone: "amber",
-        title: "Connect wallet before Live",
-        copy: "The simulation exists, but Live stays blocked until the draft is tied to a wallet session.",
-        ctaLabel: "Open Create",
-        ctaHref: "/setup",
+        title: "Connect wallet to save",
+        copy: "The simulation is ready. Connect a Sui testnet wallet in Create to save this policy and mint a receipt. You can also inspect the latest canonical receipt now.",
+        ctaLabel: "Open Create to connect wallet",
+        ctaHref: createHref,
+        ...latestReceiptSecondary,
       };
     case "live-scope-required":
       return {
         tone: "amber",
-        title: "Switch this draft into Live",
-        copy: "This readout still comes from Simulation mode. Move the same draft into Live scope, bind a real wrapper, then re-run it.",
-        ctaLabel: "Arm in Create",
-        ctaHref: "/setup",
+        title: "Switch to Testnet proof",
+        copy: "This readout is still a local simulation. Switch the same draft to Testnet proof, connect wallet, then run it again before saving and minting. You can also inspect the latest canonical receipt now.",
+        ctaLabel: "Arm Testnet proof",
+        ctaHref: proofCreateHref,
+        ...latestReceiptSecondary,
       };
     case "verified-live-data-required":
       return {
         tone: "amber",
-        title: "Verified live data required",
-        copy: "Rail data stays read-only; a signed rail pack upgrades provenance, not protocol execution.",
-        ctaLabel: "Load live data in Create",
-        ctaHref: "/setup",
+        title: "Refresh market evidence",
+        copy: "Receipt signing needs a verified rail and market snapshot. Open the Rail & venue section, refresh evidence, then run the proof again.",
+        ctaLabel: "Refresh rail data in Create",
+        ctaHref: appendHashToHref(createHref, "rail-data"),
+        ...latestReceiptSecondary,
       };
     default:
       return {
         tone: "amber",
-        title: "Review before Live",
+        title: "Review before proof",
         copy: resultsActionState.liveScopeState?.message || "This readout is usable for diagnosis, but not yet ready for testnet proof signing.",
         ctaLabel: "Open Create",
-        ctaHref: "/setup",
+        ctaHref: createHref,
       };
   }
 }
@@ -12078,21 +13413,7 @@ function renderResultsPage() {
   const exportButton = $("#export-current");
 
   const syncReadoutButtonReason = (button, reason, key) => {
-    if (!button?.parentElement) return;
-    const reasonKey = key || button.id || "readout-action";
-    const existing = button.parentElement.querySelector(`[data-disabled-reason-for="${reasonKey}"]`);
-    if (existing) existing.remove();
-    if (button.disabled && reason) {
-      const hint = document.createElement("p");
-      hint.id = `${reasonKey}-reason`;
-      hint.className = "sr-only action-disabled-hint";
-      hint.dataset.disabledReasonFor = reasonKey;
-      hint.textContent = reason;
-      button.insertAdjacentElement("afterend", hint);
-      button.setAttribute("aria-describedby", hint.id);
-    } else {
-      button.removeAttribute("aria-describedby");
-    }
+    syncActionDisabledHint(button, reason, key || button?.id || "readout-action");
   };
 
   if (!status && !hero && !action && !demoFrame && !autopilot && !positionCenter && !evidence && !review && !route && !scenarios && !actionLog && !healthNotes) {
@@ -12100,11 +13421,22 @@ function renderResultsPage() {
   }
 
   const routeRunId = readRouteRunIdFromUrl();
+  const routePolicyId = readRoutePolicyIdFromUrl();
   const routeRunMatchesCurrent = Boolean(
     normalizeLiveHistoryText(routeRunId) &&
     normalizeLiveHistoryText(appState.current?.sourceScenarioId) === normalizeLiveHistoryText(routeRunId)
   );
-  const actionStateDraft = routeRunMatchesCurrent
+  const routePolicyMatchesCurrent = Boolean(
+    normalizeLiveHistoryText(routePolicyId) &&
+    normalizeLiveHistoryText(appState.current?.onChainPolicy?.id) === normalizeLiveHistoryText(routePolicyId)
+  );
+  const routeReadoutMatchesSavedPolicy = Boolean(
+    (currentPage === "results" || currentPage === "live") &&
+    routePolicyMatchesCurrent &&
+    appState.current?.draft &&
+    appState.current?.report
+  );
+  const actionStateDraft = routeRunMatchesCurrent || routeReadoutMatchesSavedPolicy
     ? appState.current?.draft
     : appState.draft;
   const liveTrustState = getLiveDataTrustState(appState.current);
@@ -12118,15 +13450,17 @@ function renderResultsPage() {
   });
 
   if (saveButton) {
+    saveButton.hidden = !resultsActionState.connected && currentPage === "results";
     saveButton.disabled = !resultsActionState.canSaveScenario;
     const saveReason = !resultsActionState.hasCurrentRun
       ? "Run a simulation first"
       : resultsActionState.saveReason === "wallet-required"
-        ? "Connect wallet to save this run as a draft"
-        : "Save the current run's inputs as a named draft";
+        ? "Connect wallet to save this run to your account"
+        : "Save the current run to your account";
     saveButton.title = saveReason;
     saveButton.setAttribute("aria-disabled", String(!resultsActionState.canSaveScenario));
-    syncReadoutButtonReason(saveButton, saveReason, "save-current");
+    saveButton.textContent = "Save to account";
+    syncReadoutButtonReason(saveButton, saveButton.hidden ? "" : saveReason, "save-current");
   }
 
   if (exportButton) {
@@ -12141,7 +13475,6 @@ function renderResultsPage() {
   syncMintReceiptButton();
   syncReadoutEditCreateLinks(appState.current);
 
-  const routePolicyId = readRoutePolicyIdFromUrl();
   const currentPolicyId = appState.current?.onChainPolicy?.id || "";
   const livePolicyLoadedNoReport = currentPage === "live"
     && routePolicyId
@@ -12163,7 +13496,7 @@ function renderResultsPage() {
             ? "Policy loaded read-only"
           : routePolicyId
             ? "Preparing live readout"
-            : currentPage === "live" ? "No anchored policy selected" : "No simulation run yet";
+            : currentPage === "live" ? "No saved policy selected" : "No simulation run yet";
       const emptyCopy = routeRunId && routePolicyId
         ? "That link combines an on-chain policy with a modeled run that was not saved for the same policy."
         : routeRunId
@@ -12171,7 +13504,7 @@ function renderResultsPage() {
           : livePolicyLoadedNoReport
           ? "The on-chain policy is loaded. Connect wallet or open Create to rebuild the modeled snapshot before any signing action."
           : routePolicyId
-          ? "This policy object is on-chain, but the browser is rebuilding the modeled snapshot before showing the readout."
+          ? "This policy is on-chain, but the browser is rebuilding the modeled snapshot before showing the readout."
           : currentPage === "live"
           ? "Open Workspace to pick a live policy, then return here to monitor position."
           : "Author a policy in Create and run the simulation. The readout shows stress survival, position context, and the next modeled action.";
@@ -12236,21 +13569,21 @@ function renderResultsPage() {
   // still a rehearsed/read-only surface unless the wallet signs an action.
   const eyebrowEl = document.querySelector('[data-page-eyebrow]');
   if (eyebrowEl) {
-    eyebrowEl.textContent = isLiveMode ? "Live" : "Readout";
+    eyebrowEl.textContent = isLiveMode ? "Monitor" : "Readout";
   }
   const pageHeading = document.querySelector(".page-heading");
   const pageTitleEl = pageHeading?.querySelector("h1");
   const pageCopyEl = pageHeading?.querySelector(".page-copy");
   if (pageTitleEl) {
-    pageTitleEl.textContent = isLiveMode ? "Live Readout" : "Readout";
+    pageTitleEl.textContent = isLiveMode ? "Policy Monitor" : "Readout";
   }
   if (pageCopyEl) {
     const cfg = getRuntimeConfig();
     const proofAvailable = cfg?.executionProof?.allowSigning === true && isExecutionReceiptsConfigured(cfg);
     pageCopyEl.textContent = isLiveMode
-      ? "Review the anchored policy, modeled position, receipts, and next operator action. Testnet/read-only: nothing moves without your signature."
+      ? "Review the saved policy, modeled position, receipts, and operator checklist. Testnet/read-only: nothing moves without your signature."
       : proofAvailable
-        ? "Review the simulation output, inspect the evidence, then choose whether to save, anchor, or mint an action receipt."
+        ? "Review the simulation output, inspect the evidence, then choose whether to save the policy or mint a receipt."
         : "Review the simulation output and inspect the evidence. This environment is read-only: no policy signing or proof minting.";
   }
 
@@ -12271,7 +13604,7 @@ function renderResultsPage() {
     const modeBadge = renderIconBadge(modeChipText, {
       tone: isLiveMode ? "mint" : "cyan",
       iconName: isLiveMode ? "link" : "activity",
-      title: isLiveMode ? "Anchored policy readout; position values remain modeled unless marked as read-back." : "Modeled simulation readout; no wallet action happened.",
+      title: isLiveMode ? "Saved policy readout; position values remain modeled unless marked as read-back." : "Modeled simulation readout; no signing happened.",
     });
     const policyIdChip = isLiveMode && shortPolicyIdReadout
       ? `<a class="ws-id-chip ws-id-chip--muted" href="${escapeHtml(policyExplorerUrl)}" target="_blank" rel="noopener">${escapeHtml(shortPolicyIdReadout)} ↗</a>`
@@ -12285,7 +13618,7 @@ function renderResultsPage() {
       iconName: trustVerified ? "check" : "alert-triangle",
       title: trustVerified ? "Signed live feed is verified." : "Data is not backed by a signed live feed.",
     });
-    // Phase D.22 — operator-state badge surfaces in live mode. The
+    // Phase D.22 — operator-state badge surfaces in saved-policy readout. The
     // badge says what the cockpit's local control posture is right
     // now (Active review / Paused / Exit planned / Closed locally).
     // It used to live BELOW the fold inside the execution panel; the
@@ -12327,7 +13660,7 @@ function renderResultsPage() {
   // right. Two charts read as "one chart in two registers" (BTC price
   // axis + LTV axis), then the KPI column carries the numeric anchors
   // (Payout / Buffer / Breakwater / Health) so the hero answers "where
-  // am I" and "what are the numbers" in one scan. In live mode the
+  // am I" and "what are the numbers" in one scan. In saved-policy readout the
   // chart inputs come from the on-chain collateral/debt; in sim mode
   // they use the draft's modeled values.
   if (hero) {
@@ -12371,7 +13704,7 @@ function renderResultsPage() {
               live: isLiveMode,
             })}
             ${renderPositionScale(heroLtv, heroTargetLow, heroTargetHigh, heroMaxLtv, {
-              label: "LTV vs thresholds",
+              label: "Debt pressure vs thresholds",
               live: isLiveMode,
             })}
           </div>
@@ -12379,7 +13712,7 @@ function renderResultsPage() {
 
         <div class="readout-hero-kpis">
           <div class="rg-cell">
-            <span class="rg-label">Payout</span>
+            <span class="rg-label">Draw band</span>
             <strong>${formatUsdRange(summary.survivablePayoutBandLowUsd, summary.survivablePayoutBandHighUsd)}</strong>
             ${renderPayoutRangeBar(summary.survivablePayoutBandLowUsd, summary.survivablePayoutBandHighUsd, asNumber(draft.monthlyPayoutTargetUsd))}
           </div>
@@ -12448,7 +13781,12 @@ function renderResultsPage() {
           </div>
         </div>
         <div class="readout-action-cta">
-          <a class="button button-primary" href="${escapeHtml(verdict.ctaHref)}">${escapeHtml(verdict.ctaLabel)}</a>
+          ${verdict.ctaAction
+            ? `<button class="button button-primary" type="button" data-action="${escapeHtml(verdict.ctaAction)}">${escapeHtml(verdict.ctaLabel)}</button>`
+            : `<a class="button button-primary" href="${escapeHtml(verdict.ctaHref)}">${escapeHtml(verdict.ctaLabel)}</a>`}
+          ${verdict.secondaryCtaHref
+            ? `<a class="button button-secondary" href="${escapeHtml(verdict.secondaryCtaHref)}"${verdict.secondaryCtaTitle ? ` title="${escapeHtml(verdict.secondaryCtaTitle)}"` : ""}>${escapeHtml(verdict.secondaryCtaLabel || "Verify latest receipt")}</a>`
+            : ""}
         </div>
       </div>
       ${renderReceiptEvidencePanel({
@@ -12457,8 +13795,8 @@ function renderResultsPage() {
       })}
       ${renderMarketPayoutBand(report, appState.current.marketBand)}
       <details class="readout-action-footnotes">
-        <summary>Model drag · Fee preview · Policy object status</summary>
-        <p class="section-footnote">Baseline ${Math.max(1, Number(summary.baselineHorizonDays) || 30)}-day run includes ${formatUsd(Number(summary.baselineCarryCostUsd) || 0)} debt carry and ${formatUsd(Number(summary.baselineRebalanceCostUsd) || 0)} rebalance drag. Worst-case liquidation penalty: ${formatUsd(Number(summary.worstCaseLiquidationPenaltyUsd) || 0)}${summary.liquidationScenarioLabel ? ` in ${escapeHtml(summary.liquidationScenarioLabel)}` : ""}.</p>
+        <summary>Model drag · Fee preview · Policy status</summary>
+        <p class="section-footnote">Baseline ${Math.max(1, Number(summary.baselineHorizonDays) || 30)}-day run includes ${formatUsd(Number(summary.baselineCarryCostUsd) || 0)} debt carry and ${formatUsd(Number(summary.baselineRebalanceCostUsd) || 0)} rebalance drag. Worst-case danger-zone penalty: ${formatUsd(Number(summary.worstCaseLiquidationPenaltyUsd) || 0)}${summary.liquidationScenarioLabel ? ` in ${escapeHtml(summary.liquidationScenarioLabel)}` : ""}.</p>
         <p class="section-footnote">${asNumber(summary.projectedTideFeeBpsAnnual) || 75} bps / yr platform fee preview on modeled debt ≈ ${formatUsd(Number(summary.projectedTideFeeUsd30d) || 0)} in a 30-day window (${formatPercentDecimal(Number(summary.projectedTideFeePctOfPayout) || 0)} of the monthly payout target).</p>
         <p class="section-footnote">${escapeHtml(renderPolicyStatusCopy())}</p>
       </details>
@@ -12477,7 +13815,7 @@ function renderResultsPage() {
   }
 
   // ── Actions — run-scoped activity ledger. This sits near the top of
-  // the readout because once a policy is anchored, the activity tied to
+  // the readout because once a policy is saved, the activity tied to
   // this exact run is more important than route diagnostics or archived
   // decision traces. Policy-wide/export feeds stay available elsewhere;
   // this surface intentionally rejects unrelated wallet/user history.
@@ -12500,7 +13838,7 @@ function renderResultsPage() {
               <h2>Run activity</h2>
             </div>
           </div>
-          <p class="surface-copy">Policy is anchored on-chain. Actions tied to this run appear here; unrelated wallet history stays out of the readout.</p>
+          <p class="surface-copy">Policy is saved on-chain. Actions tied to this run appear here; unrelated wallet history stays out of the readout.</p>
         `);
       } else {
         safeReplaceChildren(autopilot, `
@@ -12564,7 +13902,7 @@ function renderResultsPage() {
             </div>
             <span class="state-badge state-badge--amber">Needs attention</span>
           </div>
-          <p class="surface-copy">No on-chain policy is anchored yet, but this run recorded failed wallet transactions. Resolve them before anchoring.</p>
+          <p class="surface-copy">No on-chain policy is saved yet, but this run recorded failed wallet transactions. Resolve them before saving.</p>
           <ol class="tx-feed" aria-label="Failed wallet transactions">
             ${failedRows}
           </ol>
@@ -12810,9 +14148,13 @@ function renderResultsPage() {
       latestReceipt: liveReceipts[0] || null,
       latestReadback: getCachedLiveProtocolReadback(livePolicyId),
     });
-    const protocolBalanceReadback = protocolReadback?.balanceReadback?.source === "live"
+    const protocolBalanceSource = String(protocolReadback?.balanceReadback?.source || "").trim().toLowerCase();
+    const protocolBalanceReadback = protocolBalanceSource === "live" || protocolBalanceSource === "live-mainnet-readonly"
       ? protocolReadback.balanceReadback
       : null;
+    const protocolBalanceSourceLabel = protocolBalanceSource === "live-mainnet-readonly"
+      ? "Mainnet RPC snapshot"
+      : "Fresh RPC snapshot";
     const protocolBalanceFactsHtml = protocolBalanceReadback ? `
               <div>
                 <span>Protocol collateral</span>
@@ -12822,10 +14164,10 @@ function renderResultsPage() {
               <div>
                 <span>Protocol debt</span>
                 <strong>${escapeHtml(formatCompactUsd(protocolBalanceReadback.debtUsd))}</strong>
-                <em>${protocolBalanceReadback.stale ? "Stale RPC snapshot" : "Fresh RPC snapshot"}</em>
+                <em>${protocolBalanceReadback.stale ? "Stale RPC snapshot" : protocolBalanceSourceLabel}</em>
               </div>
               <div>
-                <span>Protocol LTV</span>
+                <span>Protocol debt pressure</span>
                 <strong>${escapeHtml(formatPercentDecimal(protocolBalanceReadback.ltvBps / 10_000))}</strong>
                 <em>${escapeHtml(protocolBalanceReadback.trustLabel || "Live read-back. Not execution.")}</em>
               </div>
@@ -12887,7 +14229,7 @@ function renderResultsPage() {
           </div>
         </div>
 
-        ${renderPositionScale(ltv, targetLowDec, targetHighDec, maxLtvDec, { label: "Position · LTV vs thresholds", live: true })}
+        ${renderPositionScale(ltv, targetLowDec, targetHighDec, maxLtvDec, { label: "Position · debt pressure vs thresholds", live: true })}
 
         <div class="live-boundary-grid" aria-label="Modeled snapshot and observed read-back boundary">
           <section class="live-boundary-card">
@@ -12939,7 +14281,7 @@ function renderResultsPage() {
           <div class="readout-hero-cell">
             <span class="readout-hero-label">Receipts</span>
             <strong>${liveReceipts.length}</strong>
-            <span class="readout-hero-sub">${liveReceipts.length === 0 ? "No receipts minted yet" : "Action receipts"}</span>
+            <span class="readout-hero-sub">${liveReceipts.length === 0 ? "No receipts minted yet" : "Receipts"}</span>
           </div>
         </div>
 
@@ -13034,7 +14376,7 @@ function renderScenarioComparePanel(host, options = {}) {
     </div>
     <div class="fact-row-grid">
       <div class="fact-row">
-        <span>Payout floor</span>
+        <span>Draw floor</span>
         <strong>${formatUsd(currentSummary.survivablePayoutBandLowUsd)}</strong>
         <p>${payoutDelta.text}</p>
       </div>
@@ -13082,7 +14424,7 @@ function renderLibraryPage() {
 
     if (emptySaved) {
       emptySaved.hidden = false;
-      emptySaved.textContent = "No wallet session. Connect wallet to load saved scenarios for this account.";
+      emptySaved.textContent = "Wallet not connected. Connect wallet to load saved scenarios for this account.";
     }
 
     if (comparePanel) {
@@ -13113,7 +14455,7 @@ function renderLibraryPage() {
           </div>
         </div>
         <div class="fact-row-grid">
-          <div class="fact-row"><span>Payout floor</span><strong>${formatUsd(summary.survivablePayoutBandLowUsd)}</strong></div>
+          <div class="fact-row"><span>Draw floor</span><strong>${formatUsd(summary.survivablePayoutBandLowUsd)}</strong></div>
           <div class="fact-row"><span>Health</span><strong>${summary.averageHealthScore}/100</strong></div>
           <div class="fact-row"><span>Buffer</span><strong>${summary.bufferCoverageDays}d runway</strong></div>
           <div class="fact-row"><span>Breakwater</span><strong>${formatDrawdown(summary.breakwaterTriggerDrawdownPct)}</strong></div>
@@ -13244,7 +14586,7 @@ function renderRouteCard(role, scorecard) {
       </div>
       <div class="route-metrics">
         <div>
-          <span>Max LTV</span>
+          <span>Max debt pressure</span>
           <strong>${formatPercentDecimal(rail.maxLtv)}</strong>
         </div>
         <div>
@@ -13584,7 +14926,7 @@ function renderDesignSystemPage() {
         <div class="ws-position-title">
           <div class="ws-badge-row">
             ${renderIconBadge("On-chain policy · testnet", { tone: "mint", iconName: "link" })}
-            ${renderIconBadge("Anchored", { tone: "accent", iconName: "anchor" })}
+            ${renderIconBadge("Saved", { tone: "accent", iconName: "anchor" })}
             ${renderIconBadge("Exit planned", { tone: "violet", iconName: "settings" })}
             <span class="ws-id-chip ws-id-chip--muted">#0x12…ab78</span>
           </div>
@@ -13598,7 +14940,7 @@ function renderDesignSystemPage() {
       <div class="ws-position-metrics">
         <div><span class="ws-dash-label">Collateral</span><strong>$237,690</strong><span class="ws-dash-sub">3.000 xBTC</span></div>
         <div><span class="ws-dash-label">Debt</span><strong>$59,423</strong><span class="ws-dash-sub">USDC</span></div>
-        <div><span class="ws-dash-label">LTV</span><strong class="ws-dash-strong--cyan">25.1%</strong><span class="ws-dash-sub">22–28% target</span></div>
+        <div><span class="ws-dash-label">Debt pressure</span><strong class="ws-dash-strong--cyan">25.1%</strong><span class="ws-dash-sub">22–28% target band</span></div>
         <div><span class="ws-dash-label">Buffer</span><strong>$4,800</strong><span class="ws-dash-sub">USDC</span></div>
         <div><span class="ws-dash-label">Health</span><strong>60/100</strong></div>
         <div><span class="ws-dash-label">Payout floor</span><strong class="ws-dash-strong--mint">$461</strong><span class="ws-dash-sub">USDC</span></div>
@@ -13610,11 +14952,11 @@ function renderDesignSystemPage() {
     <div class="readout-action-card readout-action-card--mint">
       <div class="readout-action-copy">
         <p class="section-label">Policy verdict</p>
-        <h2>Ready to anchor</h2>
+        <h2>Ready to save</h2>
         <p class="surface-copy">Health 78/100 · buffer covers 162 days. Survives 2020–2022 replay.</p>
       </div>
       <div class="readout-action-cta">
-        <a class="button button-primary" href="#">Anchor on Sui</a>
+        <a class="button button-primary" href="#">Save on Sui</a>
       </div>
     </div>`;
 
@@ -13623,7 +14965,7 @@ function renderDesignSystemPage() {
       <li class="tx-row tx-row--receipt">
         <span class="tx-row__time">Apr 24 · 14:02</span>
         <span class="tx-row__kind tx-row__kind--receipt">Receipt</span>
-        <div class="tx-row__body"><strong>Anchored policy on Sui</strong><span>0x12…ab78</span></div>
+        <div class="tx-row__body"><strong>Saved policy on Sui</strong><span>0x12…ab78</span></div>
         <a class="tx-row__link" href="#">Open ↗</a>
       </li>
       <li class="tx-row tx-row--control">
@@ -13675,7 +15017,7 @@ function renderDesignSystemPage() {
         maxLtv: 0.30,
         label: "BTC drawdown sensitivity",
       })}
-      ${renderPositionScale(0.186, 0.16, 0.21, 0.30, { label: "LTV vs thresholds" })}
+      ${renderPositionScale(0.186, 0.16, 0.21, 0.30, { label: "Debt pressure vs thresholds" })}
     </div>
   `;
   const sparkline = renderStressSparkline(scenarios);
@@ -13699,7 +15041,7 @@ function renderDesignSystemPage() {
     { t: 30, price: 79500 },
   ];
   const eventChartEvents = [
-    { t: 4,  label: "Anchor",          tone: "accent" },
+    { t: 4,  label: "Save",            tone: "accent" },
     { t: 8,  label: "Receipt",         tone: "mint" },
     { t: 14, label: "Re-tune",         tone: "cyan" },
     { t: 21, label: "RPC outage",      tone: "rose" },
@@ -13727,7 +15069,7 @@ function renderDesignSystemPage() {
   // scan-time efficiency on the section the title literally calls
   // "TIDE moat".
   const chartsSection = sectionShell("Charts", "Paired position-scale + price-scale (TIDE-unique two-needle primitive) · event chart (price curve + level lines + decision markers, Polymarket-style) · stress sparkline · allocation bar · health ring", `
-    <p class="ds-chart-reads-as">Reads as <strong>where am I against the corridor</strong> — top needle is current LTV vs target band; bottom is BTC price at the corresponding liquidation distance.</p>
+    <p class="ds-chart-reads-as">Reads as <strong>where am I against the corridor</strong> — top needle is current debt pressure vs target band; bottom is BTC price at the corresponding liquidation distance.</p>
     ${chartPair}
     <div class="ds-spacer"></div>
     <div class="ds-form-cell">
@@ -13777,7 +15119,7 @@ function renderDesignSystemPage() {
         </div>
       </div>
     </div>
-  `, 'renderPriceScale({ currentPrice, debtUsd, collateralBtc, targetLow, targetHigh, maxLtv })\nrenderPositionScale({ currentLtv, targetLow, targetHigh, maxLtv })\nrenderStressSparkline(scenarios)\nrenderMiniHealthRing(score, size)\n\nrenderEventChart({\n  points: [{ t: 0, price: 76200 }, { t: 1, price: 76800 }, …],\n  events: [{ t: 4, label: "Anchor", tone: "accent" }, …],\n  levels: [{ value: 63000, label: "Liq $63k", tone: "rose" }, …],\n  width: 720, height: 240, tone: "accent",\n  xLabels: ["Mar 26", "Apr 02", "Apr 09", "Apr 16", "Apr 23"],\n})\n\n<div class="allocation-bar">\n  <div class="allocation-bar__track">\n    <span class="allocation-bar__seg" style="width:48%; background: var(--accent)"></span>\n    …\n  </div>\n</div>');
+  `, 'renderPriceScale({ currentPrice, debtUsd, collateralBtc, targetLow, targetHigh, maxLtv })\nrenderPositionScale({ currentLtv, targetLow, targetHigh, maxLtv })\nrenderStressSparkline(scenarios)\nrenderMiniHealthRing(score, size)\n\nrenderEventChart({\n  points: [{ t: 0, price: 76200 }, { t: 1, price: 76800 }, …],\n  events: [{ t: 4, label: "Save", tone: "accent" }, …],\n  levels: [{ value: 63000, label: "Liq $63k", tone: "rose" }, …],\n  width: 720, height: 240, tone: "accent",\n  xLabels: ["Mar 26", "Apr 02", "Apr 09", "Apr 16", "Apr 23"],\n})\n\n<div class="allocation-bar">\n  <div class="allocation-bar__track">\n    <span class="allocation-bar__seg" style="width:48%; background: var(--accent)"></span>\n    …\n  </div>\n</div>');
 
   const scenarioCards = `
     <div class="scenario-grid" style="--scenario-count:${scenarios.length}">
@@ -13795,7 +15137,7 @@ function renderDesignSystemPage() {
           <div class="scenario-card__metrics">
             <div><span>Payout</span><strong>$${outcome.payoutBandLowUsd}–$${outcome.payoutBandHighUsd}</strong></div>
             <div><span>Runway</span><strong>${Math.round(outcome.bufferCoverageDays)}d</strong></div>
-            <div><span>LTV</span><strong>${(outcome.result.decision.risk.ltv * 100).toFixed(1)}%</strong></div>
+            <div><span>Debt pressure</span><strong>${(outcome.result.decision.risk.ltv * 100).toFixed(1)}%</strong></div>
             <div><span>Action</span><strong>${escapeHtml(formatActionTypeLabel(outcome.result.decision.chosen.type))}</strong></div>
           </div>
         </article>
@@ -13809,7 +15151,7 @@ function renderDesignSystemPage() {
   const factListItems = [
     { label: "Lifecycle", value: "Awaiting final receipt", copy: "Checklist complete; mint the closing receipt." },
     { label: "Last receipt", value: "Receipt minted", copy: "Apr 25, 2026 · 10:42" },
-    { label: "Last wallet tx", value: "Mint action receipt", copy: "Apr 25, 2026 · 10:38" },
+    { label: "Last wallet tx", value: "Mint receipt", copy: "Apr 25, 2026 · 10:38" },
     { label: "Activity · 7d", value: "8 events", copy: "8 total recorded" },
   ];
   const factListDefault = renderFactList(factListItems);
@@ -13954,7 +15296,7 @@ function renderDesignSystemPage() {
   const rangeSection = sectionShell("Range slider", "Single-thumb · accent-tinted track shows current value", `
     <div class="ds-form-grid">
       <div class="ds-form-cell">
-        <span class="section-micro-label" id="ds-range-ltv-label">LTV target</span>
+        <span class="section-micro-label" id="ds-range-ltv-label">Debt pressure target</span>
         <div class="range-slider" style="--range-fill: 35%">
           <div class="range-slider__head">
             <span>10%</span>
@@ -13995,26 +15337,26 @@ function renderDesignSystemPage() {
   // The .guardrails-chart__strip primitive consumed on /setup as the
   // policy-thresholds editor. Static demo here; real binding lives
   // inside renderGuardrailsChart (drag → form input → re-render).
-  // 4 thumbs (LOW / HIGH / REPAY / EMG) over a tone-zoned LTV axis;
-  // a "now" indicator marks current LTV between thumbs.
+  // 4 thumbs (LOW / HIGH / REPAY / EMG) over a tone-zoned debt-pressure axis;
+  // a "now" indicator marks current pressure between thumbs.
   const thresholdsRailSection = sectionShell(
     "Thresholds rail",
-    "Multi-thumb tone-coded slider — 4 policy guardrails (LOW · HIGH · REPAY · EMG) along an LTV axis. Drag-to-set on /setup; static here. Tone zones (mint target · amber warn · rose liq) reflect zone semantics, not pill colours.",
+    "Multi-thumb tone-coded slider — 4 policy guardrails (LOW · HIGH · REPAY · EMG) along a debt-pressure axis. Drag-to-set on /setup; static here. Tone zones (mint target · amber warn · rose liq) reflect zone semantics, not pill colours.",
     `
     <div class="ds-form-cell">
-      <span class="section-micro-label">.thresholds-rail · 14.1% – 34.9% LTV axis with anchored allocator median</span>
-      <div class="guardrails-chart__strip" aria-label="LTV scale — drag markers to adjust thresholds" style="--strip-rows:1">
+      <span class="section-micro-label">.thresholds-rail · 14.1% – 34.9% debt-pressure axis with anchored allocator median</span>
+      <div class="guardrails-chart__strip" aria-label="Debt pressure scale — drag markers to adjust thresholds" style="--strip-rows:1">
         <div class="guardrails-chart__strip-track">
           <div class="guardrails-chart__strip-zone guardrails-chart__strip-zone--mint" style="left:0%;width:42%"></div>
           <div class="guardrails-chart__strip-zone guardrails-chart__strip-zone--amber" style="left:42%;width:39%"></div>
           <div class="guardrails-chart__strip-zone guardrails-chart__strip-zone--rose" style="left:81%;right:0;width:auto"></div>
         </div>
-        <div class="guardrails-chart__strip-now" style="left: 24%;" title="Current LTV 18.6%"></div>
-        <button type="button" class="guardrails-chart__strip-thumb guardrails-chart__strip-thumb--mint" style="left:18.8%;--strip-row:0" title="Target low: 18.0%" aria-label="Target low">
+        <div class="guardrails-chart__strip-now" style="left: 24%;" title="Current debt pressure 18.6%"></div>
+        <button type="button" class="guardrails-chart__strip-thumb guardrails-chart__strip-thumb--mint" style="left:18.8%;--strip-row:0" title="Target floor: 18.0%" aria-label="Target floor">
           <span class="guardrails-chart__strip-label">LOW</span>
           <span class="guardrails-chart__strip-pct">18.0%</span>
         </button>
-        <button type="button" class="guardrails-chart__strip-thumb guardrails-chart__strip-thumb--amber" style="left:42.6%;--strip-row:0" title="Target high: 23.0%" aria-label="Target high">
+        <button type="button" class="guardrails-chart__strip-thumb guardrails-chart__strip-thumb--amber" style="left:42.6%;--strip-row:0" title="Target ceiling: 23.0%" aria-label="Target ceiling">
           <span class="guardrails-chart__strip-label">HIGH</span>
           <span class="guardrails-chart__strip-pct">23.0%</span>
         </button>
@@ -14035,7 +15377,7 @@ function renderDesignSystemPage() {
       </p>
     </div>
   `,
-    `<div class="guardrails-chart__strip" aria-label="LTV scale" style="--strip-rows:1">
+    `<div class="guardrails-chart__strip" aria-label="Debt pressure scale" style="--strip-rows:1">
   <div class="guardrails-chart__strip-track">
     <div class="guardrails-chart__strip-zone guardrails-chart__strip-zone--mint" style="…"></div>
     <div class="guardrails-chart__strip-zone guardrails-chart__strip-zone--amber" style="…"></div>
@@ -14090,7 +15432,7 @@ function renderDesignSystemPage() {
           <span class="strategy-preset__stats">
             <span><small>Payout</small><b>$1.2k</b><span>/mo</span></span>
             <span><small>Runway</small><b>4</b><span>mo</span></span>
-            <span><small>LTV</small><b>18-24%</b></span>
+            <span><small>Debt pressure</small><b>18-24%</b></span>
           </span>
         </button>
         <button type="button" class="strategy-preset" aria-pressed="false">
@@ -14102,19 +15444,19 @@ function renderDesignSystemPage() {
           <span class="strategy-preset__stats">
             <span><small>Payout</small><b>$0.9k</b><span>/mo</span></span>
             <span><small>Runway</small><b>6</b><span>mo</span></span>
-            <span><small>LTV</small><b>16-21%</b></span>
+            <span><small>Debt pressure</small><b>16-21%</b></span>
           </span>
         </button>
         <button type="button" class="strategy-preset" aria-pressed="false">
           <span class="strategy-preset__topline">
-            <span class="strategy-preset__name"><strong>Future mode</strong></span>
-            <span class="strategy-preset__cue">Preview</span>
+            <span class="strategy-preset__name"><strong>Drift</strong></span>
+            <span class="strategy-preset__cue">Accumulate</span>
           </span>
-          <em>Future accumulation preview. Models BTC-stack intent without changing the V1 policy.</em>
+          <em>Lower draw, longer runway. Keeps more BTC exposure.</em>
           <span class="strategy-preset__stats">
             <span><small>Payout</small><b>$0.6k</b><span>/mo</span></span>
             <span><small>Runway</small><b>8</b><span>mo</span></span>
-            <span><small>LTV</small><b>22-28%</b></span>
+            <span><small>Debt pressure</small><b>22-28%</b></span>
           </span>
         </button>
       </div>
@@ -14178,7 +15520,7 @@ function renderDesignSystemPage() {
         <div class="ds-form-row">
           <button type="button" class="button button-primary" disabled>
             <span class="spinner spinner--sm" aria-hidden="true"></span>
-            <span style="margin-left:0.45rem">Anchoring policy…</span>
+            <span style="margin-left:0.45rem">Saving policy…</span>
           </button>
         </div>
       </div>
@@ -14196,7 +15538,7 @@ function renderDesignSystemPage() {
           </div>
           <div class="ds-skeleton-demo__row" data-step="2">
             <span class="skeleton skeleton--line ds-skeleton-demo__skel" style="width:88%"></span>
-            <span class="ds-skeleton-demo__real">12.5 BTC collateral · 28% LTV target</span>
+            <span class="ds-skeleton-demo__real">12.5 BTC collateral · 28% debt-pressure target</span>
           </div>
           <div class="ds-skeleton-demo__row" data-step="3">
             <span class="skeleton skeleton--line ds-skeleton-demo__skel" style="width:74%"></span>
@@ -14209,12 +15551,12 @@ function renderDesignSystemPage() {
             </span>
             <span class="ds-skeleton-demo__real ds-skeleton-demo__real--media">
               <span class="ds-avatar-circle">${icon("anchor", "sm")}</span>
-              <span style="flex:1">Anchored on Sui Testnet · checkpoint 175,283,940</span>
+              <span style="flex:1">Saved on Sui Testnet · checkpoint 175,283,940</span>
             </span>
           </div>
           <div class="ds-skeleton-demo__row" data-step="5">
             <span class="skeleton skeleton--block ds-skeleton-demo__skel"></span>
-            <span class="ds-skeleton-demo__real ds-skeleton-demo__real--block">Receipt 8tWUmA…sovVk · proof anchored at 13:42 UTC</span>
+            <span class="ds-skeleton-demo__real ds-skeleton-demo__real--block">Receipt 8tWUmA…sovVk · proof pinned at 13:42 UTC</span>
           </div>
         </div>
       </div>
@@ -14246,7 +15588,7 @@ function renderDesignSystemPage() {
         <div class="empty-state empty-state--no-data">
           <span class="empty-state__icon">${icon("archive", "lg")}</span>
           <p class="empty-state__title">No receipts yet</p>
-          <p class="empty-state__copy">When the cockpit mints its first action receipt, it will land here. Run a scenario in Create to start the activity ledger.</p>
+          <p class="empty-state__copy">When the cockpit mints its first receipt, it will land here. Run a scenario in Create to start the activity ledger.</p>
           <div class="empty-state__cta">
             <a href="#" class="button button-primary">${icon("zap","sm")}<span style="margin-left:0.4rem">Open Create</span></a>
           </div>
@@ -14289,7 +15631,7 @@ function renderDesignSystemPage() {
       <label class="field ds-form-cell field--error">
         <span>Field — error</span>
         <input type="number" value="98" min="0" max="80" aria-invalid="true" aria-describedby="ds-field-error-hint" />
-        <small id="ds-field-error-hint">LTV target above the rail's max collateral factor (80%).</small>
+        <small id="ds-field-error-hint">Debt-pressure target above the rail's max collateral factor (80%).</small>
       </label>
       <label class="field ds-form-cell field--valid">
         <span>Field — valid</span>
@@ -14303,12 +15645,12 @@ function renderDesignSystemPage() {
       <section class="confirm-banner">
         <span class="confirm-banner__icon">${icon("alert-octagon", "sm")}</span>
         <div class="confirm-banner__copy">
-          <p class="confirm-banner__title">This anchor is irreversible on testnet</p>
-          <p class="confirm-banner__detail">Once anchored, the policy object is public. You can tear it down, but the on-chain history will reference this id.</p>
+          <p class="confirm-banner__title">This save is public on testnet</p>
+          <p class="confirm-banner__detail">Once saved, the policy is public. You can tear it down, but the on-chain history will reference this id.</p>
         </div>
         <div class="confirm-banner__action">
           <button type="button" class="button button-secondary">Cancel</button>
-          <button type="button" class="button button-primary">Anchor</button>
+          <button type="button" class="button button-primary">Save</button>
         </div>
       </section>
       <section class="confirm-banner confirm-banner--warn">
@@ -14325,7 +15667,7 @@ function renderDesignSystemPage() {
         <span class="confirm-banner__icon">${icon("info", "sm")}</span>
         <div class="confirm-banner__copy">
           <p class="confirm-banner__title">Policy revision will require a new receipt</p>
-          <p class="confirm-banner__detail">Saving these changes mints a fresh action receipt and supersedes Harbor v3. Old receipts remain valid for prior periods.</p>
+          <p class="confirm-banner__detail">Saving these changes mints a fresh receipt and supersedes Harbor v3. Old receipts remain valid for prior periods.</p>
         </div>
         <div class="confirm-banner__action">
           <button type="button" class="button button-primary">Save revision</button>
@@ -14338,7 +15680,7 @@ function renderDesignSystemPage() {
         <span class="section-micro-label">.diff-row — policy revision preview</span>
         <div class="diff-row diff-row--up">
           <div>
-            <p class="diff-row__label">LTV target</p>
+            <p class="diff-row__label">Debt-pressure target</p>
             <span class="diff-row__before">36.4%</span>
           </div>
           <span class="diff-row__arrow">${icon("chevron-right", "sm")}</span>
@@ -14362,7 +15704,7 @@ function renderDesignSystemPage() {
         </div>
       </div>
     </div>
-  `, '<div class="empty-state empty-state--error">\n  <span class="empty-state__icon">${icon("alert-octagon","lg")}</span>\n  <p class="empty-state__title">Couldn\\u0027t reach the rail</p>\n  <p class="empty-state__copy">…</p>\n  <button class="button button-secondary">Retry now</button>\n</div>\n\n<label class="field field--error">\n  <span>LTV target</span>\n  <input type="number" />\n  <small>Above max collateral factor.</small>\n</label>\n\n<section class="confirm-banner">…</section>\n\n<div class="diff-row diff-row--up">\n  <span class="diff-row__before">36.4%</span>\n  <span class="diff-row__arrow">${icon("chevron-right","sm")}</span>\n  <span class="diff-row__after">42.0%</span>\n</div>');
+  `, '<div class="empty-state empty-state--error">\n  <span class="empty-state__icon">${icon("alert-octagon","lg")}</span>\n  <p class="empty-state__title">Couldn\\u0027t reach the rail</p>\n  <p class="empty-state__copy">…</p>\n  <button class="button button-secondary">Retry now</button>\n</div>\n\n<label class="field field--error">\n  <span>Debt-pressure target</span>\n  <input type="number" />\n  <small>Above max collateral factor.</small>\n</label>\n\n<section class="confirm-banner">…</section>\n\n<div class="diff-row diff-row--up">\n  <span class="diff-row__before">36.4%</span>\n  <span class="diff-row__arrow">${icon("chevron-right","sm")}</span>\n  <span class="diff-row__after">42.0%</span>\n</div>');
 
   // ── More primitives — search · kbd · timeline · icon-badge · drop · date ──
   // ── Chips (shelf I Foundations) — icon-badge + kbd ─────────────
@@ -14379,7 +15721,7 @@ function renderDesignSystemPage() {
           <span class="icon-badge icon-badge--rose">${icon("alert-octagon","xs")} liq risk</span>
           <span class="icon-badge icon-badge--cyan">${icon("zap","xs")} on-chain</span>
           <span class="icon-badge icon-badge--violet">${icon("settings","xs")} guarded</span>
-          <span class="icon-badge icon-badge--accent">${icon("anchor","xs")} anchored</span>
+          <span class="icon-badge icon-badge--accent">${icon("anchor","xs")} saved</span>
         </div>
       </div>
       <div class="ds-form-cell">
@@ -14614,7 +15956,7 @@ function renderDesignSystemPage() {
       <div class="toast" role="status">
         <span class="toast__icon">${icon("info", "sm")}</span>
         <div class="toast__body">
-          <p class="toast__title">Policy anchored</p>
+          <p class="toast__title">Policy saved</p>
           <p class="toast__copy">Object 0xae3bf821…8d4f2c is live on testnet. Receipts will reference this policy from now on.</p>
         </div>
         <button type="button" class="toast__close" aria-label="Dismiss">${icon("x", "sm")}</button>
@@ -14622,7 +15964,7 @@ function renderDesignSystemPage() {
       <div class="toast toast--mint" role="status">
         <span class="toast__icon">${icon("check", "sm")}</span>
         <div class="toast__body">
-          <p class="toast__title">Action receipt minted</p>
+          <p class="toast__title">Receipt minted</p>
           <p class="toast__copy">Content digest is pinned on testnet. Walrus evidence is attached when the runtime publisher returns a blob; otherwise the receipt shows an explicit stub boundary.</p>
         </div>
         <button type="button" class="toast__close" aria-label="Dismiss">${icon("x", "sm")}</button>
@@ -14644,7 +15986,7 @@ function renderDesignSystemPage() {
         <button type="button" class="toast__close" aria-label="Dismiss">${icon("x", "sm")}</button>
       </div>
     </div>
-  `, '<div class="toast toast--mint" role="status">\n  <span class="toast__icon">${icon("check","sm")}</span>\n  <div class="toast__body">\n    <p class="toast__title">Action receipt minted</p>\n    <p class="toast__copy">Content digest is pinned on-chain.</p>\n  </div>\n  <button class="toast__close">${icon("x","sm")}</button>\n</div>');
+  `, '<div class="toast toast--mint" role="status">\n  <span class="toast__icon">${icon("check","sm")}</span>\n  <div class="toast__body">\n    <p class="toast__title">Receipt minted</p>\n    <p class="toast__copy">Content digest is pinned on-chain.</p>\n  </div>\n  <button class="toast__close">${icon("x","sm")}</button>\n</div>');
 
   // ── Modal ─────────────────────────────────────────────────────
   // UX 4th-pass #10/#11/#44 + UI P9: order flipped to preview → trigger,
@@ -14659,15 +16001,15 @@ function renderDesignSystemPage() {
         <span class="section-micro-label">Static preview · chrome only</span>
         <div class="modal modal--static" aria-hidden="true">
           <div class="modal__head">
-            <h3 class="modal__title">Anchor policy on testnet?</h3>
+            <h3 class="modal__title">Save policy on testnet?</h3>
             <p class="modal__sub">Object will be public + immutable until you tear it down.</p>
           </div>
           <div class="modal__body">
-            <p>Anchoring writes the policy bytes you saw on the previous step to a Sui object. Until you mint a receipt, no execution can reference this policy yet.</p>
+            <p>Saving writes the policy bytes you saw on the previous step to Sui. Until you mint a receipt, no execution can reference this policy yet.</p>
           </div>
           <div class="modal__foot">
             <button type="button" class="button button-secondary" disabled>Cancel</button>
-            <button type="button" class="button button-primary" data-aspirational="true" disabled title="Aspirational — wired to real anchor flow on a future commit">Anchor policy</button>
+            <button type="button" class="button button-primary" data-aspirational="true" disabled title="Aspirational — wired to real save flow on a future commit">Save policy</button>
           </div>
         </div>
       </div>
@@ -14680,7 +16022,7 @@ function renderDesignSystemPage() {
     </div>
     <dialog id="ds-modal-live" class="modal" aria-labelledby="ds-modal-live-title" aria-describedby="ds-modal-live-body">
       <div class="modal__head">
-        <h3 class="modal__title" id="ds-modal-live-title">Anchor policy on testnet?</h3>
+        <h3 class="modal__title" id="ds-modal-live-title">Save policy on testnet?</h3>
         <p class="modal__sub">Object will be public + immutable until you tear it down. Press ESC, click outside, or use Cancel to close.</p>
       </div>
       <div class="modal__body" id="ds-modal-live-body">
@@ -14688,25 +16030,25 @@ function renderDesignSystemPage() {
       </div>
       <div class="modal__foot">
         <button type="button" class="button button-secondary" data-modal-close="ds-modal-live">Cancel</button>
-        <button type="button" class="button button-primary" data-aspirational="true" data-modal-close="ds-modal-live" title="Aspirational — real flow would block the dialog while the anchor RPC is pending and only close on receipt-mint">Anchor policy</button>
+        <button type="button" class="button button-primary" data-aspirational="true" data-modal-close="ds-modal-live" title="Aspirational — real flow would block the dialog while the save RPC is pending and only close on receipt mint">Save policy</button>
       </div>
     </dialog>
-  `, '<dialog class="modal" id="anchor-policy">\n  <div class="modal__head">…</div>\n  <div class="modal__body">…</div>\n  <div class="modal__foot">\n    <button class="button button-secondary" data-modal-close>Cancel</button>\n    <button class="button button-primary">Confirm</button>\n  </div>\n</dialog>\n\n<button class="button button-primary"\n        data-modal-open="anchor-policy">Open dialog</button>\n\n// JS — real flow blocks the dialog until receipt mints\ndoc.querySelector(\'[data-modal-open]\').onclick = () =>\n  doc.getElementById(\'anchor-policy\').showModal();');
+  `, '<dialog class="modal" id="save-policy">\n  <div class="modal__head">…</div>\n  <div class="modal__body">…</div>\n  <div class="modal__foot">\n    <button class="button button-secondary" data-modal-close>Cancel</button>\n    <button class="button button-primary">Confirm</button>\n  </div>\n</dialog>\n\n<button class="button button-primary"\n        data-modal-open="save-policy">Open dialog</button>\n\n// JS — real flow blocks the dialog until receipt mints\ndoc.querySelector(\'[data-modal-open]\').onclick = () =>\n  doc.getElementById(\'save-policy\').showModal();');
 
   // ── Tooltip ───────────────────────────────────────────────────
   const tooltipSection = sectionShell("Tooltip", "[data-tooltip] — hover/focus reveal · 220 px max width · radius-xs", `
     <p style="font-size:var(--fs-sm); line-height:1.6; max-width:48ch">
       The
-      <span class="ds-tooltip-host"><span data-tooltip="LTV = debt ÷ collateral × 100. Boundary corridor sets when re-tune fires.">LTV boundary</span></span>
+      <span class="ds-tooltip-host"><span data-tooltip="Debt pressure is the LTV math: debt ÷ collateral × 100. Boundary corridor sets when re-tune fires.">Debt-pressure boundary</span></span>
       is monitored against the
       <span class="ds-tooltip-host"><span data-tooltip="The signed price feed used for liquidation math. Must be < 60 s old.">live feed</span></span>;
       if the corridor is breached, the
       <span class="ds-tooltip-host"><span data-tooltip="Operator-defined posture. Mint = healthy, amber = warn, rose = danger.">posture badge</span></span>
       flips and a
-      <span class="ds-tooltip-host"><span data-tooltip="Re-aim moves the LTV target back inside the corridor. Re-tune adjusts the corridor itself.">re-aim or re-tune</span></span>
+      <span class="ds-tooltip-host"><span data-tooltip="Re-aim moves the debt-pressure target back inside the corridor. Re-tune adjusts the corridor itself.">re-aim or re-tune</span></span>
       action queues.
     </p>
-  `, '<span data-tooltip="LTV = debt ÷ collateral × 100">LTV boundary</span>');
+  `, '<span data-tooltip="Debt pressure is the LTV math: debt ÷ collateral × 100">Debt-pressure boundary</span>');
 
   // ── Data-density atoms ───────────────────────────────────────
   const densitySection = sectionShell("Data-density atoms", "Delta chip · inline spark · token-amount row · meta line — bits dense surfaces compose into rows", `
@@ -14935,7 +16277,7 @@ function renderDesignSystemPage() {
       </div>
       <div class="ds-crypto-cell" style="grid-column: 1 / -1">
         <p class="ds-sub-eyebrow">Lifecycle · signing → signed → receipt</p>
-        <span class="section-micro-label">.signing-state — 5 canonical chips (pending · signing · signed · receipt · failed). Full 7-stage journey lives in shelf VI .status-timeline; signing-state is the inline single-state surface. UX 4th-pass #28: split signed (signature applied) from receipt (proof anchored on-chain) — they are two different lifecycle moments.</span>
+        <span class="section-micro-label">.signing-state — 5 canonical chips (pending · signing · signed · receipt · failed). Full 7-stage journey lives in shelf VI .status-timeline; signing-state is the inline single-state surface. UX 4th-pass #28: split signed (signature applied) from receipt (proof pinned on-chain) — they are two different lifecycle moments.</span>
         <div class="ds-cluster">
           <span class="signing-state signing-state--pending">
             <span class="signing-state__icon">${icon("info", "sm")}</span>
@@ -14951,7 +16293,7 @@ function renderDesignSystemPage() {
           </span>
           <span class="signing-state signing-state--receipt">
             <span class="signing-state__icon">${icon("anchor", "sm")}</span>
-            Receipt minted · proof anchored
+            Receipt minted · proof pinned
           </span>
           <span class="signing-state signing-state--failed">
             <span class="signing-state__icon">${icon("alert-octagon", "sm")}</span>
@@ -14988,7 +16330,7 @@ function renderDesignSystemPage() {
           <button type="button" aria-label="Flip direction">${icon("refresh-cw", "xs")}</button>
         </div>
         <div class="composer__row">
-          <div class="composer__label" id="ds-composer-1-borrow-label"><span>Borrow</span><small>SuiLend · 36.4% LTV target</small></div>
+          <div class="composer__label" id="ds-composer-1-borrow-label"><span>Borrow</span><small>SuiLend · 36.4% debt-pressure target</small></div>
           <input class="composer__amount" type="number" value="140000" step="1000" inputmode="decimal" aria-labelledby="ds-composer-1-borrow-label" />
           <div class="composer__usd">≈ $140,000.00</div>
           <button type="button" class="select-trigger">
@@ -14998,7 +16340,7 @@ function renderDesignSystemPage() {
           </button>
         </div>
         <dl class="composer__summary">
-          <dt>LTV target</dt><dd>36.4%</dd>
+          <dt>Debt-pressure target</dt><dd>36.4%</dd>
           <dt>Liq. boundary</dt><dd>78.0%</dd>
           <dt>Buffer days</dt><dd>142d</dd>
           <dt>Network fee</dt><dd>0.0042 SUI</dd>
@@ -15030,7 +16372,7 @@ function renderDesignSystemPage() {
           </button>
         </div>
         <dl class="composer__summary">
-          <dt>New LTV</dt><dd>22.2%</dd>
+          <dt>New debt pressure</dt><dd>22.2%</dd>
           <dt>Buffer days</dt><dd>256d</dd>
         </dl>
         <div class="composer__cta ds-form-row">
@@ -15039,12 +16381,12 @@ function renderDesignSystemPage() {
         </div>
       </div>
     </div>
-  `, '<div class="composer">\n  <div class="composer__row">\n    <div class="composer__label"><span>Collateral</span><small>12.5000 BTC available</small></div>\n    <input class="composer__amount" type="number" />\n    <div class="composer__usd">≈ $385,000.00</div>\n    <button class="select-trigger">…</button>\n  </div>\n  <div class="composer__divider"><button>${icon("refresh-cw","xs")}</button></div>\n  <div class="composer__row">…</div>\n  <dl class="composer__summary">\n    <dt>LTV target</dt><dd>36.4%</dd>\n  </dl>\n</div>');
+  `, '<div class="composer">\n  <div class="composer__row">\n    <div class="composer__label"><span>Collateral</span><small>12.5000 BTC available</small></div>\n    <input class="composer__amount" type="number" />\n    <div class="composer__usd">≈ $385,000.00</div>\n    <button class="select-trigger">…</button>\n  </div>\n  <div class="composer__divider"><button>${icon("refresh-cw","xs")}</button></div>\n  <div class="composer__row">…</div>\n  <dl class="composer__summary">\n    <dt>Debt-pressure target</dt><dd>36.4%</dd>\n  </dl>\n</div>');
 
   // ── Transactions ────────────────────────────────────────────
   const txDemoEvents = [
-    { time: "10:42", tone: "receipt", badge: "Receipt", title: "Action receipt minted", detail: "Content digest pinned on-chain · qVQGc8iZ…wXa9", hash: "8tWUmA…sovVk" },
-    { time: "10:38", tone: "wallet",  badge: "Wallet",  title: "Mint action receipt",   detail: "Signed by 0x9c41a219…d3b07f · gas 0.0042 SUI",   hash: "Eg6QGGHn…2k4P" },
+    { time: "10:42", tone: "receipt", badge: "Receipt", title: "Receipt minted", detail: "Content digest pinned on-chain · qVQGc8iZ…wXa9", hash: "8tWUmA…sovVk" },
+    { time: "10:38", tone: "wallet",  badge: "Wallet",  title: "Mint receipt",   detail: "Signed by 0x9c41a219…d3b07f · gas 0.0042 SUI",   hash: "Eg6QGGHn…2k4P" },
     { time: "10:35", tone: "control", badge: "Control", title: "Marked active",         detail: "TIDE allowed to keep modeling · funds untouched", hash: "" },
     { time: "10:28", tone: "pause",   badge: "Paused",  title: "Held next approval",    detail: "Snapshot review queued by operator",              hash: "" },
   ];
@@ -15085,7 +16427,7 @@ function renderDesignSystemPage() {
           </div>
           <div>
             <div class="tx-receipt-card__amount">$385,000<span style="color:var(--muted);font-size:0.5em;font-weight:600">.00</span></div>
-            <div class="tx-receipt-card__usd">collateral anchored · 5.0 BTC</div>
+            <div class="tx-receipt-card__usd">collateral pinned · 5.0 BTC</div>
           </div>
           <div class="tx-receipt-card__meta">
             <span class="hash-pill hash-pill--tx">
@@ -15620,6 +16962,49 @@ function bindGlobalHashPillCopy() {
   });
 }
 
+let _setupDeepLinkTargetOpened = "";
+function openSetupDeepLinkTarget() {
+  if (currentPage !== "setup") return;
+  let hash = "";
+  try {
+    hash = decodeURIComponent(String(window.location.hash || "").replace(/^#/, ""));
+  } catch (_) {
+    hash = String(window.location.hash || "").replace(/^#/, "");
+  }
+  if (hash !== "rail-data") return;
+  const target = document.getElementById(hash);
+  if (!target) return;
+  if (target instanceof HTMLDetailsElement) {
+    target.open = true;
+  }
+  if (_setupDeepLinkTargetOpened === hash) return;
+  _setupDeepLinkTargetOpened = hash;
+  void refreshProofEvidence({ silent: true, rerun: false });
+  window.setTimeout(() => {
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 80);
+}
+
+function syncSetupFooterDocking() {
+  const body = document.body;
+  if (!body) return;
+  if (currentPage !== "setup") {
+    body.classList.remove("is-setup-footer-docked");
+    return;
+  }
+
+  let shouldDock = true;
+  try {
+    const isMobile = window.matchMedia?.("(max-width: 760px)")?.matches === true;
+    if (isMobile) {
+      shouldDock = window.scrollY > 24;
+    }
+  } catch (_) {
+    shouldDock = true;
+  }
+  body.classList.toggle("is-setup-footer-docked", shouldDock);
+}
+
 function renderCurrentPage() {
   pruneDraftsPromotedToSavedRuns();
   renderShell();
@@ -15633,7 +17018,9 @@ function renderCurrentPage() {
 
   if (currentPage === "setup") {
     renderSetupPage();
+    syncSetupFooterDocking();
     syncPolicyActionButtons();
+    openSetupDeepLinkTarget();
     dismissBootSkeleton();
     return;
   }
@@ -15904,8 +17291,8 @@ function handleResetSetup() {
   saveStorage(STORAGE_ACTIVE_DRAFT_KEY, "");
   replaceSetupRouteId("", { preservePolicy: false });
   // Unbind any on-chain policy carried over from prior work — a full
-  // reset is semantically "new scenario", so the Anchor/Update CTA
-  // must reflect that by reverting to "Anchor policy object".
+  // reset is semantically "new scenario", so the Save/Update CTA
+  // must reflect that by reverting to "Save on testnet".
   clearCurrentPolicyBinding();
   updateGuardrailSliderLimits();
   renderShell();
@@ -15916,7 +17303,7 @@ function handleResetSetup() {
 // Wired to the Workspace "Start new draft" / "Create first policy" CTAs.
 // Those actions must hand the user a truly fresh Create page — otherwise
 // the persisted on-chain policy binding from a prior scenario makes the
-// CTA read "Update policy object" for what the user thinks is a new policy.
+// CTA read "Update testnet policy" for what the user thinks is a new policy.
 function handleStartNewDraft() {
   appState.draft = buildFreshDraft();
   appState.activeDraftId = "";
@@ -16401,7 +17788,7 @@ function bindEvents() {
   const savePolicyToolbar = $("#save-policy-toolbar");
   if (savePolicyToolbar && !savePolicyToolbar.dataset.bound) {
     savePolicyToolbar.dataset.bound = "1";
-    savePolicyToolbar.addEventListener("click", () => { void handleSavePolicyOnChain({ navigateToLive: true }); });
+    savePolicyToolbar.addEventListener("click", () => { void handleSavePolicyOnChain({ navigateToReadout: true }); });
   }
 
   const mintReceipt = $("#mint-receipt");
@@ -16486,6 +17873,31 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (event) => {
+    const readoutSavePolicy = event.target.closest('[data-action="readout-save-policy"]');
+    if (readoutSavePolicy) {
+      event.preventDefault();
+      void handleSavePolicyOnChain();
+      return;
+    }
+
+    const readoutMintReceipt = event.target.closest('[data-action="readout-mint-receipt"]');
+    if (readoutMintReceipt) {
+      event.preventDefault();
+      void handleMintReceipt({
+        receiptMode: readoutMintReceipt.dataset.receiptMode === "mainnet-readonly"
+          ? "mainnet-readonly"
+          : "testnet",
+      });
+      return;
+    }
+
+    const readoutRefreshEvidence = event.target.closest('[data-action="readout-refresh-evidence"]');
+    if (readoutRefreshEvidence) {
+      event.preventDefault();
+      void refreshProofEvidence({ silent: false, rerun: true });
+      return;
+    }
+
     const copyReceiptLink = event.target.closest('[data-action="copy-receipt-link"]');
     if (copyReceiptLink) {
       event.preventDefault();
@@ -16505,6 +17917,20 @@ function bindEvents() {
       event.preventDefault();
       appState.activityLedgerFilter = activityLedgerFilter.dataset.filter === "onchain" ? "onchain" : "all";
       renderCurrentPage();
+      return;
+    }
+
+    const captureLiveMainnetPre = event.target.closest('[data-action="capture-live-mainnet-pre"]');
+    if (captureLiveMainnetPre) {
+      event.preventDefault();
+      handleCaptureLiveMainnetPreActionSnapshot(captureLiveMainnetPre);
+      return;
+    }
+
+    const verifyLiveMainnetTx = event.target.closest('[data-action="verify-live-mainnet-tx"]');
+    if (verifyLiveMainnetTx) {
+      event.preventDefault();
+      void handleVerifyLiveMainnetTx(verifyLiveMainnetTx);
       return;
     }
 
@@ -16547,7 +17973,11 @@ function bindEvents() {
         persistCurrentState();
       }
 
-      void handleMintReceipt();
+      void handleMintReceipt({
+        receiptMode: mintLiveReceipt.dataset.receiptMode === "mainnet-readonly"
+          ? "mainnet-readonly"
+          : "testnet",
+      });
       return;
     }
 
@@ -16793,6 +18223,7 @@ function installTideDebugHelper() {
       get currentPage() { return currentPage; },
       get onChainPolicy() { return appState.current?.onChainPolicy || null; },
       get lastReceipt() { return appState.current?.onChainReceipt || null; },
+      get latestProofReceipt() { return appState.latestProofReceipt || null; },
       get lastSigningErrors() { return _signingDiagnostics; },
       get oracleReadback() { return appState.oracleReadback || null; },
       get liveControlState() { return appState.liveControlState || {}; },
@@ -16846,6 +18277,8 @@ async function init() {
   };
 
   bindEvents();
+  window.addEventListener("scroll", syncSetupFooterDocking, { passive: true });
+  window.addEventListener("resize", syncSetupFooterDocking);
 
   // Trust posture ("Shadow Mode / No mainnet capital / No live execution")
   // renders on every page as part of the chrome, independent of app state.
@@ -16858,6 +18291,9 @@ async function init() {
   await maybeLoadConfiguredRailPack({
     rerun: Boolean(appState.current?.draft) || currentPage !== "setup",
     silent: true,
+  });
+  void refreshLatestProofReceipt({ silent: true }).finally(() => {
+    renderCurrentPage();
   });
   maybeStartJudgeDemo();
 

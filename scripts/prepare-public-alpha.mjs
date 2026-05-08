@@ -29,7 +29,6 @@ const appFiles = [
   "live.html",
   "results.html",
   "library.html",
-  "design-system.html",
   "styles-workspace.css",
   "styles-readout.css",
   "styles-setup.css",
@@ -43,7 +42,7 @@ const appFiles = [
   "examples",
 ];
 
-const optionalAppFiles = new Set(["library.html", "design-system.html", "examples"]);
+const optionalAppFiles = new Set(["library.html", "examples"]);
 
 function runBuild(relativeScript) {
   const scriptPath = path.join(rootDir, relativeScript);
@@ -139,7 +138,6 @@ async function writeAppRouteIndexes() {
     ["results", "results.html"],
     ["live", "live.html"],
     ["library", "library.html"],
-    ["design-system", "design-system.html"],
   ];
 
   for (const [route, sourceFile] of routes) {
@@ -168,6 +166,10 @@ async function copyPublicReceiptDocs(targetRoot) {
     await mkdir(path.dirname(destination), { recursive: true });
     await cp(source, destination);
   }
+}
+
+async function copyReceiptViewerTo(targetRoot) {
+  await copyTreeFiltered(path.join(rootDir, "r"), path.join(targetRoot, "r"));
 }
 
 async function rewriteHtmlCacheBust(targetRoot, buildId) {
@@ -220,6 +222,8 @@ runBuild(path.join("shadow-mode", "build.mjs"));
 await copyIntoRoot(rootDir, landingOutDir, landingFiles);
 await copyIntoRoot(path.join(rootDir, "shadow-mode"), appOutDir, appFiles, { optional: optionalAppFiles });
 await writeAppRouteIndexes();
+await copyReceiptViewerTo(landingOutDir);
+await copyReceiptViewerTo(appOutDir);
 await copyPublicReceiptDocs(landingOutDir);
 await copyPublicReceiptDocs(appOutDir);
 await copyRuntimeVendor();

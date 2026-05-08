@@ -45,6 +45,10 @@ import {
   getSuiRpcUrlsWithFallback,
   postSuiRpcWithFallback,
 } from "../shadow-mode/lib/sui-network.mjs";
+import {
+  fetchPythReadback,
+  isReadbackStale,
+} from "../shadow-mode/lib/pyth-readback.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_ENV_FILE = path.join(REPO_ROOT, ".env.testnet.local");
@@ -465,6 +469,37 @@ function getRuntimeConfig(env, network) {
       clockObjectId: "0x6",
     },
   };
+}
+
+function resolveEnvValue(env, key) {
+  return process.env[key] || env[key] || "";
+}
+
+function buildProofPythSummary(readback) {
+  const source = String(readback?.source || "missing");
+  const live = source !== "missing" && source !== "fixture";
+  const stale = isReadbackStale(readback);
+  return {
+    pythSource: live ? (stale ? "stale" : "live") : source,
+    pythFeedSymbol: readback?.feedSymbol || "BTC/USD",
+    pythPriceInfoObjectId: readback?.priceInfoObjectId || "",
+    pythPriceUsd: Number.isFinite(readback?.priceUsd) ? readback.priceUsd : 0,
+    pythPublishTimeMs: Number.isFinite(readback?.publishTimeMs) ? readback.publishTimeMs : 0,
+    pythAgeMs: Number.isFinite(readback?.ageMs) ? readback.ageMs : null,
+    pythConfidenceBps: Number.isFinite(readback?.confidenceBps) ? readback.confidenceBps : null,
+  };
+}
+
+async function fetchProofPythReadback({ env, network }) {
+  const readback = await fetchPythReadback({
+    priceInfoObjectId: resolveEnvValue(env, "TIDE_PYTH_BTC_USD_PRICE_INFO_OBJECT_ID"),
+    feedSymbol: resolveEnvValue(env, "TIDE_PYTH_FEED_SYMBOL") || "BTC/USD",
+    network,
+    rpcUrl: resolveEnvValue(env, "TIDE_PYTH_RPC_URL") || resolveEnvValue(env, "TIDE_SUI_RPC_URL") || null,
+    staleMaxMs: Number(resolveEnvValue(env, "TIDE_PYTH_STALE_MAX_MS")) || 60_000,
+  });
+  const summary = buildProofPythSummary(readback);
+  return { readback, summary };
 }
 
 function buildCreatePolicyArgs(snapshot, env) {
@@ -888,17 +923,15 @@ function buildArtifactSummary({
   proofVerification,
   verifyAfter = null,
   walrusResult = null,
+  pythReadback = null,
   env = {},
   network,
 }) {
   const explorerBase = EXPLORER_BASE[network];
   const railDataMode = report.summary?.railDataMode || "fixture";
   const walrusSource = String(walrusResult?.source || "unknown");
-  const pythPriceInfoObjectId =
-    env.TIDE_PYTH_BTC_USD_PRICE_INFO_OBJECT_ID ||
-    process.env.TIDE_PYTH_BTC_USD_PRICE_INFO_OBJECT_ID ||
-    "";
-  const pythSource = pythPriceInfoObjectId ? "configured" : "missing";
+  const pythSummary = buildProofPythSummary(pythReadback);
+  const pythSource = report.summary?.pythSource || pythSummary.pythSource;
   const executionMode = "testnet-rehearsal";
   const evidencePosture = {
     railDataMode,
@@ -927,6 +960,15 @@ function buildArtifactSummary({
     draft,
     input,
     reportSummary: report.summary,
+    oracleReadback: {
+      source: pythSource,
+      feedSymbol: pythSummary.pythFeedSymbol,
+      priceInfoObjectId: pythSummary.pythPriceInfoObjectId,
+      priceUsd: pythSummary.pythPriceUsd,
+      publishTimeMs: pythSummary.pythPublishTimeMs,
+      ageMs: pythSummary.pythAgeMs,
+      confidenceBps: pythSummary.pythConfidenceBps,
+    },
     policyAnchor: {
       txDigest: policyTxDigest,
       txUrl: `${explorerBase}/txblock/${policyTxDigest}`,
@@ -1356,6 +1398,11 @@ async function main() {
     process.stdout.write(`[proof] run ${runNumber}/${args.count}: ${spec.label}\n`);
 
     const { draft, input, report } = await simulateDraft(spec, runNumber);
+    const { readback: pythReadback } = await fetchProofPythReadback({
+      env,
+      network: args.network,
+    });
+    const pythSummary = buildProofPythSummary(pythReadback);
     const policySnapshot = derivePolicySnapshot(draft, report);
 
     const createResult = runJson("sui", buildCreatePolicyArgs(policySnapshot, env));
@@ -1396,7 +1443,10 @@ async function main() {
         emergencyLtvBps: Number(policy.emergencyLtvBps) || policySnapshot.emergencyLtvBps,
       },
       report: {
-        summary: report.summary || {},
+        summary: {
+          ...(report.summary || {}),
+          ...pythSummary,
+        },
         schemaVersion: Number(report.schemaVersion) || 1,
       },
       railPack: {
@@ -1410,19 +1460,24 @@ async function main() {
       createdAtMs: Date.now(),
     });
 
-    // Try real Walrus when TIDE_WALRUS_PUBLISHER_URL is set (loaded
-    // via the env file or process.env); fall back to the deterministic
-    // stub so a publisher outage never blocks a proof run.
+    const walrusPublisherUrl = resolveEnvValue(env, "TIDE_WALRUS_PUBLISHER_URL");
+    if (!walrusPublisherUrl) {
+      throw new Error("TIDE_WALRUS_PUBLISHER_URL is required for the testnet proof loop.");
+    }
     const walrusResult = await publishProofBundle({
       contentDigest: proof.contentDigest,
       canonicalBody: canonicalizeBundle(proof.bundle),
       network: args.network,
-      publisherUrl: process.env.TIDE_WALRUS_PUBLISHER_URL || env.TIDE_WALRUS_PUBLISHER_URL || "",
+      publisherUrl: walrusPublisherUrl,
+      aggregatorUrl: resolveEnvValue(env, "TIDE_WALRUS_AGGREGATOR_URL"),
       epochs: Number(process.env.TIDE_WALRUS_EPOCHS || env.TIDE_WALRUS_EPOCHS || 5),
+      verifyFetchBack: true,
     });
     const walrusBlobId = walrusResult.blobId;
-    if (walrusResult.source === "stub" && walrusResult.fallbackError) {
-      console.warn(`[proof] walrus fallback to stub: ${walrusResult.fallbackError}`);
+    if (walrusResult.source !== "walrus" || walrusResult.fetchBackVerified !== true) {
+      throw new Error(
+        `run ${runNumber}: Walrus proof bundle was not fetch-back verified (${walrusResult.fallbackError || walrusResult.source || "unknown"})`
+      );
     }
     const mintResult = runJson("sui", buildMintReceiptArgs({
       env,
@@ -1517,6 +1572,7 @@ async function main() {
       proofVerification,
       verifyAfter,
       walrusResult,
+      pythReadback,
       env,
       network: args.network,
     });

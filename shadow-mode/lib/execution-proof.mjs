@@ -23,7 +23,12 @@
 // digests don't change between modes.
 
 import { emitObservation } from "./observation-bus.mjs";
-import { publishToWalrus as publishBytesToWalrus } from "./walrus-storage.mjs";
+import {
+  classifyBlobId,
+  fetchFromWalrus,
+  publishToWalrus as publishBytesToWalrus,
+  WALRUS_DEFAULT_AGGREGATOR,
+} from "./walrus-storage.mjs";
 
 export const PROOF_BUNDLE_VERSION = 2;
 export const SUPPORTED_PROOF_BUNDLE_VERSIONS = new Set([1, 2]);
@@ -42,6 +47,13 @@ export const DECISION_TYPES = Object.freeze([
 export const PROOF_LIMITATIONS = Object.freeze([
   "shadow-only",
   "testnet-rehearsal",
+]);
+
+export const PROOF_PYTH_SOURCES = Object.freeze([
+  "live",
+  "stale",
+  "missing",
+  "fixture",
 ]);
 
 // Default freshness window. Short enough that a bundle can't be
@@ -130,6 +142,11 @@ function requireKnownString(value, label, allowed) {
   return normalized;
 }
 
+function optionalKnownString(value, label, allowed) {
+  if (value === undefined || value === null || value === "") return undefined;
+  return requireKnownString(value, label, allowed);
+}
+
 function requireFiniteNumber(value, label) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
@@ -172,6 +189,52 @@ function optionalBoolean(value, label) {
 
 function assignDefined(target, key, value) {
   if (value !== undefined) target[key] = value;
+}
+
+const RAIL_PACK_PROOF_EXCLUDED_KEYS = new Set([
+  "digest",
+  "railPackDigest",
+  "railPackDigestHex",
+  "snapshot",
+]);
+
+function sanitizeRailPackProofValue(value, path = "$") {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const t = typeof value;
+  if (t === "string" || t === "boolean") return value;
+  if (t === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error(`rail-pack proof snapshot: non-finite number at ${path}`);
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item, index) => {
+      const sanitized = sanitizeRailPackProofValue(item, `${path}[${index}]`);
+      return sanitized === undefined ? null : sanitized;
+    });
+  }
+  if (t === "object") {
+    const out = {};
+    for (const key of Object.keys(value).sort()) {
+      if (RAIL_PACK_PROOF_EXCLUDED_KEYS.has(key)) continue;
+      const sanitized = sanitizeRailPackProofValue(value[key], `${path}.${key}`);
+      if (sanitized !== undefined) out[key] = sanitized;
+    }
+    return out;
+  }
+  throw new Error(`rail-pack proof snapshot: unsupported value (${t}) at ${path}`);
+}
+
+export function canonicalizeRailPackForProof(railPack = {}) {
+  const source = isPlainObject(railPack) ? railPack : {};
+  const snapshot = {
+    schema: "tide-rail-pack-proof/v1",
+    railPack: sanitizeRailPackProofValue(source),
+  };
+  assertSerializable(snapshot, "$");
+  return snapshot;
 }
 
 function hash64Hex(input, seed) {
@@ -240,6 +303,13 @@ const PUBLIC_REPORT_SUMMARY_KEYS = new Set([
   "projectedTideFeeBpsAnnual",
   "projectedTideFeePctOfPayout",
   "projectedTideFeeUsd30d",
+  "pythAgeMs",
+  "pythConfidenceBps",
+  "pythFeedSymbol",
+  "pythPriceInfoObjectId",
+  "pythPriceUsd",
+  "pythPublishTimeMs",
+  "pythSource",
   "railCount",
   "railDataMode",
   "railWarnings",
@@ -342,6 +412,13 @@ export function normalizeProofReportSummary(value = {}) {
   assignDefined(out, "projectedTideFeeBpsAnnual", optionalFiniteNumber(value.projectedTideFeeBpsAnnual, "report.summary.projectedTideFeeBpsAnnual"));
   assignDefined(out, "projectedTideFeeUsd30d", optionalFiniteNumber(value.projectedTideFeeUsd30d, "report.summary.projectedTideFeeUsd30d"));
   assignDefined(out, "projectedTideFeePctOfPayout", optionalFiniteNumber(value.projectedTideFeePctOfPayout, "report.summary.projectedTideFeePctOfPayout"));
+  assignDefined(out, "pythSource", optionalKnownString(value.pythSource, "report.summary.pythSource", PROOF_PYTH_SOURCES));
+  assignDefined(out, "pythFeedSymbol", optionalString(value.pythFeedSymbol, "report.summary.pythFeedSymbol"));
+  assignDefined(out, "pythPriceInfoObjectId", optionalString(value.pythPriceInfoObjectId, "report.summary.pythPriceInfoObjectId"));
+  assignDefined(out, "pythPriceUsd", optionalFiniteNumber(value.pythPriceUsd, "report.summary.pythPriceUsd"));
+  assignDefined(out, "pythPublishTimeMs", optionalFiniteNumber(value.pythPublishTimeMs, "report.summary.pythPublishTimeMs"));
+  assignDefined(out, "pythAgeMs", optionalFiniteNumber(value.pythAgeMs, "report.summary.pythAgeMs"));
+  assignDefined(out, "pythConfidenceBps", optionalFiniteNumber(value.pythConfidenceBps, "report.summary.pythConfidenceBps"));
   assignDefined(out, "actionExamples", normalizeActionExamples(value.actionExamples, "report.summary.actionExamples"));
   assignDefined(out, "primaryRailId", optionalString(value.primaryRailId, "report.summary.primaryRailId"));
   assignDefined(out, "primaryRailName", optionalString(value.primaryRailName, "report.summary.primaryRailName"));
@@ -436,6 +513,9 @@ export function buildProofBundle({
   }
   const publicReport = normalizeProofReport(report);
   const railPackDigest = requireRailPackDigest(railPack);
+  const railPackSnapshot = railPack.snapshot === undefined
+    ? undefined
+    : canonicalizeRailPackForProof(railPack.snapshot);
   const actionLabel = requireString(action, "action");
   const attestation = normalizeDecisionAttestation({ decisionType, limitations, stateBefore });
   if (!Number.isFinite(createdAtMs)) {
@@ -489,6 +569,7 @@ export function buildProofBundle({
       generatedAtMs: Number(railPack.generatedAtMs) || 0,
     },
   };
+  assignDefined(bundle.railPack, "snapshot", railPackSnapshot);
 
   assertSerializable(bundle, "$");
   return bundle;
@@ -496,6 +577,12 @@ export function buildProofBundle({
 
 export async function buildProofBundleWithDigest(input) {
   const bundle = buildProofBundle(input);
+  if (bundle?.railPack?.snapshot !== undefined) {
+    const snapshotDigest = await digestBundle(bundle.railPack.snapshot);
+    if (toHexDigest(snapshotDigest) !== toHexDigest(bundle.railPack.digest)) {
+      throw new Error("proof bundle: railPack.snapshot digest does not match railPack.digest");
+    }
+  }
   const stateBeforeDigest = await digestBundle({
     version: PROOF_BUNDLE_VERSION,
     stateBefore: bundle.stateBefore,
@@ -589,13 +676,15 @@ export async function publishToWalrus(canonicalBody, {
 // Tries real Walrus when a publisher URL is configured; on any failure
 // falls back to the stub so minting never blocks on publisher uptime.
 // Returns a `{ blobId, source }` tuple so the UI can tell the two
-// apart if it wants (we label it "Walrus" vs "Walrus stub").
+// apart if it wants (we label it "Walrus" vs local digest).
 export async function publishProofBundle({
   contentDigest,
   canonicalBody,
   network = "testnet",
   publisherUrl = "",
+  aggregatorUrl = WALRUS_DEFAULT_AGGREGATOR,
   epochs = 5,
+  verifyFetchBack = false,
   fetchImpl,
 } = {}) {
   if (publisherUrl) {
@@ -605,11 +694,37 @@ export async function publishProofBundle({
         epochs,
         fetchImpl,
       });
+      let fetchBackVerified = false;
+      let normalizedAggregatorUrl = "";
+      if (verifyFetchBack) {
+        const classified = classifyBlobId(result.blobId);
+        if (classified.mode !== "walrus") {
+          throw new Error(`Walrus publisher returned malformed blob id '${result.blobId}'.`);
+        }
+        normalizedAggregatorUrl = String(aggregatorUrl || WALRUS_DEFAULT_AGGREGATOR).trim();
+        const fetched = await fetchFromWalrus({
+          blobId: classified.blobId,
+          aggregatorUrl: normalizedAggregatorUrl,
+          fetchImpl,
+        });
+        const expected = new TextEncoder().encode(canonicalBody);
+        if (fetched.byteLength !== expected.byteLength) {
+          throw new Error("Walrus fetch-back byte length does not match canonical proof bundle.");
+        }
+        for (let i = 0; i < expected.byteLength; i += 1) {
+          if (fetched[i] !== expected[i]) {
+            throw new Error("Walrus fetch-back bytes do not match canonical proof bundle.");
+          }
+        }
+        fetchBackVerified = true;
+      }
       return {
         blobId: result.blobId,
         suiObjectId: result.suiObjectId,
         endEpoch: result.endEpoch,
         publisherUrl: result.publisherUrl,
+        aggregatorUrl: normalizedAggregatorUrl,
+        fetchBackVerified,
         source: "walrus",
       };
     } catch (error) {

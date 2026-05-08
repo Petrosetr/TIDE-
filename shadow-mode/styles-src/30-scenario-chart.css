@@ -113,8 +113,49 @@ html[data-theme="light"] .guardrails-chart {
 }
 
 @media (max-width: 720px) {
-  .guardrails-chart__chips {
+  .guardrails-chart {
+    --guardrails-mobile-width: 45rem;
     overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.1rem;
+  }
+
+  .guardrails-chart__top,
+  .guardrails-chart__svg,
+  .guardrails-chart__strip,
+  .guardrails-chart__zones {
+    width: var(--guardrails-mobile-width);
+    max-width: none;
+    min-width: var(--guardrails-mobile-width);
+    margin-inline: 0;
+  }
+
+  .guardrails-chart__top {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: center;
+  }
+
+  .guardrails-chart__chips,
+  .guardrails-chart__chips.segmented {
+    flex-wrap: nowrap;
+    overflow-x: visible;
+  }
+
+  .guardrails-chart__chip {
+    min-height: 2.15rem;
+    padding: 0.34rem 0.62rem;
+  }
+
+  .guardrails-chart__chip-label {
+    font-size: var(--fs-xs);
+  }
+
+  .guardrails-chart__note {
+    width: min(100%, var(--guardrails-mobile-width));
+    margin-inline: 0;
   }
 }
 

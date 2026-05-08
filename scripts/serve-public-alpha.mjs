@@ -93,6 +93,13 @@ function resolveRequestPath(urlPath) {
     targetPath = join(appDir, "index.html");
   }
 
+  if (
+    !existsSync(targetPath)
+    && (pathname === "/r" || pathname === "/r/" || (pathname.startsWith("/r/") && extname(pathname) === ""))
+  ) {
+    targetPath = join(appDir, "r", "index.html");
+  }
+
   return targetPath;
 }
 

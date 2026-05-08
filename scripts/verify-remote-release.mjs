@@ -10,13 +10,22 @@ function readLocalProofPins() {
   const parsed = JSON.parse(readFileSync("docs/proof/latest-proof-loop.json", "utf8"));
   const packageId = String(parsed?.packageId || "").trim();
   const railAllowlistId = String(parsed?.railAllowlistId || "").trim();
+  const receiptObjectId = String(
+    [...(Array.isArray(parsed?.runs) ? parsed.runs : [])]
+      .reverse()
+      .find((run) => FULL_SUI_OBJECT_ID_RE.test(String(run?.receiptMint?.objectId || "").trim()))
+      ?.receiptMint?.objectId || ""
+  ).trim();
   if (!FULL_SUI_OBJECT_ID_RE.test(packageId)) {
     fail("docs/proof/latest-proof-loop.json packageId must be a 32-byte Sui object id");
   }
   if (!FULL_SUI_OBJECT_ID_RE.test(railAllowlistId)) {
     fail("docs/proof/latest-proof-loop.json railAllowlistId must be a 32-byte Sui object id");
   }
-  return { packageId, railAllowlistId };
+  if (!FULL_SUI_OBJECT_ID_RE.test(receiptObjectId)) {
+    fail("docs/proof/latest-proof-loop.json must include at least one 32-byte receiptMint.objectId");
+  }
+  return { packageId, railAllowlistId, receiptObjectId };
 }
 
 const LOCAL_PROOF_PINS = readLocalProofPins();
@@ -195,11 +204,25 @@ async function fetchRedirect(url) {
 }
 
 async function fetchJson(url) {
-  const response = await fetch(withCacheBust(url), {
-    method: "GET",
-    cache: "no-store",
-    signal: AbortSignal.timeout(15_000),
-  });
+  let lastError;
+  let response;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      response = await fetch(withCacheBust(url), {
+        method: "GET",
+        cache: "no-store",
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (response.ok || response.status < 500) break;
+      lastError = new Error(`${url} returned ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await wait(750 * attempt);
+  }
+  if (!response) {
+    fail(`${url} fetch failed: ${lastError?.message || "unknown error"}`);
+  }
   if (!response.ok) {
     fail(`${url} returned ${response.status}`);
   }
@@ -243,6 +266,19 @@ function assertTextContains(label, body, needles) {
   }
 }
 
+export function assertProofDocEvidencePosture(label, body) {
+  const text = String(body || "");
+  if (!text.includes("walrusSource=walrus")) {
+    fail(`${label} is missing expected marker: walrusSource=walrus`);
+  }
+  if (/\bpythSource=configured\b/.test(text)) {
+    fail(`${label} still uses ambiguous oracle marker pythSource=configured; use live, stale, or missing`);
+  }
+  if (!/\bpythSource=(?:live|stale|missing)\b/.test(text)) {
+    fail(`${label} is missing expected oracle marker: pythSource=live|stale|missing`);
+  }
+}
+
 function normalizeProofDocText(value) {
   return String(value || "").replace(/\r\n/g, "\n").trimEnd();
 }
@@ -277,7 +313,7 @@ async function verifyHydrationAssets(baseUrl) {
   await assertContentType(baseUrl, "/runtime-config.js", /(?:^|;|\s)(?:text|application)\/javascript\b/i);
   await assertContentType(baseUrl, "/styles-setup.css", /^text\/css\b/i);
   await assertRouteContains(baseUrl, "/app.js", [
-    "Run rehearsal check",
+    "Run rehearsal",
     "Managed repay",
     "Polymarket",
     "Kalshi",
@@ -300,13 +336,14 @@ async function verifyHydrationAssets(baseUrl) {
     "receipt.mint",
   ]);
   await assertRouteContains(baseUrl, "/styles-setup.css", [
-    "--setup-footer-reserve: 8.75rem",
-    "position: fixed",
-    "max-height: min(15rem, calc(100dvh - var(--space-6)))",
-    "overflow-y: auto",
-    "--setup-footer-reserve: 0px",
+    "--setup-footer-reserve: clamp(6.5rem, 9vh, 8rem)",
+    "scroll-padding-bottom: calc(var(--setup-footer-reserve) + var(--space-4))",
     "position: sticky",
-    "padding-bottom: var(--space-4)",
+    "bottom: max(var(--space-3), env(safe-area-inset-bottom))",
+    "max-height: none",
+    "overflow: visible",
+    "padding-bottom: var(--setup-footer-reserve, var(--space-5))",
+    "padding-bottom: var(--setup-footer-reserve, 8.75rem)",
   ]);
   await assertRouteContains(baseUrl, "/wallet.js", [
     "unsupported-command-kind",
@@ -352,14 +389,27 @@ async function verifyProofDocs(baseUrl) {
     "Autopilot Rehearsal proof pack",
     CURRENT_TESTNET_RECEIPT_PACKAGE,
     "Walrus blob:",
-    "walrusSource=walrus",
-    "pythSource=configured",
   ]);
+  assertProofDocEvidencePosture(`${baseUrl}/${PUBLIC_PROOF_PACK_PATH}`, proofPack);
   for (const forbidden of [RETIRED_TESTNET_RECEIPT_PACKAGE]) {
     if (proofPack.includes(forbidden)) {
       fail(`${baseUrl}/${PUBLIC_PROOF_PACK_PATH} contains retired proof package marker: ${forbidden}`);
     }
   }
+}
+
+async function verifyReceiptViewer(baseUrl) {
+  await assertContentType(baseUrl, "/r/viewer.js", /(?:^|;|\s)(?:text|application)\/javascript\b/i);
+  await assertRouteContains(baseUrl, "/r/", [
+    'data-page="receipt-viewer"',
+    "<title>TIDE Receipt</title>",
+    'src="/r/viewer.js"',
+  ]);
+  await assertRouteContains(baseUrl, `/r/${LOCAL_PROOF_PINS.receiptObjectId}`, [
+    'data-page="receipt-viewer"',
+    "<title>TIDE Receipt</title>",
+    'src="/r/viewer.js"',
+  ]);
 }
 
 export function assertManifestBuildFreshness(baseUrl, manifest, buildId, kind = "app", env = process.env) {
@@ -420,7 +470,7 @@ export function runtimeProofMatchesManifest({ proofCommit, manifestSha, manifest
   return matchesSha || matchesBuild;
 }
 
-function assertRuntimeProofMatchesManifest(baseUrl, config, manifest) {
+export function assertRuntimeProofMatchesManifest(baseUrl, config, manifest) {
   const proofCommit = String(config?.proof?.commit || "").trim().toLowerCase();
   if (!proofCommit) {
     return;
@@ -428,9 +478,6 @@ function assertRuntimeProofMatchesManifest(baseUrl, config, manifest) {
   const manifestSha = String(manifest?.gitSha || "").trim().toLowerCase();
   const manifestBuildId = String(manifest?.buildId || "").trim().toLowerCase();
   if (!runtimeProofMatchesManifest({ proofCommit, manifestSha, manifestBuildId })) {
-    if (config?.proof?.sourceRefMatchesBuild === false) {
-      return;
-    }
     fail(
       `${baseUrl}/runtime-config.js proof.commit=${proofCommit} does not match release-manifest gitSha=${manifestSha || "missing"} buildId=${manifestBuildId || "missing"}`
     );
@@ -466,6 +513,9 @@ async function verifyLanding(baseUrl, buildId) {
     "Modeled results are not guaranteed",
   ]);
   await verifyProofDocs(baseUrl);
+  if (resolveExpectedRuntimeSuiNetwork(baseUrl) === "testnet") {
+    await verifyReceiptViewer(baseUrl);
+  }
 }
 
 async function verifyApp(baseUrl, buildId) {
@@ -495,8 +545,8 @@ async function verifyApp(baseUrl, buildId) {
     'data-preset="starter"',
     'data-preset="safety"',
     'data-preset="drift"',
-    'aria-disabled="true"',
-    'Roadmap mode',
+    'Accumulate',
+    'Lower draw, longer runway',
     'data-preset-stat-suffix="starter-payout"',
     'id="save-policy-toolbar"',
   ]);
@@ -510,6 +560,9 @@ async function verifyApp(baseUrl, buildId) {
     "<title>TIDE Live</title>",
   ]);
   await verifyProofDocs(baseUrl);
+  if (resolveExpectedRuntimeSuiNetwork(baseUrl) === "testnet") {
+    await verifyReceiptViewer(baseUrl);
+  }
 }
 
 async function verifyApi(baseUrl, requireSignedOps) {

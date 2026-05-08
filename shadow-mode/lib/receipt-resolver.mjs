@@ -594,7 +594,9 @@ async function verifyReceiptBundleSemantics({ receipt, bundle, cryptoImpl = null
     version: PROOF_BUNDLE_VERSION,
     stateBefore: bundle.stateBefore,
   }, cryptoImpl);
-  const actualRailPackDigest = normalizeDigestHex(bundle?.railPack?.digest);
+  const actualRailPackDigest = bundle?.railPack?.snapshot !== undefined
+    ? await digestCanonicalHex(bundle.railPack.snapshot, cryptoImpl)
+    : normalizeDigestHex(bundle?.railPack?.digest);
   const mismatches = [];
   pushMismatch(mismatches, "policyId", normalizeMoveId(receipt.policyId), normalizeMoveId(bundle?.policy?.id));
   pushMismatch(mismatches, "policyVersion", Number(receipt.policyVersion) || 0, Number(bundle?.policy?.version) || 0);

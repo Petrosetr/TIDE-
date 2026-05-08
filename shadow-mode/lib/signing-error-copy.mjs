@@ -5,11 +5,11 @@ import {
 
 const ACTION_LABELS = Object.freeze({
   "execute-live-action": "Live action",
-  "save-policy-on-chain": "Policy sync",
-  "policy.anchor": "Policy anchor",
+  "save-policy-on-chain": "Policy save",
+  "policy.anchor": "Policy save",
   "policy.update": "Policy update",
-  "mint-receipt": "Action receipt mint",
-  "receipt.mint": "Action receipt mint",
+  "mint-receipt": "Receipt mint",
+  "receipt.mint": "Receipt mint",
 });
 
 export function getSigningErrorMessage(error) {
@@ -107,7 +107,7 @@ export function classifySigningError(error, options = {}) {
   if (lower.includes("incorrect number of arguments")) {
     return {
       failureClass: "abi-mismatch",
-      userMessage: `${actionLabel} failed — the frontend ABI does not match the deployed testnet package. Refresh the app, anchor a fresh policy object, then retry.`,
+      userMessage: `${actionLabel} failed — the frontend ABI does not match the deployed testnet package. Refresh the app, save a fresh policy, then retry.`,
       developerMessage: rawMessage || "Incorrect number of Move call arguments.",
       rawMessage,
       moveAbort: null,
@@ -117,8 +117,41 @@ export function classifySigningError(error, options = {}) {
   if (lower.includes("older testnet package") || (lower.includes("package") && lower.includes("mismatch"))) {
     return {
       failureClass: "package-mismatch",
-      userMessage: `${actionLabel} failed — this object belongs to an older testnet package. Anchor a fresh policy object, then retry.`,
+      userMessage: `${actionLabel} failed — this object belongs to an older testnet package. Save a fresh policy, then retry.`,
       developerMessage: rawMessage || "Policy package mismatch.",
+      rawMessage,
+      moveAbort: null,
+    };
+  }
+
+  if (
+    error?.code === "walrus-proof-unverified"
+    || (lower.includes("walrus") && (lower.includes("proof storage") || lower.includes("fetch-back") || lower.includes("not verified")))
+  ) {
+    return {
+      failureClass: "walrus-proof-unverified",
+      userMessage: `${actionLabel} blocked — Walrus proof storage did not verify yet. Refresh the proof bundle and retry before minting.`,
+      developerMessage: rawMessage || "Walrus proof storage was not verified.",
+      rawMessage,
+      moveAbort: null,
+    };
+  }
+
+  if (
+    error?.code === "pyth-readback-unavailable"
+    || (lower.includes("pyth read-back") && (
+      lower.includes("required")
+      || lower.includes("unavailable")
+      || lower.includes("missing")
+      || lower.includes("stale")
+      || lower.includes("confidence")
+      || lower.includes("publishtime")
+    ))
+  ) {
+    return {
+      failureClass: "pyth-readback-unavailable",
+      userMessage: `${actionLabel} blocked — live Pyth BTC/USD read-back is not ready. Refresh oracle read-back, then retry before minting.`,
+      developerMessage: rawMessage || "Pyth read-back was unavailable or stale.",
       rawMessage,
       moveAbort: null,
     };

@@ -1,7 +1,7 @@
 // Receipt sharing primitives — pure transforms over a normalized receipt.
 //
 // The renderer integrates with these via receipt-card actions
-// (Copy, Download, View on SuiVision).
+// (Copy, Download, View on SuiVision, Verify in the public receipt viewer).
 //
 // All functions here are pure: they take a normalized receipt + a runtime
 // config + (for URL builders) explicit overrides, and return strings or
@@ -13,7 +13,7 @@ import { buildSuiExplorerUrl, getSuiNetwork } from "./sui-network.mjs";
 
 const TIDE_VERSION_TAG = "tide-receipt/v2";
 const READ_ONLY_RECEIPT_NETWORK = "testnet";
-const DEFAULT_READ_ONLY_BASE_PATH = "";
+const DEFAULT_READ_ONLY_BASE_PATH = "/r";
 
 function isValidNetwork(network) {
   return network === "mainnet" || network === "testnet" || network === "devnet";
@@ -35,6 +35,7 @@ function shortHash(value, max = 12) {
 }
 
 function pickReceiptId(receipt) {
+  if (typeof receipt === "string") return receipt.trim();
   if (!receipt || typeof receipt !== "object") return "";
   return String(receipt.id ?? receipt.receiptId ?? receipt.objectId ?? "").trim();
 }
@@ -117,7 +118,7 @@ export function buildReceiptCopyText(receipt, { config = {}, network = "" } = {}
   const payload = buildReceiptCanonicalPayload(receipt, { config, network });
   const r = payload.receipt;
   const lines = [];
-  lines.push(`TIDE Action Receipt — ${payload.network}`);
+  lines.push(`TIDE receipt — ${payload.network}`);
   if (r.id) lines.push(`Receipt id: ${r.id}`);
   if (r.txDigest) lines.push(`Tx digest: ${r.txDigest}`);
   if (r.policyId) lines.push(`Policy id: ${r.policyId}`);
@@ -147,7 +148,7 @@ export function buildReceiptCopyMarkdown(receipt, { config = {}, network = "" } 
   if (payload.explorer.tx) links.push(`[Tx digest](${payload.explorer.tx})`);
   if (payload.explorer.policy) links.push(`[Policy object](${payload.explorer.policy})`);
   const linkLine = links.length ? links.join(" · ") + "\n" : "";
-  return `**TIDE Action Receipt** — ${payload.network}\n\n${meta}${linkLine}`.trim();
+  return `**TIDE receipt** — ${payload.network}\n\n${meta}${linkLine}`.trim();
 }
 
 export function buildReceiptExplorerUrl(receipt, { config = {}, network = "" } = {}) {
@@ -157,16 +158,26 @@ export function buildReceiptExplorerUrl(receipt, { config = {}, network = "" } =
   return buildSuiExplorerUrl("object", id, configForNetwork(resolvedNetwork));
 }
 
-// Public submission builds do not ship a separate read-only receipt route.
-// Keep this API for older renderer call sites, but resolve to the SuiVision
-// object URL so the app never publishes a dead internal route.
+function normalizeOrigin(origin) {
+  return String(origin || "").trim().replace(/\/+$/, "");
+}
+
+// Testnet receipts have a hosted read-only verifier at `/r/<receipt-id>`.
+// Other networks currently fall back to SuiVision because the static viewer
+// deliberately has no trusted ExecutionReceipt package configured there.
 export function buildReceiptReadOnlyUrl(receipt, { config = {}, network = "", origin = "", form = "clean" } = {}) {
   const id = pickReceiptId(receipt);
   if (!id) return "";
-  void origin;
-  void form;
   const resolvedNetwork = resolveNetwork(config, network) || READ_ONLY_RECEIPT_NETWORK;
-  return buildSuiExplorerUrl("object", id, configForNetwork(resolvedNetwork));
+  if (resolvedNetwork !== READ_ONLY_RECEIPT_NETWORK) {
+    return buildSuiExplorerUrl("object", id, configForNetwork(resolvedNetwork));
+  }
+  const base = `${normalizeOrigin(origin)}${DEFAULT_READ_ONLY_BASE_PATH}`;
+  if (form === "explicit") {
+    const params = new URLSearchParams({ id, network: READ_ONLY_RECEIPT_NETWORK });
+    return `${base || DEFAULT_READ_ONLY_BASE_PATH}/?${params.toString()}`;
+  }
+  return `${base || DEFAULT_READ_ONLY_BASE_PATH}/${encodeURIComponent(id)}`;
 }
 
 export const RECEIPT_SHARE_SCHEMA_TAG = TIDE_VERSION_TAG;

@@ -7,21 +7,21 @@
     <title>TIDE Create</title>
     <meta
       name="description"
-      content="Create the current TIDE treasury run."
+      content="Plan a BTC liquidity policy in TIDE."
     />
     <link rel="canonical" href="https://app.tidesui.pro/setup" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="TIDE" />
     <meta property="og:url" content="https://app.tidesui.pro/setup" />
     <meta property="og:title" content="TIDE — Keep BTC. Stay Liquid." />
-    <meta property="og:description" content="Simulate your Bitcoin treasury policy in Shadow Mode. Policy cockpit on Sui — no yield promises, no black-box behavior." />
+    <meta property="og:description" content="Rehearse a Bitcoin treasury policy before saving it on Sui — no yield promises, no black-box behavior." />
     <meta property="og:image" content="https://app.tidesui.pro/tide-mark.svg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="TIDE — Bitcoin Treasury Policy Cockpit on Sui." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="TIDE — Keep BTC. Stay Liquid." />
-    <meta name="twitter:description" content="Simulate your Bitcoin treasury policy in Shadow Mode. Policy cockpit on Sui — no yield promises, no black-box behavior." />
+    <meta name="twitter:description" content="Rehearse a Bitcoin treasury policy before saving it on Sui — no yield promises, no black-box behavior." />
     <meta name="twitter:image" content="https://app.tidesui.pro/tide-mark.svg" />
     <meta name="color-scheme" content="dark light" />
     <script>
@@ -81,7 +81,7 @@
 
       <main class="app-main app-main--setup" id="main">
         <div class="page-stack">
-          <section class="setup-boot-skeleton ui-skeleton" data-boot-skeleton role="status" aria-live="polite" aria-label="Loading Create policy">
+          <section class="setup-boot-skeleton ui-skeleton" data-boot-skeleton role="status" aria-live="polite" aria-label="Loading BTC plan">
             <span class="ui-skeleton__pill" aria-hidden="true"></span>
             <span class="ui-skeleton__title" aria-hidden="true"></span>
             <span class="ui-skeleton__line" aria-hidden="true"></span>
@@ -90,15 +90,15 @@
           </section>
           <aside class="setup-primer" data-setup-primer hidden>
             <div class="setup-primer__body">
-              <strong class="setup-primer__title">Authoring a treasury policy</strong>
-              <span class="setup-primer__text">Pick a profile, set cashflow targets and guardrails, then press <em>Run rehearsal check</em>. TIDE picks the next modeled action against stress paths. Nothing touches your wallet until you anchor it on-chain.</span>
+              <strong class="setup-primer__title">Plan BTC-backed cashflow</strong>
+              <span class="setup-primer__text">Set BTC amount, monthly draw, runway, and safety profile. Run a local rehearsal first; connect a testnet wallet when you want to save a policy and mint a receipt.</span>
             </div>
             <button type="button" class="setup-primer__close" data-setup-primer-close aria-label="Dismiss primer">&times;</button>
           </aside>
           <header class="page-header page-header-compact page-header--product">
             <div class="page-heading">
-              <p class="page-eyebrow">Create policy</p>
-              <h1 class="sr-only">Create policy</h1>
+              <p class="page-eyebrow">BTC cashflow policy</p>
+              <h1 class="sr-only">BTC cashflow policy</h1>
               <section class="setup-titlebar">
                 <div class="setup-titlebar__main">
                   <label class="inline-title-shell" aria-label="Scenario name">
@@ -111,7 +111,7 @@
                   <p class="inline-title-hint" data-scenario-name-hint role="status" aria-live="polite" hidden></p>
                   <p class="inline-title-hint inline-title-hint--dirty" data-draft-dirty-banner role="status" aria-live="off" hidden>
                     <span>Draft changed since last run.</span>
-                    <em>Anchor refreshes the snapshot before signing.</em>
+                    <em>Saving refreshes the snapshot before signing.</em>
                   </p>
                 </div>
               </section>
@@ -149,7 +149,7 @@
 
                 <div class="create-top-grid">
                   <div class="create-composer composer composer--create" data-create-scope-panel data-scope="shadow">
-                    <!-- debtUsd is derived from collateral × mid target-LTV in
+                    <!-- debtUsd is derived from collateral × midpoint pressure in
                          deriveSuggestedDebtUsd() and written back here by
                          syncPositionSupportFields(). Leave the initial value
                          empty so DOM never advertises a default that ignores
@@ -158,18 +158,18 @@
                     <input name="collateralCoinType" type="hidden" value="0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC" />
                     <input name="collateralAssetSymbol" type="hidden" value="wBTC" />
 
-                    <div class="mode-card composer__mode" role="radiogroup" aria-label="Create mode" data-mode-card>
-                      <span class="section-micro-label">Mode</span>
+                    <div class="mode-card composer__mode" role="radiogroup" aria-label="Run mode" data-mode-card>
+                      <span class="section-micro-label">Run mode</span>
                       <div class="mode-card__options segmented segmented--exclusive">
                         <label class="mode-card__opt segmented__option" data-scope="shadow">
                           <input type="radio" name="createScope" value="shadow" checked hidden />
-                          <strong>Simulation</strong>
-                          <em>No signing</em>
+                          <strong>Rehearsal</strong>
+                          <em>Local</em>
                         </label>
                         <label class="mode-card__opt segmented__option is-disabled" data-scope="live" data-live-control aria-disabled="true" title="Live availability is determined by this build and the connected wallet.">
                           <input type="radio" name="createScope" value="live" hidden disabled />
-                          <strong>Live</strong>
-                          <em>Runtime-gated</em>
+                          <strong>Testnet proof</strong>
+                          <em>Wallet-backed</em>
                         </label>
                       </div>
                       <p class="mode-card__origin" data-mode-origin></p>
@@ -196,7 +196,7 @@
                       </div>
                       <div class="create-composer__input-wrap">
                         <label>
-                          <span class="sr-only">Collateral amount</span>
+                          <span class="create-composer__amount-label">BTC amount</span>
                           <input id="btc-units-input" class="create-composer__input composer__amount" name="btcUnits" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00" />
                         </label>
                         <span class="create-composer__usd composer__usd" data-collateral-usd-echo aria-hidden="true"></span>
@@ -206,15 +206,15 @@
                     <div class="create-composer__controls">
                       <div class="create-composer__aux">
                         <label class="create-composer__spot" aria-label="BTC spot price">
-                          <span>Spot</span>
+                          <span>Reference price</span>
                           <input name="btcPriceUsd" type="text" inputmode="decimal" autocomplete="off" placeholder="82 500" />
                         </label>
                         <div class="create-composer__meta btc-price-meta">
                           <span data-btc-price-meta></span>
-                          <!-- Phase D.17 — Reset to live now uses canonical
+                          <!-- Phase D.17 — Reset to reference now uses canonical
                                button-ghost button-sm chrome instead of a
                                bespoke .btc-price-meta__reset link style. -->
-                          <button type="button" class="button button-ghost button-sm btc-price-meta__reset" data-btc-price-reset hidden>Reset to live</button>
+                          <button type="button" class="button button-ghost button-sm btc-price-meta__reset" data-btc-price-reset hidden>Reset to reference</button>
                         </div>
                       </div>
                       <div class="create-composer__trail">
@@ -230,8 +230,8 @@
                           <button type="button" class="segmented__option swap-card__preset" data-amount-preset="0.75">75%</button>
                           <button type="button" class="segmented__option swap-card__preset swap-card__preset--max collateral-use-max" data-collateral-use-max data-amount-preset="max">Max</button>
                         </div>
-                        <div class="create-composer__debt" aria-label="Derived debt">
-                          <span class="create-composer__debt-label">Derived debt</span>
+                        <div class="create-composer__debt" aria-label="Modeled debt">
+                          <span class="create-composer__debt-label">Modeled debt</span>
                           <strong class="create-composer__debt-value" data-derived-debt-value>--</strong>
                           <label class="stable-asset-pill create-composer__stable" aria-label="Stable asset">
                             <span class="stable-asset-pill__mark" data-stable-asset-mark aria-hidden="true"></span>
@@ -269,7 +269,7 @@
                         <p class="strategy-goal-copy">Start from a profile, then tune the numbers below.</p>
                       </div>
                     </div>
-                    <div class="strategy-presets strategy-presets--profiles" role="radiogroup" aria-label="Profile">
+                    <div class="strategy-presets strategy-presets--profiles" role="group" aria-label="Profile">
                       <button type="button" class="strategy-preset" data-preset="starter" aria-pressed="true">
                         <span class="strategy-preset__topline">
                           <span class="strategy-preset__name">
@@ -280,9 +280,9 @@
                         </span>
                         <em>Conservative. Holds through a &minus;40% week.</em>
                         <span class="strategy-preset__stats">
-                          <span><small data-preset-stat-label="starter-payout">Payout</small><b data-preset-stat="starter-payout">$1.2k</b><span data-preset-stat-suffix="starter-payout">/mo</span></span>
+                          <span><small data-preset-stat-label="starter-payout">Monthly draw</small><b data-preset-stat="starter-payout">$1.2k</b><span data-preset-stat-suffix="starter-payout">/mo</span></span>
                           <span><small>Runway</small><b data-preset-stat="starter-runway">4</b><span>mo</span></span>
-                          <span><small>LTV</small><b data-preset-stat="starter-ltv">18&ndash;24%</b></span>
+                          <span><small>Debt pressure</small><b data-preset-stat="starter-ltv">18&ndash;24%</b></span>
                         </span>
                       </button>
                       <button type="button" class="strategy-preset" data-preset="safety" aria-pressed="false">
@@ -295,24 +295,24 @@
                         </span>
                         <em>Defense first. Holds through a &minus;60% week.</em>
                         <span class="strategy-preset__stats">
-                          <span><small data-preset-stat-label="safety-payout">Payout</small><b data-preset-stat="safety-payout">$0.9k</b><span data-preset-stat-suffix="safety-payout">/mo</span></span>
+                          <span><small data-preset-stat-label="safety-payout">Monthly draw</small><b data-preset-stat="safety-payout">$0.9k</b><span data-preset-stat-suffix="safety-payout">/mo</span></span>
                           <span><small>Runway</small><b data-preset-stat="safety-runway">6</b><span>mo</span></span>
-                          <span><small>LTV</small><b data-preset-stat="safety-ltv">16&ndash;21%</b></span>
+                          <span><small>Debt pressure</small><b data-preset-stat="safety-ltv">16&ndash;21%</b></span>
                         </span>
                       </button>
-                      <button type="button" class="strategy-preset is-roadmap" data-preset="drift" aria-pressed="false" aria-disabled="true" disabled title="Roadmap mode — not active in V1 proof submission.">
+                      <button type="button" class="strategy-preset" data-preset="drift" aria-pressed="false">
                         <span class="strategy-preset__topline">
                           <span class="strategy-preset__name">
-                            <strong>Future mode</strong>
+                            <strong>Drift</strong>
                             <span class="strategy-preset__modified" data-preset-modified hidden>modified</span>
                           </span>
-                          <span class="strategy-preset__cue">Roadmap</span>
+                          <span class="strategy-preset__cue">Accumulate</span>
                         </span>
-                        <em>Future accumulation preview. Models BTC-stack intent without changing the V1 policy.</em>
+                        <em>Lower draw, longer runway. Keeps more BTC exposure.</em>
                         <span class="strategy-preset__stats">
-                          <span><small data-preset-stat-label="drift-payout">Payout</small><b data-preset-stat="drift-payout">$0.6k</b><span data-preset-stat-suffix="drift-payout">/mo</span></span>
+                          <span><small data-preset-stat-label="drift-payout">Monthly draw</small><b data-preset-stat="drift-payout">$0.6k</b><span data-preset-stat-suffix="drift-payout">/mo</span></span>
                           <span><small>Runway</small><b data-preset-stat="drift-runway">8</b><span>mo</span></span>
-                          <span><small>LTV</small><b data-preset-stat="drift-ltv">22&ndash;28%</b></span>
+                          <span><small>Debt pressure</small><b data-preset-stat="drift-ltv">22&ndash;28%</b></span>
                         </span>
                       </button>
                     </div>
@@ -326,8 +326,8 @@
                 <section class="surface create-guardrails-surface" data-section="guardrails">
                   <div class="section-head section-head-compact">
                     <div>
-                      <p class="section-label">Guardrails</p>
-                      <h2>Set LTV thresholds</h2>
+                      <p class="section-label">Safety</p>
+                      <h2>Debt pressure (LTV) limits</h2>
                     </div>
                   </div>
                     <div id="setup-scenario-workbench" class="scenario-workbench-host scenario-workbench-host--setup"></div>
@@ -335,8 +335,8 @@
                     <details class="disclosure guardrails-finetune" data-section="guardrails-finetune">
                       <summary class="disclosure-head">
                         <div>
-                          <h2 class="setup-section-title">Fine-tune thresholds</h2>
-                          <small>Exact LTV thresholds, stress behavior, and market assumptions in one place.</small>
+                          <h2 class="setup-section-title">Advanced guardrails</h2>
+                          <small>Exact debt-pressure thresholds, stress behavior, and market assumptions in one place.</small>
                         </div>
                       </summary>
 
@@ -344,33 +344,33 @@
                         <div class="guardrails-finetune__grid">
                           <div class="guardrails-grid">
                             <label class="field field-compact">
-                              <span>Liquidation ceiling</span>
-                              <small>Absolute max LTV.</small>
+                              <span>Max debt pressure</span>
+                              <small>Highest debt / BTC collateral value the policy allows before danger zone.</small>
                               <input name="maxLtvPct" type="number" min="0" max="100" step="0.1" />
                             </label>
                             <label class="field field-compact">
-                              <span>Target low</span>
-                              <small>Bottom of operating range.</small>
+                              <span>Target pressure floor</span>
+                              <small>Bottom of the debt-pressure operating range.</small>
                               <input name="targetLtvLowPct" type="number" min="0" max="100" step="0.1" />
                             </label>
                             <label class="field field-compact">
-                              <span>Target high</span>
-                              <small>Top of range. De-risk above.</small>
+                              <span>Target ceiling</span>
+                              <small>Top of operating range. De-risk above.</small>
                               <input name="targetLtvHighPct" type="number" min="0" max="100" step="0.1" />
                             </label>
                             <label class="field field-compact">
                               <span>Managed repay threshold</span>
-                              <small>LTV at which the policy triggers debt reduction.</small>
+                              <small>Debt pressure where the policy triggers debt reduction.</small>
                               <input name="autoRepayLtvPct" type="number" min="0" max="100" step="0.1" />
                             </label>
                             <label class="field field-compact">
-                              <span>Freeze threshold (LTV)</span>
-                              <small>Emergency: payouts stop.</small>
+                              <span>Draw freeze threshold</span>
+                              <small>Emergency line where monthly draws stop.</small>
                               <input name="emergencyLtvPct" type="number" min="0" max="100" step="0.1" />
                             </label>
                             <label class="field field-compact">
-                              <span>Min buffer</span>
-                              <small>Buffer floor, USD.</small>
+                              <span>Minimum buffer floor</span>
+                              <small>Lowest stablecoin reserve allowed before the plan asks for a refill.</small>
                               <input name="minStableBufferUsd" type="number" min="0" max="10000000" step="100" />
                             </label>
                           </div>
@@ -381,8 +381,8 @@
                               <label class="toggle-row">
                                 <input name="allowPayoutPauseInStress" type="checkbox" />
                                 <span>
-                                  <strong>Pause payouts in stress</strong>
-                                  <small>Stop payouts when conditions worsen.</small>
+                                  <strong>Pause monthly draws in stress</strong>
+                                  <small>Stop draw approvals when conditions worsen.</small>
                                 </span>
                               </label>
                               <label class="toggle-row">
@@ -416,25 +416,25 @@
                 <div class="setup-aside-panel__section create-cashflow-surface policy-cashflow policy-cashflow--inline" data-section="cashflow">
                   <div class="policy-cashflow__head section-head section-head-compact">
                     <div>
-                      <p class="section-label">Cashflow targets</p>
-                      <h2>Monthly draw targets</h2>
+                      <p class="section-label">Cashflow</p>
+                      <h2>Monthly draw and runway</h2>
                     </div>
                   </div>
                   <div class="swap-stats swap-stats--policy" role="group" aria-label="Cashflow targets">
                     <label class="swap-stat">
-                      <span class="swap-stat__label">Payout / month</span>
+                      <span class="swap-stat__label">Monthly draw target</span>
                       <div class="swap-stat__inline swap-stat__inline--stepper">
                         <div class="swap-stat__value-shell">
                           <input name="monthlyPayoutTargetUsd" type="text" inputmode="decimal" autocomplete="off" placeholder="1 200" />
                           <span class="swap-stat__unit" data-stable-asset-echo>USDC</span>
                         </div>
-                        <div class="swap-stepper stepper-input stepper-input--compact" role="group" aria-label="Adjust payout target">
-                          <button type="button" class="swap-stepper__btn stepper-input__btn" data-stepper-target="monthlyPayoutTargetUsd" data-stepper-dir="up" aria-label="Increase payout target">
+                        <div class="swap-stepper stepper-input stepper-input--compact" role="group" aria-label="Adjust monthly draw target">
+                          <button type="button" class="swap-stepper__btn stepper-input__btn" data-stepper-target="monthlyPayoutTargetUsd" data-stepper-dir="up" aria-label="Increase monthly draw target">
                             <svg class="swap-stepper__icon" viewBox="0 0 12 12" aria-hidden="true">
                               <path d="M3 7.25 6 4.25l3 3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" />
                             </svg>
                           </button>
-                          <button type="button" class="swap-stepper__btn stepper-input__btn" data-stepper-target="monthlyPayoutTargetUsd" data-stepper-dir="down" aria-label="Decrease payout target">
+                          <button type="button" class="swap-stepper__btn stepper-input__btn" data-stepper-target="monthlyPayoutTargetUsd" data-stepper-dir="down" aria-label="Decrease monthly draw target">
                             <svg class="swap-stepper__icon" viewBox="0 0 12 12" aria-hidden="true">
                               <path d="M3 4.75 6 7.75l3-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" />
                             </svg>
@@ -444,7 +444,7 @@
                       <p class="swap-stat__meta">How much stablecoin should land in your wallet each month (your payroll / bills draw).</p>
                     </label>
                     <label class="swap-stat">
-                      <span class="swap-stat__label">Buffer floor</span>
+                      <span class="swap-stat__label">Starting buffer</span>
                       <div class="swap-stat__inline swap-stat__inline--stepper">
                         <div class="swap-stat__value-shell">
                           <input name="stableBufferUsd" type="text" inputmode="decimal" autocomplete="off" placeholder="4 800" />
@@ -494,7 +494,7 @@
                   <div class="section-head section-head-compact">
                     <div>
                       <p class="section-label">Market assumptions</p>
-                      <h2>BTC stress inputs</h2>
+                      <h2>BTC stress model</h2>
                     </div>
                   </div>
                   <div class="form-grid form-grid-2">
@@ -522,7 +522,7 @@
                 </div>
 
                 <!-- Rail & venue -->
-                <details class="setup-aside-panel__section disclosure create-advanced-drawer" data-advanced data-section="advanced-rail-wrap">
+                <details id="rail-data" class="setup-aside-panel__section disclosure create-advanced-drawer" data-advanced data-section="advanced-rail-wrap">
                   <summary class="disclosure-head">
                     <div>
                       <h2 class="setup-section-title">Rail &amp; venue (advanced)</h2>
@@ -607,10 +607,10 @@
                   <span>fit</span>
                 </div>
                 <div class="setup-footer-summary__meta">
-                  <strong class="create-preview-title" data-create-preview-title>Manual sandbox</strong>
+                  <strong class="create-preview-title" data-create-preview-title>Rehearsal draft</strong>
                   <div class="setup-footer-summary__pills">
                     <span class="create-preview-asset" data-create-preview-wrapper>wBTC · Wrapped</span>
-                    <span class="create-preview-pill" data-create-preview-scope title="Simulation ignores wallet balances. Run it, open Readout for this run, then switch to Live when collateral is real.">Simulation</span>
+                    <span class="create-preview-pill" data-create-preview-scope title="Run a rehearsal first. Testnet receipt actions appear in Readout when a wallet is available.">Rehearsal</span>
                   </div>
                   <p class="create-preview-copy" data-create-preview-copy></p>
                   <p class="create-preview-next" data-create-preview-next></p>
@@ -619,7 +619,7 @@
 
               <div class="setup-footer-summary__mid">
                 <div class="create-preview-metric">
-                  <span>LTV</span>
+                  <span>Pressure</span>
                   <strong data-create-preview-ltv>--</strong>
                 </div>
                 <div class="create-preview-metric">
@@ -627,7 +627,7 @@
                   <strong data-create-preview-buffer>--</strong>
                 </div>
                 <div class="create-preview-metric">
-                  <span>Payout</span>
+                  <span>Monthly draw</span>
                   <strong data-create-preview-payout>--</strong>
                 </div>
                 <div class="create-preview-metric">
@@ -647,8 +647,8 @@
                     <button id="reset-setup-footer" class="setup-footer-iconbtn" type="button" aria-label="Reset draft" title="Reset all fields to defaults.">
                       <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
                     </button>
-                  <button id="save-policy-toolbar" class="button button-secondary" type="button" hidden title="Anchor this policy object on Sui testnet. No real BTC moves.">Anchor policy object</button>
-                  <button id="run-sim-toolbar" class="button button-primary button-primary--gradient setup-footer-bar__primary" type="submit" form="scenario-form">Run rehearsal check</button>
+                  <button id="save-policy-toolbar" class="button button-secondary" type="button" hidden title="Save this policy on Sui testnet. No real BTC moves.">Save on testnet</button>
+                  <button id="run-sim-toolbar" class="button button-primary button-primary--gradient setup-footer-bar__primary" type="submit" form="scenario-form">Run rehearsal</button>
                 </div>
               </div>
             </div>

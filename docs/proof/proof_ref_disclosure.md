@@ -18,7 +18,7 @@ whose `proofRef` is not listed here will fail
 | Artifact | Ref | Commit subject |
 |---|---|---|
 | Final 10-cycle rehearsal aggregate (`docs/proof/rehearsal/latest-rehearsal-report.json`) | `3467a12d5312732c0456f04f7feb241227c29a61` | 10-cycle proof-exit gate used by final verifier |
-| Latest single proof loop (`docs/proof/latest-proof-loop.json`) | `ebba0404d6252ca23d61af0fe6a09e5566a26e7b` | 2026-05-07 allowlist-seeded proof pack with fresh Walrus-backed testnet receipts |
+| Latest single proof loop (`docs/proof/latest-proof-loop.json`) | `528d7ae895c4bd99a441f355c2f5a33df370c85d` | 2026-05-07 canonical proof bundle now carries Pyth posture; Walrus fetch-back verified and Pyth evidence recorded as stale instead of sidecar-only |
 
 Public deployed proof docs are valid evidence only when the deployed
 `release-manifest.json` reports the expected `gitSha` / `gitBranch` and the

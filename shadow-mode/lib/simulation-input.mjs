@@ -50,11 +50,11 @@ function addFiniteErrors(draft, errors) {
     ["minStableBufferUsd", "Minimum stable buffer"],
     ["desiredRunwayMonths", "Desired runway"],
     ["monthlyPayoutTargetUsd", "Monthly payout target"],
-    ["maxLtvPct", "Max LTV"],
-    ["targetLtvLowPct", "Target LTV low"],
-    ["targetLtvHighPct", "Target LTV high"],
-    ["autoRepayLtvPct", "Auto repay LTV"],
-    ["emergencyLtvPct", "Emergency LTV"],
+    ["maxLtvPct", "Max debt pressure"],
+    ["targetLtvLowPct", "Target debt pressure low"],
+    ["targetLtvHighPct", "Target debt pressure high"],
+    ["autoRepayLtvPct", "Managed repay debt pressure"],
+    ["emergencyLtvPct", "Emergency debt pressure"],
     ["maxSingleVenueExposurePct", "Max venue exposure"],
     ["maxWrapperExposurePct", "Max wrapper exposure"],
     ["minOracleConfidencePct", "Minimum oracle confidence"],
@@ -79,11 +79,11 @@ function addFiniteErrors(draft, errors) {
 
 function addPercentErrors(draft, errors) {
   const fields = [
-    ["maxLtvPct", "Max LTV"],
-    ["targetLtvLowPct", "Target LTV low"],
-    ["targetLtvHighPct", "Target LTV high"],
-    ["autoRepayLtvPct", "Auto repay LTV"],
-    ["emergencyLtvPct", "Emergency LTV"],
+    ["maxLtvPct", "Max debt pressure"],
+    ["targetLtvLowPct", "Target debt pressure low"],
+    ["targetLtvHighPct", "Target debt pressure high"],
+    ["autoRepayLtvPct", "Managed repay debt pressure"],
+    ["emergencyLtvPct", "Emergency debt pressure"],
     ["maxSingleVenueExposurePct", "Max venue exposure"],
     ["maxWrapperExposurePct", "Max wrapper exposure"],
     ["minOracleConfidencePct", "Minimum oracle confidence"],
@@ -133,16 +133,16 @@ export function validateSimulationInputDraft(draft = {}) {
   const emergency = Number(draft?.emergencyLtvPct);
   const max = Number(draft?.maxLtvPct);
   if (Number.isFinite(low) && Number.isFinite(high) && low >= high) {
-    errors.push("Target LTV low must stay below target LTV high.");
+    errors.push("Target debt pressure low must stay below target debt pressure high.");
   }
   if (Number.isFinite(high) && Number.isFinite(repay) && high >= repay) {
-    errors.push("Target LTV high must stay below auto repay LTV.");
+    errors.push("Target debt pressure high must stay below managed repay pressure.");
   }
   if (Number.isFinite(repay) && Number.isFinite(emergency) && repay >= emergency) {
-    errors.push("Auto repay LTV must stay below emergency LTV.");
+    errors.push("Managed repay pressure must stay below emergency pressure.");
   }
   if (Number.isFinite(emergency) && Number.isFinite(max) && emergency > max) {
-    errors.push("Emergency LTV cannot exceed max LTV.");
+    errors.push("Emergency pressure cannot exceed max debt pressure.");
   }
 
   return errors;

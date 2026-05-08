@@ -527,6 +527,36 @@ function buildScallopCandidate(key, pool, collateral) {
   };
 }
 
+export function buildScallopPriceReferences(candidates, now) {
+  const references = candidates
+    .map((candidate) => ({
+      wrapper: candidate?.pool?.symbol,
+      referencePriceUsd: roundUsd(candidate?.collateral?.coinPrice),
+      source: "scallop",
+      updatedAt: now,
+    }))
+    .filter((item) => item.wrapper && item.referencePriceUsd > 1_000);
+
+  const hasSuiWbtc = references.some((item) => normalizeSymbolKey(item.wrapper) === "SUIWBTC");
+  if (!hasSuiWbtc) {
+    const proxySource = references.find((item) => normalizeSymbolKey(item.wrapper) === "SBWBTC")
+      || references.find((item) => normalizeSymbolKey(item.wrapper) === "WBTC");
+    if (proxySource) {
+      references.push({
+        wrapper: "suiWBTC",
+        referencePriceUsd: proxySource.referencePriceUsd,
+        source: "scallop",
+        updatedAt: now,
+        quoteKind: "proxy",
+        proxyOf: proxySource.wrapper,
+        disclosure: `No direct suiWBTC quote; priced from Scallop ${proxySource.wrapper} market quote.`,
+      });
+    }
+  }
+
+  return references;
+}
+
 async function collectScallopRail(now) {
   const indexer = new ScallopIndexer();
   const [usdcPool, wbtcPool, wbtcCollateral, sbwbtcPool, sbwbtcCollateral] = await Promise.all([
@@ -585,6 +615,7 @@ async function collectScallopRail(now) {
     maxLtv: round(selected.collateral.collateralFactor),
     availableDebtUsd: roundUsd(availableDebtUsd),
     referencePriceUsd: roundUsd(selected.collateral.coinPrice),
+    priceReferences: buildScallopPriceReferences(candidates, now),
     rebalanceCostBps: 12,
     supportsRefinance: true,
     tags: ["Lending", "Borrow", "Collateral"],
@@ -774,6 +805,14 @@ async function collectNaviRail(now) {
     maxLtv: round(collateral.ltv),
     availableDebtUsd: roundUsd(stable.availableDebtUsd),
     referencePriceUsd: roundUsd(collateral.meta.price),
+    priceReferences: btcCandidates
+      .map((candidate) => ({
+        wrapper: candidate.meta.symbol,
+        referencePriceUsd: roundUsd(candidate.meta.price),
+        source: "navi",
+        updatedAt: now,
+      }))
+      .filter((item) => item.referencePriceUsd > 1_000),
     rebalanceCostBps: 14,
     supportsRefinance: true,
     tags: ["Lending", "Borrow", "Collateral", "AggregatorAPI"],
@@ -967,6 +1006,14 @@ async function collectSuilendRail(now) {
     maxLtv: round(collateral.openLtv),
     availableDebtUsd: roundUsd(stable.availableDebtUsd),
     referencePriceUsd: roundUsd(collateral.price),
+    priceReferences: btcCandidates
+      .map((candidate) => ({
+        wrapper: candidate.symbol,
+        referencePriceUsd: roundUsd(candidate.price),
+        source: "suilend",
+        updatedAt: now,
+      }))
+      .filter((item) => item.referencePriceUsd > 1_000),
     rebalanceCostBps: 13,
     supportsRefinance: true,
     tags: ["Lending", "Borrow", "Collateral", "Onchain"],
@@ -1115,6 +1162,14 @@ async function collectAlphalendRail(now) {
     maxLtv: round(collateral.maxLtv),
     availableDebtUsd: roundUsd(stable.availableDebtUsd),
     referencePriceUsd: roundUsd(collateral.price),
+    priceReferences: btcCandidates
+      .map((candidate) => ({
+        wrapper: candidate.symbol,
+        referencePriceUsd: roundUsd(candidate.price),
+        source: "alphalend",
+        updatedAt: now,
+      }))
+      .filter((item) => item.referencePriceUsd > 1_000),
     rebalanceCostBps: 16,
     supportsRefinance: true,
     tags: ["Lending", "Borrow", "Collateral", "SDK"],

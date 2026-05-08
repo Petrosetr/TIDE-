@@ -82,11 +82,13 @@ export function validateDeployContext(env = process.env) {
     expect(liveEnabled === true, "Testnet target must keep Live enabled for proof flows.", errors);
     expect(executionProofEnabled === true, "Testnet target must keep execution proof enabled.", errors);
     expect(allowSigning === true, "Testnet target must keep signing enabled.", errors);
+    expect(deployUser !== "", "Testnet deploy must set PROD_USER to the non-root deploy account.", errors);
+    expect(deployUser !== "root", "Testnet deploy must use a non-root PROD_USER such as tide-deploy.", errors);
 
-    if (channel === "testnet" && eventName === "push") {
-      expect(refName === "main", `Public testnet push deploy must come from main, got ${refName || "(empty)"}.`, errors);
-      expect(deployUser !== "", "Public testnet deploy must set PROD_USER to the non-root deploy account.", errors);
-      expect(deployUser !== "root", "Public testnet deploy must use a non-root PROD_USER such as tide-deploy.", errors);
+    if (channel === "testnet") {
+      if (eventName === "push") {
+        errors.push("Public testnet deploy is manual-only while dev/overflow-2026 owns testnet.tidesui.pro.");
+      }
     }
   }
 

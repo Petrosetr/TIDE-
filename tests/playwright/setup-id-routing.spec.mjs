@@ -90,6 +90,10 @@ function makeValidDraft(overrides = {}) {
   };
 }
 
+function encodeDraftHandoff(draft) {
+  return Buffer.from(JSON.stringify({ v: 1, draft }), "utf8").toString("base64url");
+}
+
 test.describe("setup id routing", () => {
   test("opens a saved draft by id and saves rename edits in place", async ({ page }) => {
     await installMockWallet(page);
@@ -238,7 +242,7 @@ test.describe("setup id routing", () => {
     });
   });
 
-  test("opens an anchored saved run in Create with policy and run id still bound", async ({ page }) => {
+  test("opens a saved on-chain run in Create with policy and run id still bound", async ({ page }) => {
     await installMockWallet(page);
     await page.goto("/results?judge=1", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("Overflow Judge Harbor").first()).toBeVisible();
@@ -251,19 +255,19 @@ test.describe("setup id routing", () => {
       const cloneJson = (value) => JSON.parse(JSON.stringify(value));
       const current = cloneJson(window.__tideDebug.appState.current);
       const policyId = `0x${"7".repeat(64)}`;
-      current.sourceScenarioId = "anchored-run-1";
-      current.draft.scenarioName = "Anchored Run One";
+      current.sourceScenarioId = "saved-run-1";
+      current.draft.scenarioName = "Saved Run One";
       current.draft.createScope = "live";
       current.onChainPolicy = {
         id: policyId,
         network: "testnet",
-        policyName: "Anchored Run One",
+        policyName: "Saved Run One",
         selectedRail: "navi-sui",
         version: 2,
       };
       const saved = {
         id: current.sourceScenarioId,
-        name: "Anchored Run One",
+        name: "Saved Run One",
         createdAt: "2026-05-01T12:45:00.000Z",
         updatedAt: "2026-05-01T12:45:00.000Z",
         draft: cloneJson(current.draft),
@@ -281,7 +285,7 @@ test.describe("setup id routing", () => {
 
     await page.goto(`/setup?policy=${encodeURIComponent(seed.policyId)}&id=${encodeURIComponent(seed.runId)}`, { waitUntil: "domcontentloaded" });
 
-    await expect(page.locator("[data-header-name]")).toHaveValue("Anchored Run One");
+    await expect(page.locator("[data-header-name]")).toHaveValue("Saved Run One");
     await expect.poll(async () => page.evaluate(() => ({
       sourceScenarioId: window.__tideDebug?.appState?.current?.sourceScenarioId || "",
       policyId: window.__tideDebug?.appState?.current?.onChainPolicy?.id || "",
@@ -289,7 +293,7 @@ test.describe("setup id routing", () => {
       sourceScenarioId: seed.runId,
       policyId: seed.policyId,
     });
-    await expect(page.locator("#save-policy-toolbar")).toHaveText("Update policy object");
+    await expect(page.locator("#save-policy-toolbar")).toHaveText("Update testnet policy");
   });
 
   test("keeps missing setup id warning after wallet auto-connect", async ({ page }) => {
@@ -308,6 +312,49 @@ test.describe("setup id routing", () => {
     }))).toEqual({
       activeDraftId: "",
       current: null,
+    });
+  });
+
+  test("opens draft handoff payload as an armed testnet proof candidate", async ({ page }) => {
+    await page.route("**/runtime-config.js*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/javascript",
+        body: `
+          window.TIDE_ENV = "testnet";
+          window.TIDE_CONFIG = {
+            buildId: "handoff-proof-test",
+            liveEnabled: true,
+            liveRailPack: { autoLoad: false, allowUnsignedForecast: true },
+            sui: { network: "testnet", rpcUrl: "", explorerBase: "" },
+            executionProof: { enabled: true, allowSigning: true },
+            policyRegistry: { packageId: "0x${"1".repeat(64)}", railAllowlistId: "0x${"2".repeat(64)}" },
+            executionReceipts: { packageId: "0x${"1".repeat(64)}" },
+            walrus: {},
+            oracle: {}
+          };
+        `,
+      });
+    });
+
+    const draft = makeValidDraft({
+      scenarioName: "Cross-origin proof candidate",
+      createScope: "shadow",
+      btcUnits: 0.42,
+      collateralAssetSymbol: "xBTC",
+    });
+    const encoded = encodeDraftHandoff(draft);
+    await page.goto(`/setup?proof=1&draft=${encoded}`, { waitUntil: "domcontentloaded" });
+
+    await expect(page.locator("[data-header-name]")).toHaveValue("Cross-origin proof candidate");
+    await expect(page.locator('input[name="createScope"][value="live"]')).toBeChecked();
+    await expect(page.getByText("This position link was not found in the current wallet workspace.")).toHaveCount(0);
+    await expect.poll(async () => page.evaluate(() => ({
+      scope: window.__tideDebug?.appState?.draft?.createScope || "",
+      activeDraftId: window.__tideDebug?.appState?.activeDraftId || "",
+    }))).toEqual({
+      scope: "live",
+      activeDraftId: "",
     });
   });
 });

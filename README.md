@@ -3,9 +3,10 @@
 [![Built on Sui](https://img.shields.io/badge/Built_on-Sui-4da3ff)](https://sui.io)
 [![Walrus proofs](https://img.shields.io/badge/Proofs-Walrus-21c7b7)](https://www.walrus.xyz/)
 [![Sui Overflow 2026](https://img.shields.io/badge/Hackathon-Sui_Overflow_2026-7c3aed)](docs/overflow_2026/submission.md)
+[![Overflow track](https://img.shields.io/badge/Track-DeFi_%26_Payments-21c7b7)](docs/overflow_2026/submission.md)
 [![Testnet package](https://img.shields.io/badge/Sui_testnet-package-6aa6ff)](https://testnet.suivision.xyz/object/0x999c34ce039388017838a5da6670195affa55c4dfbd466612494058963d502f0)
 
-**Bitcoin treasury policy and proof layer for Sui.**
+**Bitcoin treasury policy and proof layer for the Sui DeFi & Payments track.**
 
 TIDE lets a BTC holder define a cashflow and risk policy, rehearse that
 policy against BTC stress paths, anchor the policy on Sui, and mint an
@@ -18,6 +19,10 @@ Current Sui Overflow scope: **testnet decision attestation and read-only rail
 intelligence**. TIDE does not custody assets, does not claim vendor
 partnerships, does not sign mainnet protocol actions, and does not present
 unaudited automation as live.
+
+A narrow mainnet-attested lane is disclosed separately: the founder manually
+acts through a protocol UI, TIDE observes public mainnet state read-only, and
+the decision is anchored as a Sui testnet receipt.
 
 The goal is to make Sui BTCfi decisions more legible: not "highest APY," but
 **what should this BTC treasury policy do, and can a reviewer verify why?**
@@ -114,7 +119,7 @@ The fastest review path is:
 ```bash
 npm install
 npm run verify:overflow
-node scripts/tide-verify.mjs 0xbf44cdeda09398c96fb74138add3f883e425b01dab37dc9f6503a34d94b19011 \
+node scripts/tide-verify.mjs 0x66c93faaea12c3d4098ac8f3035ee08aa0b214c0ba92485b6f3384e2941ef07d \
   --network testnet \
   --bundle-from-walrus \
   --json
@@ -133,13 +138,15 @@ README
   -> docs/onchain_mvp_proof_pack.md
   -> docs/proof/latest-proof-loop.json
   -> SuiVision receipt object
+  -> hosted /r/<receipt-id> public verifier page
   -> Walrus bundle bytes
   -> tide-verify digest check
+  -> optional mainnet-attested Suilend evidence bundle
 ```
 
 The public `run-XX.json` files are redacted summaries for review. Canonical
 content verification uses the on-chain receipt fields plus the Walrus bundle
-bytes or original canonical bundle bytes.
+bytes or original evidence bundle bytes.
 
 ## Key Features
 
@@ -153,6 +160,8 @@ bytes or original canonical bundle bytes.
   and Kalshi public-model views.
 - **Sui policy registry** for selected policy parameters and rail selection.
 - **Action Receipts** for policy decisions with digest-bound evidence.
+- **Mainnet-attested disclosure** for wallet-owner manual Suilend evidence without
+  TIDE mainnet signing.
 - **Vendor / rail coverage** across Sui BTCfi lending, CDP, vault, and route
   surfaces, separated into read-only collectors, preview builders, and
   post-audit signing candidates.
@@ -197,9 +206,10 @@ comes first.
 | Judge entry points | Shipped for stress/revoke/oracle-style flows | Lets reviewers test different failure modes quickly |
 | Sui BTCfi technical rail surfaces | Shipped as adapters, collectors, or preview builders | Shows where policy decisions can be normalized before any live-capital release |
 | Live Pyth readback in proof loop | Near-term unlock | Converts the oracle story from configured feed to live price/confidence/freshness evidence |
-| Public `/r/<id>` receipt viewer | Near-term unlock | Makes receipt inspection one-click for non-technical reviewers |
-| `npx tide-verify <receipt-id>` package | Roadmap | Turns TIDE receipts into a reusable ecosystem dev-tool |
-| Live Suilend read-only position evidence | In progress / founder-gated | Demonstrates real rail readback while keeping TIDE out of mainnet signing |
+| Hosted public `/r/<id>` receipt viewer | Built | Makes receipt inspection one-click for non-technical reviewers |
+| `node scripts/tide-verify.mjs <receipt-id>` verifier | Built | Lets reviewers resolve a receipt and verify Walrus bundle digests from the repo |
+| `npx tide-verify <receipt-id>` package | Roadmap | Turns the verifier into a reusable ecosystem dev-tool |
+| Live Suilend read-only position evidence | In progress / operator-gated | Demonstrates real rail readback while keeping TIDE out of mainnet signing |
 | Mainnet execution | Post-audit roadmap | Requires external audit, legal review, upgraded controls, and explicit user signing gates |
 
 ## Vendor / Rail Coverage
@@ -301,11 +311,11 @@ The current proof pack records five Sui testnet proof runs:
 
 | Run | Rail | Decision | Policy tx | Receipt object | Receipt tx | Walrus blob | Content digest |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 01 | `scallop-sui` | `BuildBuffer` | [2tbh2bRt...](https://testnet.suivision.xyz/txblock/2tbh2bRtmRQ915iLkdxhAcJ4yRNJ2ehe78wD88JgXYvv) | [0xbf44cded...](https://testnet.suivision.xyz/object/0xbf44cdeda09398c96fb74138add3f883e425b01dab37dc9f6503a34d94b19011) | [E9VxM52H...](https://testnet.suivision.xyz/txblock/E9VxM52HEHf9WFDTs1gPvXb41HmQpqv9AEDp6eGFCHZd) | `H9nVn7Vn8UsMQGr5v_CqoYtPgu157TwBDeiIhcK4JXY` | `0x9afbd35a58...` |
-| 02 | `navi-sui` | `PartialRepay` | [BTVDTD3n...](https://testnet.suivision.xyz/txblock/BTVDTD3nzv5sSfkKszNGoqWtfKDsCdCYqkMUiQNM6cPu) | [0x41e84862...](https://testnet.suivision.xyz/object/0x41e848622c51a9e122f50c6988bff1d8e086b1c6b152921123f785d0d518045a) | [CoTpK5Gq...](https://testnet.suivision.xyz/txblock/CoTpK5GqVoiGqR2eJeYFEkWAygP77VKSzUct3pqBnkaW) | `czg7XiFdmL2Fs9OU2w5YO7pZQ1eXi0vdUGIJSZEINGk` | `0x02f7a78eac...` |
-| 03 | `suilend-sui` | `EmergencyDeRisk` | [HhsTiP1c...](https://testnet.suivision.xyz/txblock/HhsTiP1cbbJgfrhyPgPqbGuiPo1HahCb3gPPuwWYJLdR) | [0x614180c9...](https://testnet.suivision.xyz/object/0x614180c9b0188dd3569022c18004568659b22509779c740fd3b12c09514d45dc) | [HYTiLZdW...](https://testnet.suivision.xyz/txblock/HYTiLZdW57M1sNnXPk6rm28h2sH9jaC83KLiRJWrQDje) | `Tn0_I0B2TIwvBW6flQMLTwpmCBs8BLKdulzVOrlnqiQ` | `0x0dfba04902...` |
-| 04 | `bucket-sui` | `Hold` | [3X97TCN1...](https://testnet.suivision.xyz/txblock/3X97TCN1uvn92UCJx5jej7JVTpnr63ENmoLost5cv4po) | [0xd4e778b4...](https://testnet.suivision.xyz/object/0xd4e778b491813da3c194dff7d598083afaad4e06ee375d6d6fd4a348d47ee513) | [8TcZiRat...](https://testnet.suivision.xyz/txblock/8TcZiRatb7Rsgg7LyQu6b6sdsH27rK7SwXux4FS6inbH) | `6aVJdDYpLSvFnGotRnYmITxAGtXayU4Kv6uC9G0iwHg` | `0xd669372097...` |
-| 05 | `scallop-sui` | `Hold` | [APavjWZW...](https://testnet.suivision.xyz/txblock/APavjWZWgrhuxk55FRGiV2hruNavcjeN9B6No5RbamNq) | [0xdeeb023d...](https://testnet.suivision.xyz/object/0xdeeb023d0f774ea979aab152a6bb5fa36a44aa61839d4b3bac7e1b0aee6c0afc) | [ESQyUvHY...](https://testnet.suivision.xyz/txblock/ESQyUvHYh68yT5p6S83Xtwrg6x7AfTg3dRCKTjghkZnU) | `TotRcc8OpWxqEx5d4E7TLpYsUm_hteJbstC5SU-v_IQ` | `0x8b0b0f0998...` |
+| 01 | `scallop-sui` | `BuildBuffer` | [3SZkQAhNqh...](https://testnet.suivision.xyz/txblock/3SZkQAhNqhG8jGCTVqcuJLtja85X1Z5oExygcpwVofep) | [0x66c93faa...](https://testnet.suivision.xyz/object/0x66c93faaea12c3d4098ac8f3035ee08aa0b214c0ba92485b6f3384e2941ef07d) | [BUyCXAnc5C...](https://testnet.suivision.xyz/txblock/BUyCXAnc5CVZ8mvQPKNjzPQcL7K7GHP1sWhyCMB2CizA) | `tFFVYmeqbvv7h8...` | `0x2557d2bd66...` |
+| 02 | `navi-sui` | `PartialRepay` | [7AdLt1q7Qd...](https://testnet.suivision.xyz/txblock/7AdLt1q7Qd4ATd3dCyb1THuRiM4XYXVJ4YmAAfFX4y5P) | [0x61911c95...](https://testnet.suivision.xyz/object/0x61911c959d7abc587980a0cc7afc6af08a25a1e0ecbd4261441dc18d4d45c166) | [8GDvb5VZ3W...](https://testnet.suivision.xyz/txblock/8GDvb5VZ3Wj7iKcbzDTKBFWVc9WJvq8EtmfRRgquzFTQ) | `0I5eACF_3M-CBl...` | `0x787fb95f41...` |
+| 03 | `suilend-sui` | `EmergencyDeRisk` | [3oWvxqbpLu...](https://testnet.suivision.xyz/txblock/3oWvxqbpLuwVaQczTM8PeFtm2fc1ez4rBAzxYhymftkG) | [0xa936e56b...](https://testnet.suivision.xyz/object/0xa936e56b3d8c0d4036eefd0faee31ea9b216ece9b496d463232fe0cc8b632903) | [BSpohEXxX7...](https://testnet.suivision.xyz/txblock/BSpohEXxX7YMhd8BfqcNhLytnHEZngztzZJufjpQC3yz) | `fegImycRn4mUJ1...` | `0x805f88255d...` |
+| 04 | `bucket-sui` | `Hold` | [73VoQiYSoK...](https://testnet.suivision.xyz/txblock/73VoQiYSoK2oVc4jc4HF9MaAGStgc3wnw28WG19SZ8sC) | [0x7134bf4d...](https://testnet.suivision.xyz/object/0x7134bf4d27dfd28d9482b16ba4cffeda6bb36d752e9d4ad608319cf614173f43) | [5CPDVuhJpb...](https://testnet.suivision.xyz/txblock/5CPDVuhJpbyZQae9GWeXSh5P5u37L5dMSnSoC4RTytQu) | `SOIw-GylndaBjC...` | `0x36930ba028...` |
+| 05 | `scallop-sui` | `Hold` | [C2eyvjSeKE...](https://testnet.suivision.xyz/txblock/C2eyvjSeKEbEh8BBqp4qQrfivfbpHGnPQLnqt5GhTUuk) | [0x501970ff...](https://testnet.suivision.xyz/object/0x501970ff4b98d2a08c54dcbed67e3f67fffb197b99d5adc2522041df4c7016bd) | [B7wAWwoW5X...](https://testnet.suivision.xyz/txblock/B7wAWwoW5XG3G3AbjyeQTrALM9fDvBZzXZ3dMjzSsTiN) | `JGyzZozdoWoiHf...` | `0x2677fbea79...` |
 
 Core evidence links:
 
@@ -315,9 +325,19 @@ Core evidence links:
 - [Action Receipt RFC-0001](docs/overflow_2026/RFC-0001-action-receipt-schema.md)
 - [Wallet rehearsal JSON](docs/proof/wallet-rehearsal-2026-05-02.json)
 - [Mainnet-observed boundary disclosure](docs/proof/mainnet_attestation_disclosure.md)
+- [Mainnet-observed Suilend evidence bundle](docs/proof/mainnet-attested/suilend-sui-ab586a6c59b6.bundle.json)
 
 Negative guards in the proof loop cover rail mismatch, revoked rails,
 content-digest tampering, and stale proof bundles.
+
+### Mainnet-Observed Suilend Evidence
+
+For the hackathon, TIDE includes one narrow mainnet evidence lane without
+claiming mainnet signing. A founder-owned Suilend position was observed
+read-only before and after a manual protocol action. The public bundle records
+the mainnet tx digest, obligation id, pre/post debt pressure, and the claim
+boundary. The receipt lane remains testnet: TIDE observes, computes, and
+attests; it does not sign the mainnet Suilend transaction.
 
 ## Security Model
 

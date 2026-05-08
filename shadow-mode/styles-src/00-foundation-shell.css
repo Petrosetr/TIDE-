@@ -5271,6 +5271,20 @@ h2 {
   min-width: 0;
 }
 
+.action-disabled-hint {
+  flex-basis: 100%;
+  max-width: 34rem;
+  margin: -0.25rem 0 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+}
+
+.page-header--product .action-disabled-hint {
+  margin-left: auto;
+  text-align: right;
+}
+
 .workspace-actions {
   margin-top: 0.8rem;
 }

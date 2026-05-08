@@ -862,21 +862,25 @@ function validateOneMainnetAttestedBundle(rootDir, relativePath, failures, { now
   }
   const owner = String(bundle.ownerAddress || "").toLowerCase();
   const evidenceSender = String(bundle.mainnetEvidence?.sender || "").toLowerCase();
-  if (!/^0x[0-9a-f]{1,64}$/i.test(owner)) {
-    fail(`ownerAddress must be a 0x-prefixed Sui address`);
+  if (!SUI_OBJECT_ID_RE.test(owner)) {
+    fail(`ownerAddress must be a full 0x-prefixed Sui address`);
   }
   if (!evidenceSender) {
     fail(`mainnetEvidence.sender is required`);
+  } else if (!SUI_OBJECT_ID_RE.test(evidenceSender)) {
+    fail(`mainnetEvidence.sender must be a full 0x-prefixed Sui address`);
   } else if (owner && evidenceSender !== owner) {
     fail(`mainnetEvidence.sender (${evidenceSender}) must match ownerAddress (${owner})`);
   }
   const obligationId = String(bundle.obligationId || "").toLowerCase();
   const evidenceObligation = String(bundle.mainnetEvidence?.obligationId || "").toLowerCase();
-  if (!/^0x[0-9a-f]{1,64}$/i.test(obligationId)) {
-    fail(`obligationId must be a 0x-prefixed Sui object id`);
+  if (!SUI_OBJECT_ID_RE.test(obligationId)) {
+    fail(`obligationId must be a full 0x-prefixed Sui object id`);
   }
   if (!evidenceObligation) {
     fail(`mainnetEvidence.obligationId is required`);
+  } else if (!SUI_OBJECT_ID_RE.test(evidenceObligation)) {
+    fail(`mainnetEvidence.obligationId must be a full 0x-prefixed Sui object id`);
   } else if (obligationId && evidenceObligation !== obligationId) {
     fail(`mainnetEvidence.obligationId (${evidenceObligation}) must match top-level obligationId (${obligationId})`);
   }
@@ -920,6 +924,11 @@ function validateOneMainnetAttestedBundle(rootDir, relativePath, failures, { now
     if (!Number.isFinite(Number(r.collateralUsd))) {
       fail(`${phase}.collateralUsd must be a number`);
     }
+    for (const field of ["walletAddress", "obligationId", "objectOwnerAddress", "ownerCapId"]) {
+      if (r[field] !== undefined && !SUI_OBJECT_ID_RE.test(String(r[field]).toLowerCase())) {
+        fail(`${phase}.${field} must be a full 0x-prefixed Sui object id/address`);
+      }
+    }
   }
   const preMs = Date.parse(String(bundle.pre?.observedAt || ""));
   const postMs = Date.parse(String(bundle.post?.observedAt || ""));
@@ -932,6 +941,22 @@ function validateOneMainnetAttestedBundle(rootDir, relativePath, failures, { now
   if (Number.isFinite(preMs) && Number.isFinite(evidenceTimestampMs) && Number.isFinite(postMs) &&
       !(preMs < evidenceTimestampMs && evidenceTimestampMs <= postMs)) {
     fail(`mainnet evidence ordering must satisfy pre.observedAt < mainnetEvidence.timestampMs <= post.observedAt`);
+  }
+  if (bundle.rail === "suilend" &&
+      bundle.pre?.eventOnly !== true &&
+      bundle.post?.eventOnly !== true &&
+      bundle.pre?.valuesParsed !== false &&
+      bundle.post?.valuesParsed !== false) {
+    const preDebtUsd = Number(bundle.pre?.debtUsd);
+    const postDebtUsd = Number(bundle.post?.debtUsd);
+    const preLtvBps = Number(bundle.pre?.ltvBps);
+    const postLtvBps = Number(bundle.post?.ltvBps);
+    if (Number.isFinite(preDebtUsd) && Number.isFinite(postDebtUsd) &&
+        Number.isFinite(preLtvBps) && Number.isFinite(postLtvBps) &&
+        preDebtUsd > 0 &&
+        !(postDebtUsd < preDebtUsd || postLtvBps < preLtvBps)) {
+      fail(`Suilend mainnet-attested repay evidence must reduce debt or debt pressure in post-state`);
+    }
   }
   return ok;
 }

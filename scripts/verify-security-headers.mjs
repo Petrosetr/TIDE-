@@ -68,6 +68,11 @@ const CSP_CONNECT_SRC_BY_ENV = {
     "https://fullnode.testnet.sui.io",
     "https://sui-testnet-rpc.publicnode.com",
   ],
+  receipt: [
+    "https://fullnode.testnet.sui.io",
+    "https://sui-testnet-rpc.publicnode.com",
+    "https://aggregator.walrus-testnet.walrus.space",
+  ],
 };
 
 const CSP_FORBIDDEN_CONNECT_SRC_BY_ENV = {
@@ -101,6 +106,9 @@ function expectedCspConnectHosts(targetUrl) {
   }
   if (url.pathname.startsWith("/v1/") || url.pathname.startsWith("/api/")) {
     return null;
+  }
+  if (url.pathname === "/r" || url.pathname === "/r/" || url.pathname.startsWith("/r/")) {
+    return { env: "receipt", hosts: CSP_CONNECT_SRC_BY_ENV.receipt };
   }
   const host = url.hostname.toLowerCase();
   if (host === "testnet.tidesui.pro" || host.endsWith(".testnet.tidesui.pro")) {
@@ -140,7 +148,7 @@ function buildConnectSrcResults(targetUrl, headerCsp, body) {
   const unexpectedHeaderHosts = forbiddenHosts.filter((host) => headerConnectSrc.includes(host));
   const results = [{
     name: "content-security-policy/connect-src",
-    description: `CSP connect-src includes only ${expected.env} Sui RPC primary + PublicNode fallback`,
+    description: `CSP connect-src includes ${expected.env} Sui RPC primary + PublicNode fallback`,
     actual: headerConnectSrc || headerCsp || null,
     ok: missingHeaderHosts.length === 0 && unexpectedHeaderHosts.length === 0,
   }];

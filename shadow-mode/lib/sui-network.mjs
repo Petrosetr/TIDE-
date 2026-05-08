@@ -45,6 +45,8 @@ const DEFAULT_EXPLORER_BASES = Object.freeze({
   devnet: "https://devnet.suivision.xyz",
 });
 
+const SUI_TX_DIGEST_RE = /^[1-9A-HJ-NP-Za-km-z]{32,64}$/;
+
 const VALID_NETWORKS = new Set(["mainnet", "testnet", "devnet"]);
 const VALID_CHAINS = new Set(["sui:mainnet", "sui:testnet", "sui:devnet"]);
 
@@ -344,6 +346,9 @@ export function buildSuiExplorerUrl(kind, id, config) {
     case "tx":
     case "txblock":
     case "transaction":
+      if (!SUI_TX_DIGEST_RE.test(safeId)) {
+        return "";
+      }
       return `${base}/txblock/${encodeURIComponent(safeId)}`;
     case "object":
       return `${base}/object/${encodeURIComponent(safeId)}`;

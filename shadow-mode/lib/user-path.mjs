@@ -39,7 +39,7 @@ function normalizeProofContext(proofContext = {}) {
     allowMockCollateral: proofContext?.allowMockCollateral === true,
     modeLabel: typeof proofContext?.modeLabel === "string" && proofContext.modeLabel.trim()
       ? proofContext.modeLabel.trim()
-      : "Testnet receipt mode",
+      : "Testnet proof",
   };
 }
 
@@ -162,7 +162,7 @@ export function getCreateScopeState({ draft = {}, walletState = {}, proofContext
       requested: requestedBtcUnits,
       walletBacked: false,
       mockCollateral: false,
-      message: "Shadow mode allows manual assumptions. Switch to Live to require connected-wallet collateral.",
+      message: "Rehearsal allows manual assumptions. Switch to Testnet proof to require connected-wallet collateral.",
     };
   }
 
@@ -177,7 +177,7 @@ export function getCreateScopeState({ draft = {}, walletState = {}, proofContext
       requested: requestedBtcUnits,
       walletBacked: false,
       mockCollateral: false,
-      message: "Connect wallet to use Live mode.",
+      message: "Connect wallet to use Testnet proof.",
     };
   }
 
@@ -192,7 +192,7 @@ export function getCreateScopeState({ draft = {}, walletState = {}, proofContext
       requested: requestedBtcUnits,
       walletBacked: false,
       mockCollateral: false,
-      message: "Select a wallet BTC wrapper before using Live mode.",
+      message: "Select a wallet BTC wrapper before using Testnet proof.",
     };
   }
 
@@ -209,7 +209,7 @@ export function getCreateScopeState({ draft = {}, walletState = {}, proofContext
       symbol: requestedSymbol,
       walletBacked: false,
       mockCollateral: false,
-      message: `${requestedSymbol} is observed read-only, but current Live rehearsal rails support wBTC and xBTC only.`,
+      message: `${requestedSymbol} is observed read-only, but current Testnet proof rails support wBTC and xBTC only.`,
     };
   }
 
@@ -225,7 +225,7 @@ export function getCreateScopeState({ draft = {}, walletState = {}, proofContext
       symbol: normalizeSymbol(draft?.collateralAssetSymbol) || "BTC",
       walletBacked: false,
       mockCollateral: false,
-      message: "Enter a positive collateral amount for Live mode.",
+      message: "Enter a positive collateral amount for Testnet proof.",
     };
   }
 
@@ -250,7 +250,7 @@ export function getCreateScopeState({ draft = {}, walletState = {}, proofContext
     return {
       scope: "live",
       canRunSimulation: true,
-      canOpenLive: true,
+      canOpenLive: false,
       requiresWallet: true,
       reason: "proof-collateral-mock",
       available: balancesLoaded ? available : null,
@@ -258,7 +258,7 @@ export function getCreateScopeState({ draft = {}, walletState = {}, proofContext
       symbol,
       walletBacked: false,
       mockCollateral: true,
-      message: `${proof.modeLabel} is using mock ${symbol} collateral because ${reasonDetail}. Anchor + mint proof are allowed, but live capital stays disabled.`,
+      message: `${proof.modeLabel} is using mock ${symbol} collateral because ${reasonDetail}. Run the rehearsal locally; saving policy and minting receipts require wallet-backed collateral.`,
     };
   }
 
@@ -305,7 +305,7 @@ export function getCreateScopeState({ draft = {}, walletState = {}, proofContext
       symbol: normalizeSymbol(balance?.symbol) || requestedSymbol || "BTC",
       walletBacked: false,
       mockCollateral: false,
-      message: "Live mode only accepts collateral that is available on the connected wallet.",
+      message: "Testnet proof only accepts collateral that is available on the connected wallet.",
     };
   }
 
@@ -320,7 +320,7 @@ export function getCreateScopeState({ draft = {}, walletState = {}, proofContext
     symbol: normalizeSymbol(balance?.symbol) || resolvedRequestedSymbol || requestedSymbol || "BTC",
     walletBacked: true,
     mockCollateral: false,
-    message: "Wallet-backed collateral is ready for live rehearsal.",
+    message: "Wallet-backed collateral is ready for Testnet proof.",
   };
 }
 

@@ -222,11 +222,11 @@ export function proofSummaryMatchesBuild(proofSummary, buildId) {
   return proof.startsWith(build) || build.startsWith(proof);
 }
 
-async function loadSeedMarket(rootDir) {
+export async function loadSeedMarket(rootDir) {
   const candidatePaths = [
     envStringAlias(["TIDE_LIVE_RAIL_PACK_FILE", "TIDEFORGE_LIVE_RAIL_PACK_FILE"], ""),
-    path.join(rootDir, "shadow-mode", "live-rail-pack.json"),
     path.join(rootDir, "shadow-mode", "examples", "live-rail-pack.generated.json"),
+    path.join(rootDir, "shadow-mode", "live-rail-pack.json"),
   ].filter(Boolean);
 
   for (const candidatePath of candidatePaths) {
@@ -606,6 +606,10 @@ async function main() {
       publisherUrl: envStringAlias(
         ["TIDE_WALRUS_PUBLISHER_URL", "TIDEFORGE_WALRUS_PUBLISHER_URL"],
         ""
+      ),
+      aggregatorUrl: envStringAlias(
+        ["TIDE_WALRUS_AGGREGATOR_URL", "TIDEFORGE_WALRUS_AGGREGATOR_URL"],
+        "https://aggregator.walrus-testnet.walrus.space"
       ),
       epochs: Number(
         envStringAlias(["TIDE_WALRUS_EPOCHS", "TIDEFORGE_WALRUS_EPOCHS"], "5")

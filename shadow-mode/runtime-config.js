@@ -5,6 +5,14 @@ const TIDE_DEFAULT_OPS_BASE_URL = typeof TIDE_CONFIG_INPUT.apiBaseUrl === "strin
 const TIDE_INPUT_LIVE_PACK = TIDE_CONFIG_INPUT.liveRailPack || {};
 const TIDE_INPUT_VERIFY_KEY =
   typeof TIDE_INPUT_LIVE_PACK.verifyKey === "string" ? TIDE_INPUT_LIVE_PACK.verifyKey.trim() : "";
+const TIDE_INPUT_EXECUTION_PROOF = TIDE_CONFIG_INPUT.executionProof || {};
+const TIDE_INPUT_POLICY_REGISTRY = TIDE_CONFIG_INPUT.policyRegistry || {};
+const TIDE_INPUT_SUI_NETWORK = String(TIDE_CONFIG_INPUT.sui?.network || "").trim().toLowerCase();
+const TIDE_INPUT_TESTNET_SIGNING_CONFIGURED =
+  TIDE_INPUT_SUI_NETWORK === "testnet" &&
+  TIDE_INPUT_EXECUTION_PROOF.allowSigning === true &&
+  Boolean(TIDE_INPUT_POLICY_REGISTRY.packageId) &&
+  Boolean(TIDE_INPUT_POLICY_REGISTRY.railAllowlistId);
 
 window.TIDE_CONFIG = {
   ...(window.TIDE_CONFIG || {}),
@@ -101,13 +109,12 @@ window.TIDE_CONFIG = {
   // product surface advertises only the four frozen BTC allocators.
   showExperimentalRails:
     window.TIDE_CONFIG && window.TIDE_CONFIG.showExperimentalRails === true,
-  // Fail-closed: Live is only enabled when the operator explicitly opts in AND
-  // a verifyKey is configured. Without a verifyKey the trust layer for remote
-  // rail packs cannot be established, so Live controls stay hidden and the
-  // public surface advertises Shadow Mode only.
+  // Fail-closed: Live/testnet proof controls are enabled only when the
+  // operator explicitly opts in and either remote rail packs are signature
+  // verified or a local testnet signing package is fully pinned.
   liveEnabled:
     Boolean(window.TIDE_CONFIG && window.TIDE_CONFIG.liveEnabled === true) &&
-    Boolean(TIDE_INPUT_VERIFY_KEY),
+    (Boolean(TIDE_INPUT_VERIFY_KEY) || TIDE_INPUT_TESTNET_SIGNING_CONFIGURED),
   policyRegistry: {
     packageId:
       (window.TIDE_CONFIG &&
@@ -199,6 +206,11 @@ window.TIDE_CONFIG = {
         window.TIDE_CONFIG.walrus &&
         window.TIDE_CONFIG.walrus.publisherUrl) ||
       "",
+    aggregatorUrl:
+      (window.TIDE_CONFIG &&
+        window.TIDE_CONFIG.walrus &&
+        window.TIDE_CONFIG.walrus.aggregatorUrl) ||
+      "https://aggregator.walrus-testnet.walrus.space",
     epochs:
       (window.TIDE_CONFIG &&
         window.TIDE_CONFIG.walrus &&

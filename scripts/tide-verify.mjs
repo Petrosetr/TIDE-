@@ -49,8 +49,8 @@ const ACTION_TYPE_LABELS = {
 };
 
 const PROOF_LIMITATION_LABELS = {
-  "shadow-only": "Shadow Mode — no wallet",
-  "testnet-rehearsal": "Testnet rehearsal — no live execution",
+  "shadow-only": "Rehearsal — local only",
+  "testnet-rehearsal": "Testnet proof — no mainnet funds move",
 };
 
 function splitEnumLabel(value) {
@@ -132,7 +132,7 @@ function parseArgs(argv) {
 const HELP_TEXT =
   "Usage: tide-verify <receipt-id> [options]\n" +
   "\n" +
-  "  --network <mainnet|testnet|devnet>   default: testnet\n" +
+  "  --network <testnet|devnet>            default: testnet; mainnet receipts unsupported until a package pin exists\n" +
   "  --package-id <0x…>                   default: published.testnet from move/Published.toml\n" +
   "  --rpc-url <url>                      override default Sui RPC for the network\n" +
   "  --bundle-file <path>                 verify SHA-256 of bundle file matches receipt content_digest\n" +
@@ -183,7 +183,7 @@ function readCanonicalBundleFile(filePath) {
 
 function printHumanReceipt(view, { exitOk }, write) {
   const r = view.canonical.receipt;
-  write(`TIDE Action Receipt — ${view.canonical.network}\n`);
+  write(`TIDE receipt — ${view.canonical.network}\n`);
   if (r.id) write(`  Receipt id:     ${r.id}\n`);
   if (r.txDigest) write(`  Tx digest:      ${r.txDigest}\n`);
   if (r.policyId) write(`  Policy id:      ${r.policyId}\n`);
@@ -245,6 +245,14 @@ export async function runCli(argv = process.argv.slice(2), {
   }
   if (!args.receiptId) {
     stderr.write(`Missing required <receipt-id>.\n${HELP_TEXT}`);
+    exit(2);
+    return;
+  }
+  if (String(args.network || "").toLowerCase() === "mainnet") {
+    stderr.write(
+      "Mainnet receipt verification is not enabled yet: no trusted TIDE mainnet receipt package is pinned.\n" +
+      "Use --network testnet for current receipts, or verify mainnet-observed evidence through a testnet receipt bundle.\n",
+    );
     exit(2);
     return;
   }

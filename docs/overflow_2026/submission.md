@@ -1,6 +1,8 @@
 # TIDE
 
-TIDE is a Sui-native policy and proof layer for BTC treasury behavior.
+TIDE is a Sui-native Bitcoin treasury policy cockpit for the **DeFi & Payments**
+track. It turns BTC-backed cashflow intent into explicit operating rules,
+stress-tested decisions, and verifiable action receipts.
 
 It lets an operator define a treasury policy, rehearse that policy against BTC
 stress paths, anchor the policy on Sui testnet, and mint a verifiable
@@ -11,8 +13,14 @@ TIDE V1 is intentionally scoped as decision attestation and proof
 infrastructure. It does not custody assets, does not claim audited mainnet
 automation, and does not sign mainnet protocol actions.
 
-Testnet only: all TIDE-signed proof actions in this submission happen on Sui
-testnet. No mainnet capital moved through TIDE.
+Testnet only proof boundary: all TIDE-signed proof actions in this submission
+happen on Sui testnet. No mainnet capital moved through TIDE.
+
+Mainnet-observed boundary: a founder-manual Suilend mainnet action may be used
+as read-only evidence. TIDE can observe public mainnet state/events, compute the
+policy decision, and anchor the evidence as a Sui testnet decision attestation.
+TIDE does not sign mainnet transactions or present that lane as audited live
+automation.
 
 ## Problem
 

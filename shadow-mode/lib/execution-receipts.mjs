@@ -643,12 +643,23 @@ function assertPythPublishTimeConsistent({
   pythMaxDivergenceMs = DEFAULT_PYTH_MAX_DIVERGENCE_MS,
   pythMaxConfidenceBps = DEFAULT_PYTH_MAX_CONFIDENCE_BPS,
   allowFixtureReadback = false,
+  requirePythReadback = false,
 }) {
-  if (!pythReadback || typeof pythReadback !== "object") return;
+  if (!pythReadback || typeof pythReadback !== "object") {
+    if (requirePythReadback) {
+      throw new Error("Pyth read-back is required but unavailable. Refresh oracle read-back before minting a receipt.");
+    }
+    return;
+  }
   // V1 acceptable bypass: no Pyth feed configured in env. The
   // Off-chain refusal stays a soft check until a future schema gate
   // freshness_label lands on-chain.
-  if (pythReadback.source === "missing") return;
+  if (pythReadback.source === "missing") {
+    if (requirePythReadback) {
+      throw new Error("Pyth read-back is required but missing. Configure the live Pyth PriceInfoObject or refresh oracle read-back before minting a receipt.");
+    }
+    return;
+  }
   // B3 fail-closed: a "fixture" readback is a synthetic test seed.
   // Production signing paths must refuse it so that a misconfigured client
   // with a leftover fixture object cannot mint receipts that look live but
@@ -677,7 +688,12 @@ function assertPythPublishTimeConsistent({
     );
   }
   const publishTimeMs = Number(pythReadback.publishTimeMs);
-  if (!Number.isFinite(publishTimeMs) || publishTimeMs <= 0) return;
+  if (!Number.isFinite(publishTimeMs) || publishTimeMs <= 0) {
+    if (requirePythReadback) {
+      throw new Error("Pyth read-back publishTime is missing; refresh oracle read-back before minting a receipt.");
+    }
+    return;
+  }
   const staleMaxMs = Number(pythReadback.staleMaxMs);
   if (Number.isFinite(staleMaxMs) && staleMaxMs > 0 && observedMs - publishTimeMs > staleMaxMs) {
     const ageSeconds = ((observedMs - publishTimeMs) / 1000).toFixed(1);
@@ -705,6 +721,7 @@ export function assertForecastIsFresh({
   pythMaxDivergenceMs = DEFAULT_PYTH_MAX_DIVERGENCE_MS,
   pythMaxConfidenceBps = DEFAULT_PYTH_MAX_CONFIDENCE_BPS,
   allowFixtureReadback = false,
+  requirePythReadback = false,
   now = Date.now(),
 } = {}) {
   if (marketBand && typeof marketBand === "object" && marketBand.stale === true) {
@@ -714,14 +731,31 @@ export function assertForecastIsFresh({
     throw new Error("Forecast is stale: forecast snapshot is flagged stale. Refresh forecasts before minting a receipt.");
   }
   assertCallerObservedAtBoundToSignedSource({ forecast, forecastObservedAtMs });
-  if (!forecast && !Number.isFinite(forecastObservedAtMs)) return;
+  if (!forecast && !Number.isFinite(forecastObservedAtMs)) {
+    assertPythPublishTimeConsistent({
+      observedMs: now,
+      pythReadback,
+      pythMaxDivergenceMs,
+      pythMaxConfidenceBps,
+      allowFixtureReadback,
+      requirePythReadback,
+    });
+    return;
+  }
   const observedMs = Number.isFinite(forecastObservedAtMs)
     ? Number(forecastObservedAtMs)
     : resolveForecastObservedMs(forecast, forecastObservedAtMs);
   if (!Number.isFinite(observedMs)) {
     throw new Error("Forecast observedAt is missing or unparseable; refusing to mint a receipt against an unverifiable forecast.");
   }
-  assertPythPublishTimeConsistent({ observedMs, pythReadback, pythMaxDivergenceMs, pythMaxConfidenceBps, allowFixtureReadback });
+  assertPythPublishTimeConsistent({
+    observedMs,
+    pythReadback,
+    pythMaxDivergenceMs,
+    pythMaxConfidenceBps,
+    allowFixtureReadback,
+    requirePythReadback,
+  });
   const ageMs = now - observedMs;
   if (ageMs > forecastMaxStaleMs) {
     const ageHours = (ageMs / (60 * 60_000)).toFixed(1);
@@ -749,10 +783,11 @@ export async function buildMintReceiptTransaction({
   pythMaxDivergenceMs = DEFAULT_PYTH_MAX_DIVERGENCE_MS,
   pythMaxConfidenceBps = DEFAULT_PYTH_MAX_CONFIDENCE_BPS,
   allowFixtureReadback = false,
+  requirePythReadback = false,
   config = globalThis.window?.TIDE_CONFIG || {},
 }) {
   assertReceiptSigningNetwork(config);
-  assertForecastIsFresh({ forecast, marketBand, forecastObservedAtMs, forecastMaxStaleMs, pythReadback, pythMaxDivergenceMs, pythMaxConfidenceBps, allowFixtureReadback });
+  assertForecastIsFresh({ forecast, marketBand, forecastObservedAtMs, forecastMaxStaleMs, pythReadback, pythMaxDivergenceMs, pythMaxConfidenceBps, allowFixtureReadback, requirePythReadback });
   const { packageId, moduleName, clockObjectId } = getExecutionReceiptsConfig(config);
   const policyCfg = getPolicyRegistryConfig(config);
   if (!packageId) {
@@ -856,10 +891,11 @@ export async function buildSelectRailAndMintTransaction({
   pythMaxDivergenceMs = DEFAULT_PYTH_MAX_DIVERGENCE_MS,
   pythMaxConfidenceBps = DEFAULT_PYTH_MAX_CONFIDENCE_BPS,
   allowFixtureReadback = false,
+  requirePythReadback = false,
   config = globalThis.window?.TIDE_CONFIG || {},
 }) {
   assertReceiptSigningNetwork(config);
-  assertForecastIsFresh({ forecast, marketBand, forecastObservedAtMs, forecastMaxStaleMs, pythReadback, pythMaxDivergenceMs, pythMaxConfidenceBps, allowFixtureReadback });
+  assertForecastIsFresh({ forecast, marketBand, forecastObservedAtMs, forecastMaxStaleMs, pythReadback, pythMaxDivergenceMs, pythMaxConfidenceBps, allowFixtureReadback, requirePythReadback });
   const policyCfg = getPolicyRegistryConfig(config);
   const receiptsCfg = getExecutionReceiptsConfig(config);
   if (!policyCfg.packageId) {

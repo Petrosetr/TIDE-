@@ -416,8 +416,8 @@ body::before {
 body[data-page="results"] .page-header--product,
 body[data-page="live"] .page-header--product {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: minmax(17rem, max-content) minmax(0, 1fr);
+  align-items: start;
   gap: 0.55rem 0.85rem;
   padding: 0.25rem 0 0.35rem;
   margin: 0 0 0.45rem;
@@ -455,14 +455,41 @@ body[data-page="live"] .page-header--product .page-copy {
 
 body[data-page="results"] .page-header--product .page-tools,
 body[data-page="live"] .page-header--product .page-tools {
-  justify-self: end;
-  align-items: flex-end;
+  width: 100%;
+  justify-self: stretch;
+  justify-items: end;
+  align-self: start;
+  align-items: start;
+  gap: 0.35rem;
+}
+
+body[data-page="results"] #readout-actions,
+body[data-page="live"] #readout-actions {
+  align-items: center;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+body[data-page="results"] #readout-actions .action-disabled-hint,
+body[data-page="live"] #readout-actions .action-disabled-hint {
+  display: none;
+}
+
+body[data-page="results"] .page-header--product .status-line,
+body[data-page="live"] .page-header--product .status-line {
+  max-width: min(52rem, 100%);
+  line-height: 1.35;
+  text-align: right;
+}
+
+body[data-page="results"] .page-header--product .status-line:empty,
+body[data-page="live"] .page-header--product .status-line:empty {
+  display: none;
 }
 
 body[data-page="results"] .page-header--product .trust-labels.trust-strip--in-header,
 body[data-page="live"] .page-header--product .trust-labels.trust-strip--in-header {
-  grid-column: 1 / -1;
-  margin-top: 0.05rem;
+  display: none;
 }
 
 /* D.43 — On readout/live the stress chart is the primary evidence,

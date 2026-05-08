@@ -152,7 +152,7 @@ export function buildStressEnvelope(input = {}) {
     bands: { low, mid, high },
     points: mid,
     band: { low, high },
-    note: `Your stress · ${periodDays}d slider envelope · ${Math.round(weeklyDrawdownPct)}% weekly drawdown / ${Math.round(realizedVolPct)}% vol`,
+    note: `Custom stress · ${periodDays}d slider envelope · ${Math.round(weeklyDrawdownPct)}% weekly drawdown / ${Math.round(realizedVolPct)}% vol`,
   };
 }
 
